@@ -1,18 +1,36 @@
 from PyQt6 import QtCore,QtWidgets,QtGui
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 import sys
 import numpy as np
 
 class MplCanvas(FigureCanvasQTAgg):
-
     def __init__(self,parents=None, width=5, height=4,title=None,xlabel=None,ylabel=None):
-        self.fig = Figure(figsize=(width,height))
-        self.axes = self.fig.add_subplot(111)
+        self.fig, self.axes = plt.subplots(1,1,figsize=(width,height))
         self.axes.set_xlabel(xlabel)
         self.axes.set_ylabel(ylabel)
         self.axes.set_title(title)
         super(MplCanvas,self).__init__(self.fig)
+
+class WarningDialog(QtWidgets.QDialog):
+    def __init__(self, parent, message:str):
+        super().__init__(parent)
+
+        self.setWindowTitle("Warning")
+
+        QBtn = (
+            QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+
+        self.buttonBox = QtWidgets.QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        layout = QtWidgets.QVBoxLayout()
+        message = QtWidgets.QLabel(message)
+        layout.addWidget(message)
+        layout.addWidget(self.buttonBox)
+        self.setLayout(layout)
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self,*args,**kwargs):
@@ -22,6 +40,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.list_labels_player_names = []
         self.list_lineedits_said = []
         self.list_lineedits_achieved = []
+        self.list_rounds = [0]
 
         self.wdg_topLevel = QtWidgets.QWidget()
         self.hauptlayout = QtWidgets.QGridLayout()
@@ -62,6 +81,12 @@ class MainWindow(QtWidgets.QMainWindow):
     
 
     def playerNamesChanged(self):
+        if self.list_rounds != [0]:
+            message = "You have unsaved rounds. If you proceed, this data will be lost.\nAre you sure you want to proceed?"
+            proceed = self.showWarningDialog(message)
+            if proceed == False:
+                return
+            
         self.list_player_names = self.lineedit_names_players.text().replace(" ", "").split(",")
         for i in range(0, len(self.list_labels_player_names)):
             self.layout_standings.removeWidget(self.list_labels_player_names[i])
@@ -92,7 +117,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def roundDone(self):
-
         self.list_avgs = []
         self.plot.axes.clear()
         self.list_rounds.append(self.list_rounds[-1] + 1)
@@ -119,6 +143,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plot.fig.tight_layout()
         self.plot.axes.axhline(0,0,1, linestyle="--", color="black")
         self.plot.draw()
+
+
+    def showWarningDialog(self, message):
+        dlg = WarningDialog(self, message)
+        answer = dlg.exec()
+        if answer == 1:
+            proceed = True
+        else:
+            proceed = False
+        return proceed
 
         
 
