@@ -357,7 +357,7 @@ class GameView(QtWidgets.QWidget):
         self.round_submitted.emit(events)
 
     def _on_undo(self) -> None:
-        from .dialogs import WarningDialog
+        from dialogs import WarningDialog
         dlg = WarningDialog(self, "Letzte Runde wirklich rückgängig machen?")
         if dlg.exec():
             self.game.undo_round()
@@ -366,7 +366,7 @@ class GameView(QtWidgets.QWidget):
             self.btn_undo.setEnabled(self.game.round_number > 0)
 
     def _on_new_game(self) -> None:
-        from .dialogs import WarningDialog
+        from dialogs import WarningDialog
         dlg = WarningDialog(
             self,
             "Aktuelles Spiel beenden und ein neues starten?\n\nUngespeicherte Daten gehen verloren."
