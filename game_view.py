@@ -3,7 +3,7 @@ game_view.py – Hauptbildschirm während eines laufenden Spiels
 
 Zeigt:
   • Spieler-Karten mit aktuellem Punktestand und Rundeingabe
-  • Matplotlib-Plot der Punkteverläufe
+  • Matplotlib-Plot der Punkteverläufe mit Hover-Funktion
   • Toolbar-Aktionen (Undo, Speichern, Plot exportieren, Neues Spiel)
 """
 from __future__ import annotations
@@ -14,6 +14,7 @@ import numpy as np
 import matplotlib
 matplotlib.use("QtAgg")
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as _fm
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 
 from PyQt6 import QtCore, QtWidgets, QtGui
@@ -27,6 +28,29 @@ from app_settings import t, get_theme
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Matplotlib font setup for Unicode / Hindi support
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _configure_matplotlib_font() -> None:
+    """Configure matplotlib to support Unicode including Hindi/Devanagari."""
+    _DEVANAGARI_FONTS = [
+        "Noto Sans Devanagari", "Noto Serif Devanagari",
+        "Lohit Devanagari", "Mangal", "Kohinoor Devanagari",
+        "Arial Unicode MS", "FreeSans", "DejaVu Sans",
+    ]
+    available = {f.name for f in _fm.fontManager.ttflist}
+    for font_name in _DEVANAGARI_FONTS:
+        if font_name in available:
+            matplotlib.rcParams["font.family"] = font_name
+            return
+    # Fallback: use DejaVu Sans which ships with matplotlib
+    matplotlib.rcParams["font.family"] = "DejaVu Sans"
+
+
+_configure_matplotlib_font()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Matplotlib Canvas
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -35,6 +59,11 @@ class MplCanvas(FigureCanvasQTAgg):
         self.fig, self.axes = plt.subplots(1, 1, figsize=(width, height))
         self._style_figure()
         super().__init__(self.fig)
+        self._hover_lines: list[tuple] = []
+        self._hover_annot = None
+        self._cid_hover = self.fig.canvas.mpl_connect(
+            "motion_notify_event", self._on_hover
+        )
 
     def _style_figure(self) -> None:
         if get_theme() == "light":
@@ -69,15 +98,17 @@ class MplCanvas(FigureCanvasQTAgg):
     def redraw(self, game: GameControl) -> None:
         self.axes.clear()
         self._style_figure()
+        self._hover_lines = []
 
         rounds = game.round_indices
         for i, player in enumerate(game.players):
             color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
-            self.axes.plot(
+            line, = self.axes.plot(
                 rounds, player.scores,
                 color=color, marker="o", linewidth=2.2, markersize=6,
                 label=player.name, zorder=3,
             )
+            self._hover_lines.append((line, player.name, player.scores, rounds))
             # Highlight maximum
             max_i = int(np.argmax(player.scores))
             self.axes.plot(
@@ -116,8 +147,76 @@ class MplCanvas(FigureCanvasQTAgg):
                 labelcolor=TEXT_MAIN, fontsize=17, loc="upper left",
                 framealpha=0.9,
             )
+
+        # Set up hover annotation on the fresh axes
+        self._setup_hover_annotation()
+
         self.fig.tight_layout(pad=1.5)
         self.draw()
+
+    def _setup_hover_annotation(self) -> None:
+        """Create the hover annotation on the current axes."""
+        if get_theme() == "light":
+            bbox_color = "#e4e4ee"
+            text_color = "#1a1a2e"
+            edge_color = "#9b7a1e"
+        else:
+            bbox_color = "#1a1a3a"
+            text_color = "#e8e8f0"
+            edge_color = ACCENT
+
+        self._hover_annot = self.axes.annotate(
+            "",
+            xy=(0, 0),
+            xytext=(15, 15),
+            textcoords="offset points",
+            fontsize=10,
+            color=text_color,
+            bbox=dict(
+                boxstyle="round,pad=0.5",
+                fc=bbox_color,
+                ec=edge_color,
+                alpha=0.95,
+                linewidth=1.5,
+            ),
+            arrowprops=dict(
+                arrowstyle="->",
+                color=edge_color,
+                lw=1.5,
+            ),
+            zorder=10,
+        )
+        self._hover_annot.set_visible(False)
+
+    def _on_hover(self, event) -> None:
+        """Handle mouse hover over plot lines."""
+        if event.inaxes != self.axes or not self._hover_lines or self._hover_annot is None:
+            if self._hover_annot is not None and self._hover_annot.get_visible():
+                self._hover_annot.set_visible(False)
+                self.draw_idle()
+            return
+
+        changed = False
+        for line, name, scores, rounds in self._hover_lines:
+            cont, ind = line.contains(event)
+            if cont and len(ind["ind"]) > 0:
+                idx = ind["ind"][0]
+                x = rounds[idx]
+                y = scores[idx]
+                self._hover_annot.xy = (x, y)
+                self._hover_annot.set_text(
+                    f"{name}\n{t('round')}: {x}\n{t('points')}: {y}"
+                )
+                self._hover_annot.set_visible(True)
+                changed = True
+                break
+        else:
+            if self._hover_annot.get_visible():
+                self._hover_annot.set_visible(False)
+                changed = True
+
+        if changed:
+            self.draw_idle()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -130,10 +229,10 @@ class PlayerCard(QtWidgets.QFrame):
         self.player_name = player_name
         self.color = color
         self.setObjectName("card")
+        # Only set the dynamic border color; background comes from QSS (#card)
         self.setStyleSheet(
             f"""
             QFrame#card {{
-                background-color: {BG_CARD};
                 border: 1px solid {color};
                 border-left: 4px solid {color};
                 border-radius: 8px;
@@ -153,12 +252,9 @@ class PlayerCard(QtWidgets.QFrame):
         )
         self.lbl_score = QtWidgets.QLabel("0")
         self.lbl_score.setObjectName("score_value")
-        self.lbl_score.setStyleSheet(
-            f"color: {TEXT_MAIN}; font-size: 20px; font-weight: 700; background: transparent; border: none;"
-        )
         self.lbl_delta = QtWidgets.QLabel("")
         self.lbl_delta.setStyleSheet(
-            f"font-size: 11px; font-weight: 600; background: transparent; border: none;"
+            "font-size: 11px; font-weight: 600; background: transparent; border: none;"
         )
         top_row.addWidget(self.lbl_name)
         top_row.addStretch()
@@ -175,12 +271,10 @@ class PlayerCard(QtWidgets.QFrame):
         # Eingabe-Zeile
         input_row = QtWidgets.QHBoxLayout()
 
-        for label, attr in [(t("announced"), "_spin_said"), (t("achieved"), "_spin_achieved")]:
+        for label_key, attr in [(t("announced"), "_spin_said"), (t("achieved"), "_spin_achieved")]:
             col = QtWidgets.QVBoxLayout()
-            lbl = QtWidgets.QLabel(label)
-            lbl.setStyleSheet(
-                f"color: {TEXT_DIM}; font-size: 10px; letter-spacing: 1px; background: transparent; border: none;"
-            )
+            lbl = QtWidgets.QLabel(label_key)
+            lbl.setObjectName("input_label")
             spin = QtWidgets.QSpinBox()
             spin.setRange(0, 20)
             spin.setMinimumWidth(72)
@@ -196,9 +290,6 @@ class PlayerCard(QtWidgets.QFrame):
         # Leader badge
         self.lbl_leader = QtWidgets.QLabel(t("leading"))
         self.lbl_leader.setObjectName("leader_badge")
-        self.lbl_leader.setStyleSheet(
-            f"color: {LEADER}; font-size: 11px; font-weight: 600; background: transparent; border: none;"
-        )
         self.lbl_leader.setVisible(False)
         layout.addWidget(self.lbl_leader, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
 
@@ -227,6 +318,10 @@ class PlayerCard(QtWidgets.QFrame):
             self.lbl_delta.setText("")
         self.lbl_leader.setVisible(is_leader)
 
+    def retranslate_ui(self) -> None:
+        """Update translatable labels on this card."""
+        self.lbl_leader.setText(t("leading"))
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GameView
@@ -239,12 +334,14 @@ class GameView(QtWidgets.QWidget):
     request_new_game()
     request_save()
     request_save_plot()
+    settings_changed()
     """
 
     request_new_game  = QtCore.pyqtSignal()
     request_save      = QtCore.pyqtSignal()
     request_save_plot = QtCore.pyqtSignal()
     round_submitted   = QtCore.pyqtSignal(object)   # RoundEvents
+    settings_changed  = QtCore.pyqtSignal()
 
     def __init__(self, game: GameControl, parent=None):
         super().__init__(parent)
@@ -261,26 +358,27 @@ class GameView(QtWidgets.QWidget):
 
         # ── Linke Sidebar ──────────────────────────────────────────────────
         sidebar = QtWidgets.QWidget()
+        sidebar.setObjectName("sidebar")
         sidebar.setFixedWidth(300)
-        sidebar.setStyleSheet(f"background-color: {BG_PANEL}; border-right: 1px solid #2a2a4a;")
         sidebar_layout = QtWidgets.QVBoxLayout(sidebar)
         sidebar_layout.setContentsMargins(14, 14, 14, 14)
         sidebar_layout.setSpacing(10)
 
         # Header
         header_row = QtWidgets.QHBoxLayout()
+        header_row.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
+
         title = QtWidgets.QLabel(t("app_title"))
         title.setStyleSheet(f"color: {ACCENT}; font-size: 16px; font-weight: 800; letter-spacing: 2px;")
-        rnd_lbl_wrapper = QtWidgets.QWidget()
-        rnd_layout = QtWidgets.QVBoxLayout(rnd_lbl_wrapper)
-        rnd_layout.setContentsMargins(0, 0, 0, 0)
-        rnd_layout.setSpacing(0)
+        title.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
+
         self.lbl_round_header = QtWidgets.QLabel(t("round_header", n=0))
         self.lbl_round_header.setStyleSheet(
-            f"color: {TEXT_DIM}; font-size: 11px; font-weight: 600; text-align: right;"
+            f"color: {TEXT_DIM}; font-size: 11px; font-weight: 600;"
         )
-        self.lbl_round_header.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-        rnd_layout.addWidget(self.lbl_round_header)
+        self.lbl_round_header.setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
 
         # Settings-Button
         self.btn_settings = QtWidgets.QPushButton("⚙")
@@ -292,13 +390,12 @@ class GameView(QtWidgets.QWidget):
         header_row.addWidget(title)
         header_row.addStretch()
         header_row.addWidget(self.btn_settings)
-        header_row.addWidget(rnd_lbl_wrapper)
+        header_row.addWidget(self.lbl_round_header)
         sidebar_layout.addLayout(header_row)
 
         # Separator
         sep = QtWidgets.QFrame()
         sep.setFrameShape(QtWidgets.QFrame.Shape.HLine)
-        sep.setStyleSheet("background: #2a2a4a; border: none; max-height: 1px;")
         sidebar_layout.addWidget(sep)
 
         # Spieler-Karten (scrollbar)
@@ -338,16 +435,16 @@ class GameView(QtWidgets.QWidget):
         self.btn_undo.setEnabled(False)
         self.btn_undo.clicked.connect(self._on_undo)
 
-        btn_save = self._make_action_btn(t("save"), tooltip=t("tooltip_save"))
-        btn_save.clicked.connect(self.request_save)
+        self.btn_save = self._make_action_btn(t("save"), tooltip=t("tooltip_save"))
+        self.btn_save.clicked.connect(self.request_save)
 
-        btn_export = self._make_action_btn(t("plot"), tooltip=t("tooltip_plot"))
-        btn_export.clicked.connect(self.request_save_plot)
+        self.btn_export = self._make_action_btn(t("plot"), tooltip=t("tooltip_plot"))
+        self.btn_export.clicked.connect(self.request_save_plot)
 
-        btn_new = self._make_action_btn(t("new"), tooltip=t("tooltip_new"))
-        btn_new.clicked.connect(self._on_new_game)
+        self.btn_new = self._make_action_btn(t("new"), tooltip=t("tooltip_new"))
+        self.btn_new.clicked.connect(self._on_new_game)
 
-        for btn in [self.btn_undo, btn_save, btn_export, btn_new]:
+        for btn in [self.btn_undo, self.btn_save, self.btn_export, self.btn_new]:
             action_row.addWidget(btn)
         sidebar_layout.addLayout(action_row)
 
@@ -373,6 +470,7 @@ class GameView(QtWidgets.QWidget):
         btn = QtWidgets.QPushButton(text)
         btn.setObjectName("toolbar_btn")
         btn.setMinimumHeight(32)
+        btn.setFlat(True)
         if tooltip:
             btn.setToolTip(tooltip)
         return btn
@@ -415,6 +513,7 @@ class GameView(QtWidgets.QWidget):
         self.retranslate_ui()
         if _get_theme() != old_theme:
             self.canvas.redraw(self.game)
+        self.settings_changed.emit()
 
     def _refresh_scores(self) -> None:
         self.lbl_round_header.setText(t("round_header", n=self.game.round_number))
@@ -432,8 +531,16 @@ class GameView(QtWidgets.QWidget):
         self.btn_round_done.setText(t("complete_round"))
         self.btn_undo.setText(t("undo"))
         self.btn_undo.setToolTip(t("tooltip_undo"))
+        self.btn_save.setText(t("save"))
+        self.btn_save.setToolTip(t("tooltip_save"))
+        self.btn_export.setText(t("plot"))
+        self.btn_export.setToolTip(t("tooltip_plot"))
+        self.btn_new.setText(t("new"))
+        self.btn_new.setToolTip(t("tooltip_new"))
         self.btn_settings.setToolTip(t("tooltip_settings"))
         self.lbl_round_header.setText(t("round_header", n=self.game.round_number))
+        for card in self._player_cards:
+            card.retranslate_ui()
         self.canvas.redraw(self.game)
 
     # ── Zustand neu laden (für Load-Funktion) ─────────────────────────────────
@@ -460,3 +567,4 @@ class GameView(QtWidgets.QWidget):
         self._refresh_scores()
         self.canvas.redraw(self.game)
         self.btn_undo.setEnabled(self.game.round_number > 0)
+

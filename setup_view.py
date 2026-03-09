@@ -2,7 +2,7 @@
 setup_view.py – Spieler-Setup-Bildschirm
 
 Zeigt:
-  • Titelbereich
+  • Titelbereich mit Einstellungs-Button
   • Eingabefeld für Spielernamen
   • Liste gespeicherter Spiele zum Laden
   • „Spiel starten"-Button
@@ -18,6 +18,7 @@ from style import (
     TEXT_MAIN, TEXT_DIM, PLAYER_COLORS,
 )
 from save_manager import SaveManager
+from app_settings import t
 
 
 class PlayerChip(QtWidgets.QFrame):
@@ -31,7 +32,7 @@ class PlayerChip(QtWidgets.QFrame):
         self.setStyleSheet(
             f"""
             QFrame {{
-                background-color: {color}22;
+                background-color: transparent;
                 border: 1px solid {color};
                 border-radius: 14px;
                 padding: 2px 10px;
@@ -75,10 +76,12 @@ class SetupView(QtWidgets.QWidget):
     -------
     start_game(player_names: list[str])
     load_game(filepath: Path)
+    settings_changed()
     """
 
     start_game = QtCore.pyqtSignal(list)
     load_game = QtCore.pyqtSignal(object)   # Path
+    settings_changed = QtCore.pyqtSignal()
 
     def __init__(self, save_manager: SaveManager, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
@@ -108,16 +111,29 @@ class SetupView(QtWidgets.QWidget):
         main.setSpacing(32)
 
         # ── Titel ──────────────────────────────────────────────────────────
+        # Header row with title and settings button
+        title_row = QtWidgets.QHBoxLayout()
+        title_row.addStretch()
+
         title_lbl = QtWidgets.QLabel("🃏  WIZARD")
         title_lbl.setObjectName("title")
         title_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        title_row.addWidget(title_lbl)
+        title_row.addStretch()
 
-        sub_lbl = QtWidgets.QLabel("Punkte-Tracker")
-        sub_lbl.setObjectName("subtitle")
-        sub_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self._btn_settings = QtWidgets.QPushButton("⚙")
+        self._btn_settings.setObjectName("toolbar_btn")
+        self._btn_settings.setToolTip(t("tooltip_settings"))
+        self._btn_settings.setFixedSize(32, 32)
+        self._btn_settings.clicked.connect(self._on_settings)
+        title_row.addWidget(self._btn_settings)
 
-        main.addWidget(title_lbl)
-        main.addWidget(sub_lbl)
+        main.addLayout(title_row)
+
+        self._sub_lbl = QtWidgets.QLabel(t("subtitle"))
+        self._sub_lbl.setObjectName("subtitle")
+        self._sub_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        main.addWidget(self._sub_lbl)
 
         # ── Spieler-Eingabe ────────────────────────────────────────────────
         setup_panel = self._make_panel()
@@ -127,26 +143,27 @@ class SetupView(QtWidgets.QWidget):
         sp_layout.setContentsMargins(24, 20, 24, 20)
         sp_layout.setSpacing(14)
 
-        hdr1 = QtWidgets.QLabel("SPIELER HINZUFÜGEN")
-        hdr1.setObjectName("section_header")
-        sp_layout.addWidget(hdr1)
+        self._hdr1 = QtWidgets.QLabel(t("add_players_header"))
+        self._hdr1.setObjectName("section_header")
+        sp_layout.addWidget(self._hdr1)
 
         input_row = QtWidgets.QHBoxLayout()
         self._name_edit = QtWidgets.QLineEdit()
-        self._name_edit.setPlaceholderText("Name eingeben und Enter drücken …")
+        self._name_edit.setPlaceholderText(t("player_name_placeholder"))
         self._name_edit.setMinimumHeight(38)
         self._name_edit.returnPressed.connect(self._add_player)
 
-        btn_add = QtWidgets.QPushButton("＋ Hinzufügen")
-        btn_add.clicked.connect(self._add_player)
-        btn_add.setMinimumHeight(38)
+        self._btn_add = QtWidgets.QPushButton(t("btn_add"))
+        self._btn_add.clicked.connect(self._add_player)
+        self._btn_add.setMinimumHeight(38)
 
         input_row.addWidget(self._name_edit, 1)
-        input_row.addWidget(btn_add)
+        input_row.addWidget(self._btn_add)
         sp_layout.addLayout(input_row)
 
         # Chip-Container
         self._chips_container = QtWidgets.QWidget()
+        self._chips_container.setStyleSheet("background: transparent;")
         self._chips_layout = QtWidgets.QHBoxLayout(self._chips_container)
         self._chips_layout.setContentsMargins(0, 0, 0, 0)
         self._chips_layout.setSpacing(8)
@@ -154,12 +171,13 @@ class SetupView(QtWidgets.QWidget):
         sp_layout.addWidget(self._chips_container)
 
         # Hinweis
-        self._hint_lbl = QtWidgets.QLabel("Mindestens 2 Spieler erforderlich.")
-        self._hint_lbl.setStyleSheet(f"color: {TEXT_DIM}; font-size: 11px; font-style: italic;")
+        self._hint_lbl = QtWidgets.QLabel(t("hint_min_players"))
+        self._hint_lbl.setObjectName("input_label")
+        self._hint_lbl.setStyleSheet(f"font-style: italic;")
         sp_layout.addWidget(self._hint_lbl)
 
         # Start-Button
-        self._btn_start = QtWidgets.QPushButton("🎮  Spiel starten")
+        self._btn_start = QtWidgets.QPushButton(t("start_game"))
         self._btn_start.setObjectName("primary")
         self._btn_start.setMinimumHeight(44)
         self._btn_start.setEnabled(False)
@@ -174,9 +192,9 @@ class SetupView(QtWidgets.QWidget):
         sv_layout.setContentsMargins(24, 20, 24, 20)
         sv_layout.setSpacing(12)
 
-        hdr2 = QtWidgets.QLabel("GESPEICHERTE SPIELE")
-        hdr2.setObjectName("section_header")
-        sv_layout.addWidget(hdr2)
+        self._hdr2 = QtWidgets.QLabel(t("saved_games_header"))
+        self._hdr2.setObjectName("section_header")
+        sv_layout.addWidget(self._hdr2)
 
         self._saved_list = QtWidgets.QListWidget()
         self._saved_list.setMaximumHeight(200)
@@ -185,12 +203,12 @@ class SetupView(QtWidgets.QWidget):
 
         btn_row2 = QtWidgets.QHBoxLayout()
         btn_row2.addStretch()
-        btn_refresh = QtWidgets.QPushButton("↻  Aktualisieren")
-        btn_refresh.clicked.connect(self._refresh_saved)
-        self._btn_load = QtWidgets.QPushButton("📂  Laden")
+        self._btn_refresh = QtWidgets.QPushButton(t("btn_refresh"))
+        self._btn_refresh.clicked.connect(self._refresh_saved)
+        self._btn_load = QtWidgets.QPushButton(t("btn_load_game"))
         self._btn_load.setEnabled(False)
         self._btn_load.clicked.connect(self._on_load)
-        btn_row2.addWidget(btn_refresh)
+        btn_row2.addWidget(self._btn_refresh)
         btn_row2.addWidget(self._btn_load)
         sv_layout.addLayout(btn_row2)
 
@@ -247,7 +265,7 @@ class SetupView(QtWidgets.QWidget):
             item_i.setStyleSheet(
                 f"""
                 QFrame {{
-                    background-color: {color}22;
+                    background-color: transparent;
                     border: 1px solid {color};
                     border-radius: 14px;
                     padding: 2px 10px;
@@ -260,15 +278,15 @@ class SetupView(QtWidgets.QWidget):
         n = len(self._player_names)
         self._btn_start.setEnabled(n >= 2)
         if n == 0:
-            self._hint_lbl.setText("Mindestens 2 Spieler erforderlich.")
+            self._hint_lbl.setText(t("hint_min_players"))
         else:
-            self._hint_lbl.setText(f"{n} Spieler ausgewählt.")
+            self._hint_lbl.setText(t("hint_players_selected", n=n))
 
     def _refresh_saved(self) -> None:
         self._saved_list.clear()
         self._saved_games = self._save_manager.list_saved_games()
         if not self._saved_games:
-            placeholder = QtWidgets.QListWidgetItem("– Keine gespeicherten Spiele –")
+            placeholder = QtWidgets.QListWidgetItem(t("no_saved_games"))
             placeholder.setForeground(QtGui.QColor(TEXT_DIM))
             placeholder.setFlags(QtCore.Qt.ItemFlag.NoItemFlags)
             self._saved_list.addItem(placeholder)
@@ -283,10 +301,42 @@ class SetupView(QtWidgets.QWidget):
                 players = ", ".join(game.get("players", []))
                 rounds = game.get("rounds", 0)
                 item = QtWidgets.QListWidgetItem(
-                    f"  {game['name']}   ·   {date_str}   ·   {players}   ·   Runde {rounds}"
+                    f"  {game['name']}   ·   {date_str}   ·   {players}   ·   {t('saved_round')} {rounds}"
                 )
                 item.setData(QtCore.Qt.ItemDataRole.UserRole, game)
                 self._saved_list.addItem(item)
+
+    # ── Settings ──────────────────────────────────────────────────────────────
+
+    def _on_settings(self) -> None:
+        """Öffnet den Einstellungen-Dialog."""
+        from dialogs import SettingsDialog
+        dlg = SettingsDialog(self)
+        dlg.exec()
+        self.retranslate_ui()
+        self.settings_changed.emit()
+
+    # ── Übersetzung aktualisieren ──────────────────────────────────────────────
+
+    def retranslate_ui(self) -> None:
+        """Aktualisiert alle übersetzbaren UI-Texte nach Sprach-/Themenwechsel."""
+        self._sub_lbl.setText(t("subtitle"))
+        self._hdr1.setText(t("add_players_header"))
+        self._hdr2.setText(t("saved_games_header"))
+        self._name_edit.setPlaceholderText(t("player_name_placeholder"))
+        self._btn_add.setText(t("btn_add"))
+        self._btn_refresh.setText(t("btn_refresh"))
+        self._btn_load.setText(t("btn_load_game"))
+        self._btn_start.setText(t("start_game"))
+        self._btn_settings.setToolTip(t("tooltip_settings"))
+        # Update hint based on current player count
+        n = len(self._player_names)
+        if n == 0:
+            self._hint_lbl.setText(t("hint_min_players"))
+        else:
+            self._hint_lbl.setText(t("hint_players_selected", n=n))
+        # Refresh saved games list to update "Round" label
+        self._refresh_saved()
 
     # ── Slots ─────────────────────────────────────────────────────────────────
 
@@ -305,3 +355,4 @@ class SetupView(QtWidgets.QWidget):
         game_meta = item.data(QtCore.Qt.ItemDataRole.UserRole)
         if game_meta:
             self.load_game.emit(game_meta["filepath"])
+

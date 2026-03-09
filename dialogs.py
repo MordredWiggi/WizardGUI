@@ -30,7 +30,7 @@ from app_settings import t
 def _sep() -> QtWidgets.QFrame:
     line = QtWidgets.QFrame()
     line.setFrameShape(QtWidgets.QFrame.Shape.HLine)
-    line.setStyleSheet(f"background-color: #2a2a4a; border: none; max-height: 1px;")
+    # Styling is handled by QSS (QFrame[frameShape="4"]) for theme support
     return line
 
 
