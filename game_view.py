@@ -21,7 +21,7 @@ from PyQt6 import QtCore, QtWidgets, QtGui
 from game_control import GameControl, RoundResult, RoundEvents
 from style import (
     ACCENT, ACCENT_DIM, BG_BASE, BG_PANEL, BG_CARD, BG_DEEP,
-    TEXT_MAIN, TEXT_DIM, SUCCESS, DANGER, LEADER, PLAYER_COLORS,
+    TEXT_MAIN, TEXT_DIM, TEXT_MAIN_L, SUCCESS, DANGER, LEADER, PLAYER_COLORS,
 )
 from app_settings import t, get_theme
 
@@ -101,7 +101,7 @@ class MplCanvas(FigureCanvasQTAgg):
         for tick, r in zip(self.axes.xaxis.get_major_ticks(), rounds):
             tick.label1.set_fontweight("bold" if r == game.round_number else "normal")
             if r == game.round_number:
-                tick.label1.set_color(TEXT_MAIN if get_theme() == "dark" else "#1a1a2e")
+                tick.label1.set_color(TEXT_MAIN if get_theme() == "dark" else TEXT_MAIN_L)
 
         # Legend – 1.67× larger than original size of 10
         if get_theme() == "light":

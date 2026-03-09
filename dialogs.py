@@ -285,7 +285,14 @@ class SettingsDialog(QtWidgets.QDialog):
 
     def _open_rules(self) -> None:
         """Öffnet die Regelseite im Standard-Browser."""
-        webbrowser.open(_RULES_URL)
+        try:
+            webbrowser.open(_RULES_URL)
+        except Exception:
+            QtWidgets.QMessageBox.warning(
+                self,
+                t("warning_title"),
+                "Der Browser konnte nicht geöffnet werden.\n\n" + _RULES_URL,
+            )
 
     def _apply_and_close(self) -> None:
         """Speichert Einstellungen, wendet Theme an und schließt den Dialog."""
