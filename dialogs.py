@@ -6,9 +6,11 @@ dialogs.py – Alle Dialog-Klassen des Wizard-GUI
 • LoadGameDialog       – gespeicherte Spiele laden
 • SavePlotDialog       – Plot als Bild speichern
 • CelebrationOverlay   – animiertes Overlay für besondere Spielmomente
+• SettingsDialog       – Einstellungen (Theme, Sprache, Regeln)
 """
 from __future__ import annotations
 
+import webbrowser
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional
@@ -20,6 +22,7 @@ from style import (
     ACCENT, ACCENT_DIM, TEXT_MAIN, TEXT_DIM,
     SUCCESS, DANGER, LEADER,
 )
+from app_settings import t
 
 
 # ── Hilfsfunktion ─────────────────────────────────────────────────────────────
@@ -38,7 +41,7 @@ def _sep() -> QtWidgets.QFrame:
 class WarningDialog(QtWidgets.QDialog):
     def __init__(self, parent: QtWidgets.QWidget, message: str) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Achtung")
+        self.setWindowTitle(t("warning_title"))
         self.setMinimumWidth(360)
 
         layout = QtWidgets.QVBoxLayout(self)
@@ -59,8 +62,8 @@ class WarningDialog(QtWidgets.QDialog):
 
         btn_box = QtWidgets.QHBoxLayout()
         btn_box.addStretch()
-        self.btn_cancel = QtWidgets.QPushButton("Abbrechen")
-        self.btn_ok = QtWidgets.QPushButton("Fortfahren")
+        self.btn_cancel = QtWidgets.QPushButton(t("cancel"))
+        self.btn_ok = QtWidgets.QPushButton(t("proceed"))
         self.btn_ok.setObjectName("danger")
         self.btn_cancel.clicked.connect(self.reject)
         self.btn_ok.clicked.connect(self.accept)
@@ -76,28 +79,28 @@ class WarningDialog(QtWidgets.QDialog):
 class SaveGameDialog(QtWidgets.QDialog):
     def __init__(self, parent: QtWidgets.QWidget, default_name: str = "") -> None:
         super().__init__(parent)
-        self.setWindowTitle("Spiel speichern")
+        self.setWindowTitle(t("save_game_title"))
         self.setMinimumWidth(380)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setSpacing(14)
         layout.setContentsMargins(24, 24, 24, 20)
 
-        title = QtWidgets.QLabel("💾  Spiel speichern")
+        title = QtWidgets.QLabel(f"💾  {t('save_game_title')}")
         title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {ACCENT};")
         layout.addWidget(title)
         layout.addWidget(_sep())
 
-        layout.addWidget(QtWidgets.QLabel("Spielname:"))
+        layout.addWidget(QtWidgets.QLabel(t("save_game_label")))
         self.name_edit = QtWidgets.QLineEdit(default_name)
-        self.name_edit.setPlaceholderText("z.B. Spieleabend_Freitag")
+        self.name_edit.setPlaceholderText(t("save_game_placeholder"))
         layout.addWidget(self.name_edit)
 
         layout.addWidget(_sep())
         btn_row = QtWidgets.QHBoxLayout()
         btn_row.addStretch()
-        btn_cancel = QtWidgets.QPushButton("Abbrechen")
-        btn_save = QtWidgets.QPushButton("Speichern")
+        btn_cancel = QtWidgets.QPushButton(t("cancel"))
+        btn_save = QtWidgets.QPushButton(t("save"))
         btn_save.setObjectName("primary")
         btn_cancel.clicked.connect(self.reject)
         btn_save.clicked.connect(self.accept)
@@ -117,7 +120,7 @@ class SaveGameDialog(QtWidgets.QDialog):
 class LoadGameDialog(QtWidgets.QDialog):
     def __init__(self, parent: QtWidgets.QWidget, saved_games: List[Dict]) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Gespeicherte Spiele")
+        self.setWindowTitle(t("load_game_title"))
         self.setMinimumSize(480, 400)
         self._saved_games = saved_games
         self._selected: Optional[Dict] = None
@@ -126,13 +129,13 @@ class LoadGameDialog(QtWidgets.QDialog):
         layout.setSpacing(12)
         layout.setContentsMargins(24, 24, 24, 20)
 
-        title = QtWidgets.QLabel("📂  Gespeicherte Spiele laden")
+        title = QtWidgets.QLabel(f"📂  {t('load_game_title')}")
         title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {ACCENT};")
         layout.addWidget(title)
         layout.addWidget(_sep())
 
         if not saved_games:
-            empty = QtWidgets.QLabel("Keine gespeicherten Spiele gefunden.")
+            empty = QtWidgets.QLabel(t("load_game_empty"))
             empty.setStyleSheet(f"color: {TEXT_DIM}; font-style: italic; padding: 20px;")
             empty.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(empty)
@@ -153,7 +156,7 @@ class LoadGameDialog(QtWidgets.QDialog):
                 item.setData(QtCore.Qt.ItemDataRole.UserRole, game)
                 item.setText(
                     f"{game['name']}\n"
-                    f"{date_str}  ·  {players_str}  ·  Runde {rounds}"
+                    f"{date_str}  ·  {players_str}  ·  {t('round')} {rounds}"
                 )
                 self.list_widget.addItem(item)
 
@@ -163,8 +166,8 @@ class LoadGameDialog(QtWidgets.QDialog):
         layout.addWidget(_sep())
         btn_row = QtWidgets.QHBoxLayout()
         btn_row.addStretch()
-        btn_cancel = QtWidgets.QPushButton("Abbrechen")
-        self.btn_load = QtWidgets.QPushButton("Laden")
+        btn_cancel = QtWidgets.QPushButton(t("cancel"))
+        self.btn_load = QtWidgets.QPushButton(t("load"))
         self.btn_load.setObjectName("primary")
         self.btn_load.setEnabled(bool(saved_games))
         btn_cancel.clicked.connect(self.reject)
@@ -186,6 +189,127 @@ class LoadGameDialog(QtWidgets.QDialog):
     @property
     def selected_game(self) -> Optional[Dict]:
         return self._selected
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SettingsDialog
+# ─────────────────────────────────────────────────────────────────────────────
+
+_RULES_URL = "https://www.brettspiele-report.de/images/wizard/Spielanleitung_Wizard.pdf"
+
+
+class SettingsDialog(QtWidgets.QDialog):
+    """
+    Einstellungen-Popup mit:
+      • Dark-/Light-Mode Umschalter
+      • Sprach-Auswahl (DE/EN/FR/HI)
+      • Regeln-Button (öffnet URL im Browser)
+    """
+
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
+        super().__init__(parent)
+        import app_settings as _as
+        self._as = _as
+        self.setWindowTitle(t("settings_title"))
+        self.setMinimumWidth(400)
+        self.setModal(True)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setSpacing(16)
+        layout.setContentsMargins(28, 24, 28, 20)
+
+        # ── Titel ──────────────────────────────────────────────────────────
+        title_lbl = QtWidgets.QLabel(f"⚙  {t('settings_title')}")
+        title_lbl.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {ACCENT};")
+        layout.addWidget(title_lbl)
+        layout.addWidget(_sep())
+
+        # ── Theme ──────────────────────────────────────────────────────────
+        theme_lbl = QtWidgets.QLabel(t("settings_theme"))
+        theme_lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {TEXT_DIM};")
+        layout.addWidget(theme_lbl)
+
+        theme_row = QtWidgets.QHBoxLayout()
+        self._radio_dark = QtWidgets.QRadioButton(t("settings_theme_dark"))
+        self._radio_light = QtWidgets.QRadioButton(t("settings_theme_light"))
+        if _as.get_theme() == "light":
+            self._radio_light.setChecked(True)
+        else:
+            self._radio_dark.setChecked(True)
+        theme_row.addWidget(self._radio_dark)
+        theme_row.addWidget(self._radio_light)
+        theme_row.addStretch()
+        layout.addLayout(theme_row)
+
+        layout.addWidget(_sep())
+
+        # ── Sprache ────────────────────────────────────────────────────────
+        lang_lbl = QtWidgets.QLabel(t("settings_language"))
+        lang_lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {TEXT_DIM};")
+        layout.addWidget(lang_lbl)
+
+        from translations import LANGUAGE_NAMES
+        self._lang_combo = QtWidgets.QComboBox()
+        self._lang_code_map: list[str] = []
+        current_lang = _as.get_language()
+        current_idx = 0
+        for idx, (code, name) in enumerate(LANGUAGE_NAMES.items()):
+            self._lang_combo.addItem(name)
+            self._lang_code_map.append(code)
+            if code == current_lang:
+                current_idx = idx
+        self._lang_combo.setCurrentIndex(current_idx)
+        layout.addWidget(self._lang_combo)
+
+        layout.addWidget(_sep())
+
+        # ── Regeln ─────────────────────────────────────────────────────────
+        btn_rules = QtWidgets.QPushButton(t("settings_rules_btn"))
+        btn_rules.setMinimumHeight(38)
+        btn_rules.clicked.connect(self._open_rules)
+        layout.addWidget(btn_rules)
+
+        layout.addWidget(_sep())
+
+        # ── Buttons ────────────────────────────────────────────────────────
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_row.addStretch()
+        btn_apply = QtWidgets.QPushButton(t("apply"))
+        btn_apply.setObjectName("primary")
+        btn_apply.setMinimumHeight(38)
+        btn_apply.clicked.connect(self._apply_and_close)
+        btn_row.addWidget(btn_apply)
+        layout.addLayout(btn_row)
+
+    # ── private ───────────────────────────────────────────────────────────────
+
+    def _open_rules(self) -> None:
+        """Öffnet die Regelseite im Standard-Browser."""
+        webbrowser.open(_RULES_URL)
+
+    def _apply_and_close(self) -> None:
+        """Speichert Einstellungen, wendet Theme an und schließt den Dialog."""
+        from PyQt6.QtWidgets import QApplication
+        from style import STYLESHEET, STYLESHEET_LIGHT
+
+        # Sprache setzen
+        lang_idx = self._lang_combo.currentIndex()
+        if 0 <= lang_idx < len(self._lang_code_map):
+            self._as.set_language(self._lang_code_map[lang_idx])
+
+        # Theme setzen und sofort anwenden
+        if self._radio_light.isChecked():
+            self._as.set_theme("light")
+            app = QApplication.instance()
+            if app:
+                app.setStyleSheet(STYLESHEET_LIGHT)
+        else:
+            self._as.set_theme("dark")
+            app = QApplication.instance()
+            if app:
+                app.setStyleSheet(STYLESHEET)
+
+        self.accept()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
