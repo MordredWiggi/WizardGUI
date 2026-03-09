@@ -3,6 +3,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 import matplotlib.pyplot as plt
 import sys
 import numpy as np
+from .GameControl import GameControl
 
 class MplCanvas(FigureCanvasQTAgg):
     def __init__(self,parents=None, width=5, height=4,title=None,xlabel=None,ylabel=None):
