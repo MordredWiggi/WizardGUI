@@ -31,8 +31,9 @@ pyinstaller \
     --windowed \
     --name WizardGUI \
     $ICON_FLAG \
-    --add-data "translations.py:." \
-    --add-data "app_settings.py:." \
+    --add-data "translations.py;." \
+    --add-data "app_settings.py;." \
+    --hidden-import matplotlib.backends.backend_qtagg \
     main.py
 
 echo ""
