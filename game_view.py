@@ -21,8 +21,9 @@ from PyQt6 import QtCore, QtWidgets, QtGui
 from game_control import GameControl, RoundResult, RoundEvents
 from style import (
     ACCENT, ACCENT_DIM, BG_BASE, BG_PANEL, BG_CARD, BG_DEEP,
-    TEXT_MAIN, TEXT_DIM, SUCCESS, DANGER, LEADER, PLAYER_COLORS,
+    TEXT_MAIN, TEXT_DIM, TEXT_MAIN_L, SUCCESS, DANGER, LEADER, PLAYER_COLORS,
 )
+from app_settings import t, get_theme
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -36,6 +37,12 @@ class MplCanvas(FigureCanvasQTAgg):
         super().__init__(self.fig)
 
     def _style_figure(self) -> None:
+        if get_theme() == "light":
+            self._style_figure_light()
+        else:
+            self._style_figure_dark()
+
+    def _style_figure_dark(self) -> None:
         self.fig.patch.set_facecolor("#0d0d1a")
         ax = self.axes
         ax.set_facecolor("#12122b")
@@ -43,9 +50,21 @@ class MplCanvas(FigureCanvasQTAgg):
         ax.spines[:].set_color("#2a2a4a")
         ax.xaxis.label.set_color(TEXT_DIM)
         ax.yaxis.label.set_color(TEXT_DIM)
-        ax.set_xlabel("Runde", color=TEXT_DIM, fontsize=11)
-        ax.set_ylabel("Punkte", color=TEXT_DIM, fontsize=11)
+        ax.set_xlabel(t("round"), color=TEXT_DIM, fontsize=11)
+        ax.set_ylabel(t("points"), color=TEXT_DIM, fontsize=11)
         ax.grid(True, color="#1e1e3a", linewidth=0.8, linestyle="--", alpha=0.6)
+
+    def _style_figure_light(self) -> None:
+        self.fig.patch.set_facecolor("#f0f0f5")
+        ax = self.axes
+        ax.set_facecolor("#f8f8ff")
+        ax.tick_params(colors="#555577", labelsize=10)
+        ax.spines[:].set_color("#ccccdd")
+        ax.xaxis.label.set_color("#555577")
+        ax.yaxis.label.set_color("#555577")
+        ax.set_xlabel(t("round"), color="#555577", fontsize=11)
+        ax.set_ylabel(t("points"), color="#555577", fontsize=11)
+        ax.grid(True, color="#dcdcec", linewidth=0.8, linestyle="--", alpha=0.8)
 
     def redraw(self, game: GameControl) -> None:
         self.axes.clear()
@@ -71,28 +90,32 @@ class MplCanvas(FigureCanvasQTAgg):
         self.axes.plot(
             rounds, game.averages,
             color="#555577", linewidth=1.5, linestyle="--",
-            label="Ø Durchschnitt", zorder=2,
+            label=t("average"), zorder=2,
         )
 
         # Zero line
         self.axes.axhline(0, color="#3a3a5a", linewidth=1.0, linestyle=":", zorder=1)
 
-        # Leader annotation
-        leader = game.leader
-        if leader and game.round_number > 0:
-            self.axes.annotate(
-                f"👑 {leader.name}",
-                xy=(game.round_number, leader.current_score),
-                xytext=(10, 10), textcoords="offset points",
-                color=LEADER, fontsize=9, fontweight="bold",
-                arrowprops=dict(arrowstyle="->", color=LEADER, lw=1.2),
-            )
+        # Integer-only x-axis ticks; bold label for the current round
+        self.axes.set_xticks(rounds)
+        for tick, r in zip(self.axes.xaxis.get_major_ticks(), rounds):
+            tick.label1.set_fontweight("bold" if r == game.round_number else "normal")
+            if r == game.round_number:
+                tick.label1.set_color(TEXT_MAIN if get_theme() == "dark" else TEXT_MAIN_L)
 
-        legend = self.axes.legend(
-            facecolor="#1a1a3a", edgecolor="#2a2a4a",
-            labelcolor=TEXT_MAIN, fontsize=10, loc="upper left",
-            framealpha=0.9,
-        )
+        # Legend – 1.67× larger than original size of 10
+        if get_theme() == "light":
+            legend = self.axes.legend(
+                facecolor="#e4e4ee", edgecolor="#ccccdd",
+                labelcolor="#1a1a2e", fontsize=17, loc="upper left",
+                framealpha=0.9,
+            )
+        else:
+            legend = self.axes.legend(
+                facecolor="#1a1a3a", edgecolor="#2a2a4a",
+                labelcolor=TEXT_MAIN, fontsize=17, loc="upper left",
+                framealpha=0.9,
+            )
         self.fig.tight_layout(pad=1.5)
         self.draw()
 
@@ -111,7 +134,7 @@ class PlayerCard(QtWidgets.QFrame):
             f"""
             QFrame#card {{
                 background-color: {BG_CARD};
-                border: 1px solid {color}55;
+                border: 1px solid {color};
                 border-left: 4px solid {color};
                 border-radius: 8px;
             }}
@@ -152,7 +175,7 @@ class PlayerCard(QtWidgets.QFrame):
         # Eingabe-Zeile
         input_row = QtWidgets.QHBoxLayout()
 
-        for label, attr in [("Angesagt", "_spin_said"), ("Gemacht", "_spin_achieved")]:
+        for label, attr in [(t("announced"), "_spin_said"), (t("achieved"), "_spin_achieved")]:
             col = QtWidgets.QVBoxLayout()
             lbl = QtWidgets.QLabel(label)
             lbl.setStyleSheet(
@@ -171,7 +194,7 @@ class PlayerCard(QtWidgets.QFrame):
         layout.addLayout(input_row)
 
         # Leader badge
-        self.lbl_leader = QtWidgets.QLabel("👑 Führend")
+        self.lbl_leader = QtWidgets.QLabel(t("leading"))
         self.lbl_leader.setObjectName("leader_badge")
         self.lbl_leader.setStyleSheet(
             f"color: {LEADER}; font-size: 11px; font-weight: 600; background: transparent; border: none;"
@@ -246,20 +269,29 @@ class GameView(QtWidgets.QWidget):
 
         # Header
         header_row = QtWidgets.QHBoxLayout()
-        title = QtWidgets.QLabel("🃏 WIZARD")
+        title = QtWidgets.QLabel(t("app_title"))
         title.setStyleSheet(f"color: {ACCENT}; font-size: 16px; font-weight: 800; letter-spacing: 2px;")
         rnd_lbl_wrapper = QtWidgets.QWidget()
         rnd_layout = QtWidgets.QVBoxLayout(rnd_lbl_wrapper)
         rnd_layout.setContentsMargins(0, 0, 0, 0)
         rnd_layout.setSpacing(0)
-        self.lbl_round_header = QtWidgets.QLabel("Runde 0")
+        self.lbl_round_header = QtWidgets.QLabel(t("round_header", n=0))
         self.lbl_round_header.setStyleSheet(
             f"color: {TEXT_DIM}; font-size: 11px; font-weight: 600; text-align: right;"
         )
         self.lbl_round_header.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         rnd_layout.addWidget(self.lbl_round_header)
+
+        # Settings-Button
+        self.btn_settings = QtWidgets.QPushButton("⚙")
+        self.btn_settings.setObjectName("toolbar_btn")
+        self.btn_settings.setToolTip(t("tooltip_settings"))
+        self.btn_settings.setFixedSize(28, 28)
+        self.btn_settings.clicked.connect(self._on_settings)
+
         header_row.addWidget(title)
         header_row.addStretch()
+        header_row.addWidget(self.btn_settings)
         header_row.addWidget(rnd_lbl_wrapper)
         sidebar_layout.addLayout(header_row)
 
@@ -290,8 +322,9 @@ class GameView(QtWidgets.QWidget):
         scroll.setWidget(cards_widget)
         sidebar_layout.addWidget(scroll, 1)
 
-        # Runde-beendet-Button
-        self.btn_round_done = QtWidgets.QPushButton("✓  Runde abschließen")
+        # Runde-beendet-Button (mit etwas Abstand nach oben)
+        sidebar_layout.addSpacing(8)
+        self.btn_round_done = QtWidgets.QPushButton(t("complete_round"))
         self.btn_round_done.setObjectName("primary")
         self.btn_round_done.setMinimumHeight(44)
         self.btn_round_done.clicked.connect(self._on_round_done)
@@ -301,17 +334,17 @@ class GameView(QtWidgets.QWidget):
         action_row = QtWidgets.QHBoxLayout()
         action_row.setSpacing(6)
 
-        self.btn_undo = self._make_action_btn("↩  Undo", tooltip="Letzte Runde rückgängig")
+        self.btn_undo = self._make_action_btn(t("undo"), tooltip=t("tooltip_undo"))
         self.btn_undo.setEnabled(False)
         self.btn_undo.clicked.connect(self._on_undo)
 
-        btn_save = self._make_action_btn("💾  Speichern", tooltip="Spielstand speichern")
+        btn_save = self._make_action_btn(t("save"), tooltip=t("tooltip_save"))
         btn_save.clicked.connect(self.request_save)
 
-        btn_export = self._make_action_btn("🖼  Plot", tooltip="Plot als Bild exportieren")
+        btn_export = self._make_action_btn(t("plot"), tooltip=t("tooltip_plot"))
         btn_export.clicked.connect(self.request_save_plot)
 
-        btn_new = self._make_action_btn("⟳  Neu", tooltip="Neues Spiel starten")
+        btn_new = self._make_action_btn(t("new"), tooltip=t("tooltip_new"))
         btn_new.clicked.connect(self._on_new_game)
 
         for btn in [self.btn_undo, btn_save, btn_export, btn_new]:
@@ -358,7 +391,7 @@ class GameView(QtWidgets.QWidget):
 
     def _on_undo(self) -> None:
         from dialogs import WarningDialog
-        dlg = WarningDialog(self, "Letzte Runde wirklich rückgängig machen?")
+        dlg = WarningDialog(self, t("undo_confirm"))
         if dlg.exec():
             self.game.undo_round()
             self._refresh_scores()
@@ -367,15 +400,24 @@ class GameView(QtWidgets.QWidget):
 
     def _on_new_game(self) -> None:
         from dialogs import WarningDialog
-        dlg = WarningDialog(
-            self,
-            "Aktuelles Spiel beenden und ein neues starten?\n\nUngespeicherte Daten gehen verloren."
-        )
+        dlg = WarningDialog(self, t("new_game_confirm"))
         if dlg.exec():
             self.request_new_game.emit()
 
+    def _on_settings(self) -> None:
+        """Öffnet den Einstellungen-Dialog."""
+        from dialogs import SettingsDialog
+        from app_settings import get_theme as _get_theme
+        old_theme = _get_theme()
+        dlg = SettingsDialog(self)
+        dlg.exec()
+        # Nach dem Schließen: UI aktualisieren
+        self.retranslate_ui()
+        if _get_theme() != old_theme:
+            self.canvas.redraw(self.game)
+
     def _refresh_scores(self) -> None:
-        self.lbl_round_header.setText(f"Runde {self.game.round_number}")
+        self.lbl_round_header.setText(t("round_header", n=self.game.round_number))
         leader = self.game.leader
         deltas = self.game.last_deltas()
         for i, (card, player) in enumerate(zip(self._player_cards, self.game.players)):
@@ -384,6 +426,15 @@ class GameView(QtWidgets.QWidget):
                 delta=deltas[i],
                 is_leader=(player is leader),
             )
+
+    def retranslate_ui(self) -> None:
+        """Aktualisiert alle übersetzbaren UI-Texte (nach Sprach-/Themenwechsel)."""
+        self.btn_round_done.setText(t("complete_round"))
+        self.btn_undo.setText(t("undo"))
+        self.btn_undo.setToolTip(t("tooltip_undo"))
+        self.btn_settings.setToolTip(t("tooltip_settings"))
+        self.lbl_round_header.setText(t("round_header", n=self.game.round_number))
+        self.canvas.redraw(self.game)
 
     # ── Zustand neu laden (für Load-Funktion) ─────────────────────────────────
 

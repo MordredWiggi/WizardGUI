@@ -1,0 +1,198 @@
+"""
+translations.py – Internationalisierung für Wizard GUI.
+
+Enthält Übersetzungswörterbücher für alle unterstützten Sprachen.
+"""
+from __future__ import annotations
+
+# ── Sprachkürzel → Anzeigename ────────────────────────────────────────────────
+LANGUAGE_NAMES: dict[str, str] = {
+    "de": "Deutsch",
+    "en": "English",
+    "fr": "Français",
+    "hi": "हिंदी",
+}
+
+# ── Übersetzungswörterbücher ──────────────────────────────────────────────────
+TRANSLATIONS: dict[str, dict[str, str]] = {
+    "de": {
+        # App
+        "app_title": "🃏 WIZARD",
+        "window_title": "Wizard – Punkte-Tracker",
+        # Plot
+        "round": "Runde",
+        "points": "Punkte",
+        "average": "Ø Durchschnitt",
+        # Spielerkarte
+        "announced": "Angesagt",
+        "achieved": "Gemacht",
+        "leading": "👑 Führend",
+        # Buttons
+        "complete_round": "✓  Runde abschließen",
+        "undo": "↩  Undo",
+        "save": "💾  Speichern",
+        "plot": "🖼  Plot",
+        "new": "⟳  Neu",
+        "cancel": "Abbrechen",
+        "proceed": "Fortfahren",
+        "ok": "OK",
+        "apply": "Übernehmen",
+        # Dialoge
+        "warning_title": "Achtung",
+        "undo_confirm": "Letzte Runde wirklich rückgängig machen?",
+        "new_game_confirm": (
+            "Aktuelles Spiel beenden und ein neues starten?\n\n"
+            "Ungespeicherte Daten gehen verloren."
+        ),
+        "save_game_title": "Spiel speichern",
+        "save_game_label": "Spielname:",
+        "save_game_placeholder": "z.B. Spieleabend_Freitag",
+        "load_game_title": "Gespeicherte Spiele laden",
+        "load_game_empty": "Keine gespeicherten Spiele gefunden.",
+        "load": "Laden",
+        # Runden-Header
+        "round_header": "Runde {n}",
+        # Einstellungen
+        "settings_title": "Einstellungen",
+        "settings_theme": "Design",
+        "settings_theme_dark": "Dunkel",
+        "settings_theme_light": "Hell",
+        "settings_language": "Sprache",
+        "settings_rules_btn": "📖  Regeln ansehen",
+        # Tooltips
+        "tooltip_undo": "Letzte Runde rückgängig",
+        "tooltip_save": "Spielstand speichern",
+        "tooltip_plot": "Plot als Bild exportieren",
+        "tooltip_new": "Neues Spiel starten",
+        "tooltip_settings": "Einstellungen",
+    },
+    "en": {
+        "app_title": "🃏 WIZARD",
+        "window_title": "Wizard – Score Tracker",
+        "round": "Round",
+        "points": "Points",
+        "average": "Ø Average",
+        "announced": "Bid",
+        "achieved": "Made",
+        "leading": "👑 Leading",
+        "complete_round": "✓  Complete Round",
+        "undo": "↩  Undo",
+        "save": "💾  Save",
+        "plot": "🖼  Plot",
+        "new": "⟳  New",
+        "cancel": "Cancel",
+        "proceed": "Proceed",
+        "ok": "OK",
+        "apply": "Apply",
+        "warning_title": "Warning",
+        "undo_confirm": "Really undo the last round?",
+        "new_game_confirm": (
+            "End current game and start a new one?\n\n"
+            "Unsaved data will be lost."
+        ),
+        "save_game_title": "Save Game",
+        "save_game_label": "Game name:",
+        "save_game_placeholder": "e.g. Game_Night_Friday",
+        "load_game_title": "Load Saved Games",
+        "load_game_empty": "No saved games found.",
+        "load": "Load",
+        "round_header": "Round {n}",
+        "settings_title": "Settings",
+        "settings_theme": "Theme",
+        "settings_theme_dark": "Dark",
+        "settings_theme_light": "Light",
+        "settings_language": "Language",
+        "settings_rules_btn": "📖  View Rules",
+        "tooltip_undo": "Undo last round",
+        "tooltip_save": "Save game state",
+        "tooltip_plot": "Export plot as image",
+        "tooltip_new": "Start new game",
+        "tooltip_settings": "Settings",
+    },
+    "fr": {
+        "app_title": "🃏 WIZARD",
+        "window_title": "Wizard – Suivi des Points",
+        "round": "Manche",
+        "points": "Points",
+        "average": "Ø Moyenne",
+        "announced": "Annoncé",
+        "achieved": "Réalisé",
+        "leading": "👑 En tête",
+        "complete_round": "✓  Terminer la manche",
+        "undo": "↩  Annuler",
+        "save": "💾  Sauvegarder",
+        "plot": "🖼  Graphique",
+        "new": "⟳  Nouveau",
+        "cancel": "Annuler",
+        "proceed": "Continuer",
+        "ok": "OK",
+        "apply": "Appliquer",
+        "warning_title": "Attention",
+        "undo_confirm": "Vraiment annuler la dernière manche ?",
+        "new_game_confirm": (
+            "Terminer la partie actuelle et en commencer une nouvelle ?\n\n"
+            "Les données non sauvegardées seront perdues."
+        ),
+        "save_game_title": "Sauvegarder la partie",
+        "save_game_label": "Nom de la partie :",
+        "save_game_placeholder": "ex. Soirée_Jeux_Vendredi",
+        "load_game_title": "Charger une partie sauvegardée",
+        "load_game_empty": "Aucune partie sauvegardée trouvée.",
+        "load": "Charger",
+        "round_header": "Manche {n}",
+        "settings_title": "Paramètres",
+        "settings_theme": "Thème",
+        "settings_theme_dark": "Sombre",
+        "settings_theme_light": "Clair",
+        "settings_language": "Langue",
+        "settings_rules_btn": "📖  Voir les règles",
+        "tooltip_undo": "Annuler la dernière manche",
+        "tooltip_save": "Sauvegarder l'état du jeu",
+        "tooltip_plot": "Exporter le graphique",
+        "tooltip_new": "Commencer une nouvelle partie",
+        "tooltip_settings": "Paramètres",
+    },
+    "hi": {
+        "app_title": "🃏 WIZARD",
+        "window_title": "Wizard – स्कोर ट्रैकर",
+        "round": "राउंड",
+        "points": "अंक",
+        "average": "Ø औसत",
+        "announced": "घोषित",
+        "achieved": "प्राप्त",
+        "leading": "👑 अग्रणी",
+        "complete_round": "✓  राउंड समाप्त करें",
+        "undo": "↩  पूर्ववत",
+        "save": "💾  सहेजें",
+        "plot": "🖼  ग्राफ",
+        "new": "⟳  नया",
+        "cancel": "रद्द करें",
+        "proceed": "आगे बढ़ें",
+        "ok": "ठीक है",
+        "apply": "लागू करें",
+        "warning_title": "चेतावनी",
+        "undo_confirm": "क्या वाकई अंतिम राउंड पूर्ववत करना है?",
+        "new_game_confirm": (
+            "वर्तमान खेल समाप्त करें और नया शुरू करें?\n\n"
+            "असहेजा डेटा खो जाएगा।"
+        ),
+        "save_game_title": "खेल सहेजें",
+        "save_game_label": "खेल का नाम:",
+        "save_game_placeholder": "जैसे खेल_शुक्रवार",
+        "load_game_title": "सहेजे गए खेल लोड करें",
+        "load_game_empty": "कोई सहेजा गया खेल नहीं मिला।",
+        "load": "लोड करें",
+        "round_header": "राउंड {n}",
+        "settings_title": "सेटिंग्स",
+        "settings_theme": "थीम",
+        "settings_theme_dark": "डार्क",
+        "settings_theme_light": "लाइट",
+        "settings_language": "भाषा",
+        "settings_rules_btn": "📖  नियम देखें",
+        "tooltip_undo": "अंतिम राउंड पूर्ववत करें",
+        "tooltip_save": "खेल की स्थिति सहेजें",
+        "tooltip_plot": "ग्राफ निर्यात करें",
+        "tooltip_new": "नया खेल शुरू करें",
+        "tooltip_settings": "सेटिंग्स",
+    },
+}
