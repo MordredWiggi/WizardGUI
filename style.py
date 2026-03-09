@@ -4,6 +4,7 @@ style.py – Zentrales Design-System für Wizard GUI.
 Farbpalette: dunkles Midnight-Navy mit Goldakzenten (Karten-Spieltisch-Ästhetik).
 Enthält Dark Mode (Standard) und Light Mode Varianten.
 """
+import os
 
 # ── Farb-Tokens (Dark Mode) ───────────────────────────────────────────────────
 BG_DEEP    = "#0d0d1a"   # tiefstes Schwarz-Blau
@@ -38,6 +39,13 @@ PLAYER_COLORS = [
     "#f48fb1",  # Pink
 ]
 
+# ── Icon-Pfade für SpinBox-Pfeile ─────────────────────────────────────────────
+_ICONS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons")
+_UP_DARK   = os.path.join(_ICONS_DIR, "up_arrow_dark.svg").replace("\\", "/")
+_DOWN_DARK = os.path.join(_ICONS_DIR, "down_arrow_dark.svg").replace("\\", "/")
+_UP_LIGHT  = os.path.join(_ICONS_DIR, "up_arrow_light.svg").replace("\\", "/")
+_DOWN_LIGHT = os.path.join(_ICONS_DIR, "down_arrow_light.svg").replace("\\", "/")
+
 # ── QSS Stylesheet ───────────────────────────────────────────────────────────
 STYLESHEET = f"""
 /* ── Basis ── */
@@ -46,6 +54,12 @@ QMainWindow, QWidget {{
     color: {TEXT_MAIN};
     font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     font-size: 13px;
+}}
+
+/* ── Sidebar ── */
+QWidget#sidebar {{
+    background-color: {BG_PANEL};
+    border-right: 1px solid #2a2a4a;
 }}
 
 /* ── Überschriften (über objectName) ── */
@@ -76,6 +90,13 @@ QLabel#leader_badge {{
     font-size: 11px;
     color: {LEADER};
     font-weight: 600;
+}}
+QLabel#input_label {{
+    color: {TEXT_DIM};
+    font-size: 10px;
+    letter-spacing: 1px;
+    background: transparent;
+    border: none;
 }}
 
 /* ── Panels ── */
@@ -113,30 +134,81 @@ QSpinBox {{
     background-color: {BG_CARD};
     border: 1px solid #3a3a6a;
     border-radius: 6px;
-    padding: 5px 8px;
+    padding: 5px 32px 5px 8px;
     color: {TEXT_MAIN};
     font-size: 16px;
-    min-width: 70px;
+    min-width: 72px;
 }}
 QSpinBox:focus {{
     border: 1px solid {ACCENT};
 }}
-QSpinBox::up-button, QSpinBox::down-button {{
+QSpinBox::up-button {{
     background-color: #2a2a4a;
-    border-radius: 3px;
-    width: 18px;
+    border: none;
+    border-left: 1px solid #3a3a6a;
+    border-bottom: 1px solid #3a3a6a;
+    border-top-right-radius: 6px;
+    width: 24px;
     height: 14px;
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+}}
+QSpinBox::down-button {{
+    background-color: #2a2a4a;
+    border: none;
+    border-left: 1px solid #3a3a6a;
+    border-bottom-right-radius: 6px;
+    width: 24px;
+    height: 14px;
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
 }}
 QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
     background-color: {ACCENT_DIM};
 }}
+QSpinBox::up-button:pressed, QSpinBox::down-button:pressed {{
+    background-color: {ACCENT};
+}}
 QSpinBox::up-arrow {{
-    width: 8px;
+    image: url({_UP_DARK});
+    width: 10px;
     height: 8px;
 }}
 QSpinBox::down-arrow {{
-    width: 8px;
+    image: url({_DOWN_DARK});
+    width: 10px;
     height: 8px;
+}}
+
+/* ── ComboBox ── */
+QComboBox {{
+    background-color: {BG_CARD};
+    border: 1px solid #3a3a6a;
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: {TEXT_MAIN};
+    font-size: 13px;
+    min-height: 28px;
+}}
+QComboBox:focus {{
+    border: 1px solid {ACCENT};
+}}
+QComboBox::drop-down {{
+    border: none;
+    width: 24px;
+}}
+QComboBox::down-arrow {{
+    image: url({_DOWN_DARK});
+    width: 10px;
+    height: 8px;
+}}
+QComboBox QAbstractItemView {{
+    background-color: {BG_CARD};
+    border: 1px solid {ACCENT_DIM};
+    border-radius: 4px;
+    selection-background-color: {ACCENT_DIM};
+    color: {TEXT_MAIN};
+    padding: 4px;
 }}
 
 /* ── Buttons ── */
@@ -275,6 +347,12 @@ QMainWindow, QWidget {{
     font-size: 13px;
 }}
 
+/* ── Sidebar ── */
+QWidget#sidebar {{
+    background-color: {BG_PANEL_L};
+    border-right: 1px solid #ccccdd;
+}}
+
 /* ── Überschriften ── */
 QLabel#title {{
     font-size: 28px;
@@ -303,6 +381,13 @@ QLabel#leader_badge {{
     font-size: 11px;
     color: #b8860b;
     font-weight: 600;
+}}
+QLabel#input_label {{
+    color: {TEXT_DIM_L};
+    font-size: 10px;
+    letter-spacing: 1px;
+    background: transparent;
+    border: none;
 }}
 
 /* ── Panels ── */
@@ -340,30 +425,81 @@ QSpinBox {{
     background-color: {BG_CARD_L};
     border: 1px solid #aaaacc;
     border-radius: 6px;
-    padding: 5px 8px;
+    padding: 5px 32px 5px 8px;
     color: {TEXT_MAIN_L};
     font-size: 16px;
-    min-width: 70px;
+    min-width: 72px;
 }}
 QSpinBox:focus {{
     border: 1px solid {ACCENT_L};
 }}
-QSpinBox::up-button, QSpinBox::down-button {{
+QSpinBox::up-button {{
     background-color: #ddddee;
-    border-radius: 3px;
-    width: 18px;
+    border: none;
+    border-left: 1px solid #aaaacc;
+    border-bottom: 1px solid #aaaacc;
+    border-top-right-radius: 6px;
+    width: 24px;
     height: 14px;
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+}}
+QSpinBox::down-button {{
+    background-color: #ddddee;
+    border: none;
+    border-left: 1px solid #aaaacc;
+    border-bottom-right-radius: 6px;
+    width: 24px;
+    height: 14px;
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
 }}
 QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
     background-color: {ACCENT_DIM_L};
 }}
+QSpinBox::up-button:pressed, QSpinBox::down-button:pressed {{
+    background-color: {ACCENT_L};
+}}
 QSpinBox::up-arrow {{
-    width: 8px;
+    image: url({_UP_LIGHT});
+    width: 10px;
     height: 8px;
 }}
 QSpinBox::down-arrow {{
-    width: 8px;
+    image: url({_DOWN_LIGHT});
+    width: 10px;
     height: 8px;
+}}
+
+/* ── ComboBox ── */
+QComboBox {{
+    background-color: {BG_CARD_L};
+    border: 1px solid #aaaacc;
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: {TEXT_MAIN_L};
+    font-size: 13px;
+    min-height: 28px;
+}}
+QComboBox:focus {{
+    border: 1px solid {ACCENT_L};
+}}
+QComboBox::drop-down {{
+    border: none;
+    width: 24px;
+}}
+QComboBox::down-arrow {{
+    image: url({_DOWN_LIGHT});
+    width: 10px;
+    height: 8px;
+}}
+QComboBox QAbstractItemView {{
+    background-color: {BG_CARD_L};
+    border: 1px solid {ACCENT_L};
+    border-radius: 4px;
+    selection-background-color: {ACCENT_DIM_L};
+    color: {TEXT_MAIN_L};
+    padding: 4px;
 }}
 
 /* ── Buttons ── */
@@ -491,3 +627,4 @@ QToolTip {{
     font-size: 12px;
 }}
 """
+

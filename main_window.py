@@ -25,12 +25,13 @@ from dialogs import (
     SaveGameDialog, LoadGameDialog,
     CelebrationOverlay, WarningDialog,
 )
+from app_settings import t, get_theme
 
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Wizard – Punkte-Tracker")
+        self.setWindowTitle(t("window_title"))
         self.setMinimumSize(1000, 650)
 
         self._save_manager = SaveManager()
@@ -44,6 +45,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._setup_view = SetupView(self._save_manager)
         self._setup_view.start_game.connect(self._on_start_game)
         self._setup_view.load_game.connect(self._on_load_game_from_path)
+        self._setup_view.settings_changed.connect(self._on_settings_changed)
         self._stack.addWidget(self._setup_view)   # index 0
 
         # GameView wird erst beim ersten Spielstart erstellt (index 1+)
@@ -58,6 +60,16 @@ class MainWindow(QtWidgets.QMainWindow):
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
         self._overlay.setGeometry(self.rect())
+
+    # ── Settings propagation ──────────────────────────────────────────────────
+
+    def _on_settings_changed(self) -> None:
+        """Called when settings change from any view – updates all views."""
+        self._setup_view.retranslate_ui()
+        if self._game_view is not None:
+            self._game_view.retranslate_ui()
+        self.setWindowTitle(t("window_title"))
+        self._update_status_bar_style()
 
     # ── State-Übergänge ───────────────────────────────────────────────────────
 
@@ -77,11 +89,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self._game_view.request_save.connect(self._on_save_game)
         self._game_view.request_save_plot.connect(self._on_save_plot)
         self._game_view.round_submitted.connect(self._on_round_submitted)
+        self._game_view.settings_changed.connect(self._on_settings_changed)
         self._stack.addWidget(self._game_view)
         self._stack.setCurrentWidget(self._game_view)
 
     def _on_new_game(self) -> None:
         """Zurück zur Setup-Ansicht."""
+        self._setup_view.retranslate_ui()
         self._stack.setCurrentWidget(self._setup_view)
 
     # ── Spielrunden-Events → Celebration ─────────────────────────────────────
@@ -145,8 +159,17 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # ── Statusleiste ──────────────────────────────────────────────────────────
 
+    def _update_status_bar_style(self) -> None:
+        if get_theme() == "light":
+            self.statusBar().setStyleSheet(
+                "QStatusBar { background: #e4e4ee; color: #9b7a1e; font-size: 12px; padding: 4px 12px; }"
+            )
+        else:
+            self.statusBar().setStyleSheet(
+                "QStatusBar { background: #1a1a3a; color: #c9a84c; font-size: 12px; padding: 4px 12px; }"
+            )
+
     def _show_status(self, message: str, timeout_ms: int = 4000) -> None:
-        self.statusBar().setStyleSheet(
-            "QStatusBar { background: #1a1a3a; color: #c9a84c; font-size: 12px; padding: 4px 12px; }"
-        )
+        self._update_status_bar_style()
         self.statusBar().showMessage(message, timeout_ms)
+
