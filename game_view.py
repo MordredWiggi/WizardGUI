@@ -207,6 +207,14 @@ class MplCanvas(FigureCanvasQTAgg):
                 self._hover_annot.set_text(
                     f"{name}\n{t('round')}: {x}\n{t('points')}: {y}"
                 )
+
+                # Adjust offset so annotation stays within the canvas
+                fig_w_px = self.fig.get_figwidth() * self.fig.dpi
+                fig_h_px = self.fig.get_figheight() * self.fig.dpi
+                x_off = -90 if event.x > fig_w_px * 0.65 else 15
+                y_off = -55 if event.y > fig_h_px * 0.65 else 15
+                self._hover_annot.xyann = (x_off, y_off)
+
                 self._hover_annot.set_visible(True)
                 changed = True
                 break
@@ -217,6 +225,21 @@ class MplCanvas(FigureCanvasQTAgg):
 
         if changed:
             self.draw_idle()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SpinBox without mouse-wheel scrolling
+# ─────────────────────────────────────────────────────────────────────────────
+
+class NoScrollSpinBox(QtWidgets.QSpinBox):
+    """QSpinBox that ignores scroll-wheel events.
+
+    The parent wheelEvent is intentionally not called so that scrolling
+    over the spinbox does not accidentally change its value.
+    """
+
+    def wheelEvent(self, event: QtGui.QWheelEvent) -> None:  # type: ignore[override]
+        event.ignore()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -246,12 +269,17 @@ class PlayerCard(QtWidgets.QFrame):
         layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(8)
 
-        # Name + Punkte
+        # Name + crown + Punkte
         top_row = QtWidgets.QHBoxLayout()
         self.lbl_name = QtWidgets.QLabel(player_name)
         self.lbl_name.setStyleSheet(
             f"color: {color}; font-weight: 700; font-size: 14px; background: transparent; border: none;"
         )
+        self.lbl_crown = QtWidgets.QLabel("👑")
+        self.lbl_crown.setStyleSheet(
+            "font-size: 14px; background: transparent; border: none;"
+        )
+        self.lbl_crown.setVisible(False)
         self.lbl_score = QtWidgets.QLabel("0")
         self.lbl_score.setObjectName("score_value")
         self.lbl_delta = QtWidgets.QLabel("")
@@ -259,6 +287,7 @@ class PlayerCard(QtWidgets.QFrame):
             "font-size: 11px; font-weight: 600; background: transparent; border: none;"
         )
         top_row.addWidget(self.lbl_name)
+        top_row.addWidget(self.lbl_crown)
         top_row.addStretch()
         top_row.addWidget(self.lbl_delta)
         top_row.addWidget(self.lbl_score)
@@ -277,7 +306,7 @@ class PlayerCard(QtWidgets.QFrame):
             col = QtWidgets.QVBoxLayout()
             lbl = QtWidgets.QLabel(label_key)
             lbl.setObjectName("input_label")
-            spin = QtWidgets.QSpinBox()
+            spin = NoScrollSpinBox()
             spin.setRange(0, 20)
             spin.setMinimumWidth(72)
             col.addWidget(lbl, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
@@ -299,12 +328,6 @@ class PlayerCard(QtWidgets.QFrame):
         )
         self.lbl_dealer.setVisible(False)
         layout.addWidget(self.lbl_dealer, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
-
-        # Leader badge
-        self.lbl_leader = QtWidgets.QLabel(t("leading"))
-        self.lbl_leader.setObjectName("leader_badge")
-        self.lbl_leader.setVisible(False)
-        layout.addWidget(self.lbl_leader, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
 
     # ── public API ────────────────────────────────────────────────────────────
 
@@ -340,11 +363,10 @@ class PlayerCard(QtWidgets.QFrame):
             )
         else:
             self.lbl_delta.setText("")
-        self.lbl_leader.setVisible(is_leader)
+        self.lbl_crown.setVisible(is_leader)
 
     def retranslate_ui(self) -> None:
         """Update translatable labels on this card."""
-        self.lbl_leader.setText(t("leading"))
         # Dealer badge text is always re-rendered by GameView._refresh_scores(),
         # which calls set_dealer() for every card after retranslate_ui() returns.
 
@@ -556,7 +578,7 @@ class GameView(QtWidgets.QWidget):
         self.lbl_round_header.setText(
             t("round_header", n=self.game.round_number + 1)
         )
-        leader = self.game.leader
+        leaders = set(self.game.leaders)
         deltas = self.game.last_deltas()
         dealer_idx = self.game.current_dealer_index
         cards = self.game.cards_this_round
@@ -564,7 +586,7 @@ class GameView(QtWidgets.QWidget):
             card.update_score(
                 score=player.current_score,
                 delta=deltas[i],
-                is_leader=(player is leader),
+                is_leader=(player in leaders),
             )
             card.set_dealer(is_dealer=(i == dealer_idx), cards=cards)
         self._update_bid_counter()
