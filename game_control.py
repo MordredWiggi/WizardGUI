@@ -216,16 +216,13 @@ class GameControl:
         max_player = self.players[deltas.index(max_delta)]
         min_player = self.players[deltas.index(min_delta)]
 
-        # Huge loss: any player who lost ≥ 40 points this round
+        # Huge loss: player with worst (most negative) delta of ≥ 40 points
         huge_loss_player: Optional[Player] = None
         huge_loss_delta: int = 0
         for player, delta in zip(self.players, deltas):
             if delta <= -40 and delta < huge_loss_delta:
                 huge_loss_delta = delta
                 huge_loss_player = player
-        if huge_loss_player is None and min_delta <= -40:
-            huge_loss_player = min_player
-            huge_loss_delta = min_delta
 
         return RoundEvents(
             new_leader=new_leader if new_leader is not old_leader else None,

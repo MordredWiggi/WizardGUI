@@ -165,14 +165,22 @@ class MainWindow(QtWidgets.QMainWindow):
         Tries to play ``sounds/xp_shutdown.wav`` from the application directory
         (place the file there to enable it).  Falls back to a system beep.
         """
+        # Import winsound once if on Windows
+        winsound = None
+        if sys.platform == "win32":
+            try:
+                import winsound as _ws  # type: ignore[import]
+                winsound = _ws
+            except ImportError:
+                pass
+
         sound_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "sounds", "xp_shutdown.wav",
         )
         if os.path.isfile(sound_path):
             try:
-                if sys.platform == "win32":
-                    import winsound  # type: ignore[import]
+                if winsound is not None:
                     winsound.PlaySound(sound_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
                 elif sys.platform == "darwin":
                     subprocess.Popen(["afplay", sound_path])
@@ -183,8 +191,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 pass
         # Fallback: system beep
         try:
-            if sys.platform == "win32":
-                import winsound  # type: ignore[import]
+            if winsound is not None:
                 winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
             else:
                 QtWidgets.QApplication.beep()

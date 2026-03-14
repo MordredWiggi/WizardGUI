@@ -525,15 +525,24 @@ class WinnersPodiumDialog(QtWidgets.QDialog):
         # ── Remaining players (4th place and below) ────────────────────────
         if len(sorted_players) > 3:
             layout.addWidget(_sep())
-            remaining_label = QtWidgets.QLabel()
-            remaining_parts = []
             for rank in range(3, len(sorted_players)):
                 p = sorted_players[rank]
-                remaining_parts.append(f"{rank + 1}. {p.name}:  {p.current_score} {t('points')}")
-            remaining_label.setText("    ".join(remaining_parts))
-            remaining_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-            remaining_label.setStyleSheet(f"font-size: 12px; color: {TEXT_DIM};")
-            layout.addWidget(remaining_label)
+                row = QtWidgets.QHBoxLayout()
+                row.setSpacing(8)
+                rank_lbl = QtWidgets.QLabel(f"{rank + 1}.")
+                rank_lbl.setFixedWidth(24)
+                rank_lbl.setStyleSheet(f"font-size: 12px; color: {TEXT_DIM};")
+                row.addWidget(rank_lbl)
+                pname_lbl = QtWidgets.QLabel(p.name)
+                pname_lbl.setStyleSheet(f"font-size: 12px; color: {TEXT_DIM};")
+                row.addWidget(pname_lbl, 1)
+                pscore_lbl = QtWidgets.QLabel(f"{p.current_score} {t('points')}")
+                pscore_lbl.setAlignment(
+                    QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter
+                )
+                pscore_lbl.setStyleSheet(f"font-size: 12px; color: {TEXT_DIM};")
+                row.addWidget(pscore_lbl)
+                layout.addLayout(row)
 
         layout.addWidget(_sep())
 
