@@ -72,6 +72,7 @@ class MplCanvas(FigureCanvasQTAgg):
             self._style_figure_dark()
 
     def _style_figure_dark(self) -> None:
+        from matplotlib.ticker import MultipleLocator
         self.fig.patch.set_facecolor("#0d0d1a")
         ax = self.axes
         ax.set_facecolor("#12122b")
@@ -81,9 +82,12 @@ class MplCanvas(FigureCanvasQTAgg):
         ax.yaxis.label.set_color(TEXT_DIM)
         ax.set_xlabel(t("round"), color=TEXT_DIM, fontsize=11)
         ax.set_ylabel(t("points"), color=TEXT_DIM, fontsize=11)
-        ax.grid(True, color="#1e1e3a", linewidth=0.8, linestyle="--", alpha=0.6)
+        ax.yaxis.set_major_locator(MultipleLocator(100))
+        ax.grid(True, which="major", axis="y", color="#2a2a4a", linewidth=0.8,
+                linestyle="--", alpha=0.7, zorder=0)
 
     def _style_figure_light(self) -> None:
+        from matplotlib.ticker import MultipleLocator
         self.fig.patch.set_facecolor("#f0f0f5")
         ax = self.axes
         ax.set_facecolor("#f8f8ff")
@@ -93,7 +97,9 @@ class MplCanvas(FigureCanvasQTAgg):
         ax.yaxis.label.set_color("#555577")
         ax.set_xlabel(t("round"), color="#555577", fontsize=11)
         ax.set_ylabel(t("points"), color="#555577", fontsize=11)
-        ax.grid(True, color="#dcdcec", linewidth=0.8, linestyle="--", alpha=0.8)
+        ax.yaxis.set_major_locator(MultipleLocator(100))
+        ax.grid(True, which="major", axis="y", color="#ccccdd", linewidth=0.8,
+                linestyle="--", alpha=0.8, zorder=0)
 
     def redraw(self, game: GameControl) -> None:
         self.axes.clear()
@@ -117,6 +123,32 @@ class MplCanvas(FigureCanvasQTAgg):
                 markeredgecolor="white", markeredgewidth=1.2, zorder=5,
             )
 
+        # Overlapping segments: if two or more players share identical scores at
+        # both endpoints of a segment, re-draw that segment with an alternating
+        # dashed/dotted style on top so all lines remain visible.
+        if len(rounds) >= 2:
+            alt_styles = ["--", ":", (0, (3, 1, 1, 1))]
+            for seg in range(len(rounds) - 1):
+                r1, r2 = rounds[seg], rounds[seg + 1]
+                # Group player indices by (score_at_r1, score_at_r2)
+                seg_groups: dict = {}
+                for pi, player in enumerate(game.players):
+                    key = (player.scores[seg], player.scores[seg + 1])
+                    seg_groups.setdefault(key, []).append(pi)
+                for group in seg_groups.values():
+                    if len(group) < 2:
+                        continue
+                    for style_idx, pi in enumerate(group):
+                        color = PLAYER_COLORS[pi % len(PLAYER_COLORS)]
+                        s1, s2 = game.players[pi].scores[seg], game.players[pi].scores[seg + 1]
+                        self.axes.plot(
+                            [r1, r2], [s1, s2],
+                            color=color,
+                            linewidth=2.2,
+                            linestyle=alt_styles[style_idx % len(alt_styles)],
+                            zorder=4,
+                        )
+
         # Average line
         self.axes.plot(
             rounds, game.averages,
@@ -124,8 +156,9 @@ class MplCanvas(FigureCanvasQTAgg):
             label=t("average"), zorder=2,
         )
 
-        # Zero line
-        self.axes.axhline(0, color="#3a3a5a", linewidth=1.0, linestyle=":", zorder=1)
+        # Zero line – thicker and clearly visible in both themes
+        zero_color = "#ffffff" if get_theme() == "dark" else "#1a1a2e"
+        self.axes.axhline(0, color=zero_color, linewidth=2.0, linestyle="-", zorder=2, alpha=0.6)
 
         # Integer-only x-axis ticks; bold label for the current round
         self.axes.set_xticks(rounds)

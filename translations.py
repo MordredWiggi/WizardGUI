@@ -78,6 +78,20 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tooltip_plot": "Plot als Bild exportieren",
         "tooltip_new": "Neues Spiel starten",
         "tooltip_settings": "Einstellungen",
+        # Celebrations – neue Kommentare
+        "celeb_bow": "Man muss den Bogen weit spannen",
+        "celeb_bow_sub": "{player} verliert zum 3. Mal in Folge!",
+        "celeb_revenge": "Rachehebel zündet",
+        "celeb_revenge_sub": "{player} kommt zurück!",
+        "celeb_huge_loss": "Autsch! 💀",
+        "celeb_huge_loss_sub": "{player} verliert {points} Punkte!",
+        # Siegerehrung
+        "game_over_title": "Spiel beendet! 🏆",
+        "game_over_subtitle": "Das war eine tolle Partie!",
+        "podium_1st": "🥇 1. Platz",
+        "podium_2nd": "🥈 2. Platz",
+        "podium_3rd": "🥉 3. Platz",
+        "podium_close": "Schließen",
     },
     "en": {
         "app_title": "🃏 WIZARD",
@@ -133,6 +147,20 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tooltip_plot": "Export plot as image",
         "tooltip_new": "Start new game",
         "tooltip_settings": "Settings",
+        # Celebrations – new comments
+        "celeb_bow": "You have to pull the bow far back",
+        "celeb_bow_sub": "{player} loses for the 3rd round in a row!",
+        "celeb_revenge": "Revenge lever activated",
+        "celeb_revenge_sub": "{player} is coming back!",
+        "celeb_huge_loss": "Ouch! 💀",
+        "celeb_huge_loss_sub": "{player} loses {points} points!",
+        # Winner's Podium
+        "game_over_title": "Game Over! 🏆",
+        "game_over_subtitle": "What a great game!",
+        "podium_1st": "🥇 1st Place",
+        "podium_2nd": "🥈 2nd Place",
+        "podium_3rd": "🥉 3rd Place",
+        "podium_close": "Close",
     },
     "fr": {
         "app_title": "🃏 WIZARD",
@@ -188,6 +216,20 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tooltip_plot": "Exporter le graphique",
         "tooltip_new": "Commencer une nouvelle partie",
         "tooltip_settings": "Paramètres",
+        # Célébrations – nouveaux commentaires
+        "celeb_bow": "Il faut tirer l'arc loin",
+        "celeb_bow_sub": "{player} perd pour la 3e manche consécutive !",
+        "celeb_revenge": "Levier de vengeance activé",
+        "celeb_revenge_sub": "{player} revient en force !",
+        "celeb_huge_loss": "Aïe ! 💀",
+        "celeb_huge_loss_sub": "{player} perd {points} points !",
+        # Podium des gagnants
+        "game_over_title": "Partie terminée ! 🏆",
+        "game_over_subtitle": "Quelle belle partie !",
+        "podium_1st": "🥇 1re place",
+        "podium_2nd": "🥈 2e place",
+        "podium_3rd": "🥉 3e place",
+        "podium_close": "Fermer",
     },
     "hi": {
         "app_title": "🃏 WIZARD",
@@ -243,5 +285,19 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tooltip_plot": "ग्राफ निर्यात करें",
         "tooltip_new": "नया खेल शुरू करें",
         "tooltip_settings": "सेटिंग्स",
+        # उत्सव – नई टिप्पणियाँ
+        "celeb_bow": "धनुष को दूर तक खींचना होगा",
+        "celeb_bow_sub": "{player} लगातार 3वीं बार हार रहा है!",
+        "celeb_revenge": "बदले का लीवर सक्रिय",
+        "celeb_revenge_sub": "{player} वापसी कर रहा है!",
+        "celeb_huge_loss": "आउच! 💀",
+        "celeb_huge_loss_sub": "{player} {points} अंक खो देता है!",
+        # विजेताओं का मंच
+        "game_over_title": "खेल समाप्त! 🏆",
+        "game_over_subtitle": "क्या शानदार खेल था!",
+        "podium_1st": "🥇 पहला स्थान",
+        "podium_2nd": "🥈 दूसरा स्थान",
+        "podium_3rd": "🥉 तीसरा स्थान",
+        "podium_close": "बंद करें",
     },
 }

@@ -20,7 +20,7 @@ from PyQt6 import QtCore, QtWidgets, QtGui
 from style import (
     BG_PANEL, BG_CARD, BG_DEEP,
     ACCENT, ACCENT_DIM, TEXT_MAIN, TEXT_DIM,
-    SUCCESS, DANGER, LEADER,
+    SUCCESS, DANGER, LEADER, PLAYER_COLORS,
 )
 from app_settings import t
 
@@ -445,3 +445,105 @@ class CelebrationOverlay(QtWidgets.QWidget):
 
         t.timeout.connect(_tick)
         t.start()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WinnersPodiumDialog
+# ─────────────────────────────────────────────────────────────────────────────
+
+class WinnersPodiumDialog(QtWidgets.QDialog):
+    """
+    End-of-game modal dialog celebrating the top 3 players.
+
+    Displays a podium with the three highest-scoring players (or all players
+    if there are fewer than three) sorted by final score descending.
+    """
+
+    def __init__(self, parent: QtWidgets.QWidget, players: list) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(t("game_over_title"))
+        self.setMinimumWidth(500)
+        self.setModal(True)
+
+        # Sort players by final score descending
+        sorted_players = sorted(players, key=lambda p: p.current_score, reverse=True)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setSpacing(18)
+        layout.setContentsMargins(32, 28, 32, 24)
+
+        # ── Title ──────────────────────────────────────────────────────────
+        title_lbl = QtWidgets.QLabel(t("game_over_title"))
+        title_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        title_lbl.setStyleSheet(
+            f"font-size: 26px; font-weight: 800; color: {LEADER}; letter-spacing: 2px;"
+        )
+        layout.addWidget(title_lbl)
+
+        subtitle_lbl = QtWidgets.QLabel(t("game_over_subtitle"))
+        subtitle_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        subtitle_lbl.setStyleSheet(f"font-size: 13px; color: {TEXT_DIM};")
+        layout.addWidget(subtitle_lbl)
+
+        layout.addWidget(_sep())
+
+        # ── Podium (top 3) ─────────────────────────────────────────────────
+        podium_keys = ["podium_1st", "podium_2nd", "podium_3rd"]
+        podium_colors = [LEADER, "#b0c4de", "#cd7f32"]  # gold / silver / bronze
+
+        for rank, (place_key, medal_color) in enumerate(zip(podium_keys, podium_colors)):
+            if rank >= len(sorted_players):
+                break
+            player = sorted_players[rank]
+            player_color = PLAYER_COLORS[players.index(player) % len(PLAYER_COLORS)]
+
+            row = QtWidgets.QHBoxLayout()
+            row.setSpacing(12)
+
+            place_lbl = QtWidgets.QLabel(t(place_key))
+            place_lbl.setFixedWidth(110)
+            place_lbl.setStyleSheet(
+                f"font-size: 18px; font-weight: 700; color: {medal_color};"
+            )
+            row.addWidget(place_lbl)
+
+            name_lbl = QtWidgets.QLabel(player.name)
+            name_lbl.setStyleSheet(
+                f"font-size: 17px; font-weight: 600; color: {player_color};"
+            )
+            row.addWidget(name_lbl, 1)
+
+            score_lbl = QtWidgets.QLabel(f"{player.current_score} {t('points')}")
+            score_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
+            score_lbl.setStyleSheet(
+                f"font-size: 17px; font-weight: 700; color: {TEXT_MAIN};"
+            )
+            row.addWidget(score_lbl)
+
+            layout.addLayout(row)
+
+        # ── Remaining players (4th place and below) ────────────────────────
+        if len(sorted_players) > 3:
+            layout.addWidget(_sep())
+            remaining_label = QtWidgets.QLabel()
+            remaining_parts = []
+            for rank in range(3, len(sorted_players)):
+                p = sorted_players[rank]
+                remaining_parts.append(f"{rank + 1}. {p.name}:  {p.current_score} {t('points')}")
+            remaining_label.setText("    ".join(remaining_parts))
+            remaining_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            remaining_label.setStyleSheet(f"font-size: 12px; color: {TEXT_DIM};")
+            layout.addWidget(remaining_label)
+
+        layout.addWidget(_sep())
+
+        # ── Close button ───────────────────────────────────────────────────
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_row.addStretch()
+        btn_close = QtWidgets.QPushButton(t("podium_close"))
+        btn_close.setObjectName("primary")
+        btn_close.setMinimumHeight(40)
+        btn_close.setMinimumWidth(120)
+        btn_close.clicked.connect(self.accept)
+        btn_row.addWidget(btn_close)
+        layout.addLayout(btn_row)

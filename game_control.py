@@ -61,6 +61,42 @@ class Player:
                 break
         return count
 
+    @property
+    def consecutive_losses(self) -> int:
+        """Number of consecutive rounds with negative score_delta at end of history."""
+        count = 0
+        for r in reversed(self.round_results):
+            if r.score_delta < 0:
+                count += 1
+            else:
+                break
+        return count
+
+    @property
+    def is_revenge(self) -> bool:
+        """True if player gained points exactly 2 rounds in a row after 2+ consecutive losses.
+
+        Triggers exactly when the gain streak reaches 2 (the 3rd-to-last round was
+        not a gain) and those gains immediately followed a streak of ≥ 2 losses.
+        """
+        rr = self.round_results
+        if len(rr) < 4:
+            return False
+        # Last 2 rounds must be gains
+        if rr[-1].score_delta <= 0 or rr[-2].score_delta <= 0:
+            return False
+        # Gain streak must be exactly 2 – the round before was not a gain
+        if rr[-3].score_delta > 0:
+            return False
+        # Count consecutive losses that end at rr[-3]
+        loss_count = 0
+        for r in reversed(rr[:-2]):
+            if r.score_delta < 0:
+                loss_count += 1
+            else:
+                break
+        return loss_count >= 2
+
     # --- mutating methods ----------------------------------------------------
 
     def apply_round(self, result: RoundResult) -> None:
@@ -99,6 +135,10 @@ class RoundEvents:
     big_score_delta: int
     fire_player: Optional[Player]      # ≥ 3 consecutive perfect rounds
     negative_player: Optional[Player]  # took the biggest loss this round
+    bow_player: Optional[Player]       # lost points exactly 3 rounds in a row
+    revenge_player: Optional[Player]   # gained 2 rounds in a row after 2+ losses
+    huge_loss_player: Optional[Player] # lost ≥ 40 points in a single round
+    huge_loss_delta: int               # magnitude of the huge loss (positive number)
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +157,16 @@ class GameControl:
     @property
     def num_players(self) -> int:
         return len(self.players)
+
+    @property
+    def max_rounds(self) -> int:
+        """Maximum number of rounds for this game (round 0 doesn't count)."""
+        return 60 // self.num_players
+
+    @property
+    def is_game_over(self) -> bool:
+        """True once the maximum number of rounds has been played."""
+        return self.round_number >= self.max_rounds
 
     @property
     def player_names(self) -> List[str]:
@@ -166,6 +216,17 @@ class GameControl:
         max_player = self.players[deltas.index(max_delta)]
         min_player = self.players[deltas.index(min_delta)]
 
+        # Huge loss: any player who lost ≥ 40 points this round
+        huge_loss_player: Optional[Player] = None
+        huge_loss_delta: int = 0
+        for player, delta in zip(self.players, deltas):
+            if delta <= -40 and delta < huge_loss_delta:
+                huge_loss_delta = delta
+                huge_loss_player = player
+        if huge_loss_player is None and min_delta <= -40:
+            huge_loss_player = min_player
+            huge_loss_delta = min_delta
+
         return RoundEvents(
             new_leader=new_leader if new_leader is not old_leader else None,
             big_scorer=max_player if max_delta >= 50 else None,
@@ -174,6 +235,14 @@ class GameControl:
                 (p for p in self.players if p.consecutive_perfect >= 3), None
             ),
             negative_player=min_player if min_delta < 0 else None,
+            bow_player=next(
+                (p for p in self.players if p.consecutive_losses == 3), None
+            ),
+            revenge_player=next(
+                (p for p in self.players if p.is_revenge), None
+            ),
+            huge_loss_player=huge_loss_player,
+            huge_loss_delta=abs(huge_loss_delta),
         )
 
     def undo_round(self) -> bool:
