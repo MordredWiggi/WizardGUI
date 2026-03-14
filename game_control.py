@@ -172,6 +172,14 @@ class GameControl:
             return None
         return max(self.players, key=lambda p: p.current_score)
 
+    @property
+    def leaders(self) -> List[Player]:
+        """Return all players tied for the lead (highest score)."""
+        if not self.players:
+            return []
+        max_score = max(p.current_score for p in self.players)
+        return [p for p in self.players if p.current_score == max_score]
+
     def last_deltas(self) -> List[int]:
         if self.round_number == 0:
             return [0] * self.num_players
