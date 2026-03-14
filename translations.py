@@ -78,6 +78,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tooltip_plot": "Plot als Bild exportieren",
         "tooltip_new": "Neues Spiel starten",
         "tooltip_settings": "Einstellungen",
+        # Geber-Anzeige
+        "dealer_badge": "🃏 Geber · {n} Karten",
+        # Gebots-Zähler
+        "bid_total": "Stiche: {bid} / {total}",
     },
     "en": {
         "app_title": "🃏 WIZARD",
@@ -133,6 +137,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tooltip_plot": "Export plot as image",
         "tooltip_new": "Start new game",
         "tooltip_settings": "Settings",
+        # Dealer indicator
+        "dealer_badge": "🃏 Dealer · {n} cards",
+        # Bid counter
+        "bid_total": "Tricks: {bid} / {total}",
     },
     "fr": {
         "app_title": "🃏 WIZARD",
@@ -188,6 +196,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tooltip_plot": "Exporter le graphique",
         "tooltip_new": "Commencer une nouvelle partie",
         "tooltip_settings": "Paramètres",
+        # Indicateur de donneur
+        "dealer_badge": "🃏 Donneur · {n} cartes",
+        # Compteur de mises
+        "bid_total": "Plis: {bid} / {total}",
     },
     "hi": {
         "app_title": "🃏 WIZARD",
@@ -243,5 +255,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tooltip_plot": "ग्राफ निर्यात करें",
         "tooltip_new": "नया खेल शुरू करें",
         "tooltip_settings": "सेटिंग्स",
+        # डीलर संकेतक
+        "dealer_badge": "🃏 डीलर · {n} पत्ते",
+        # बिड काउंटर
+        "bid_total": "चालें: {bid} / {total}",
     },
 }

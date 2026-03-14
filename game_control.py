@@ -3,6 +3,7 @@ GameControl – Datenmodell für ein Wizard-Spiel.
 Enthält: RoundResult, Player, GameControl
 """
 from __future__ import annotations
+import random
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -108,9 +109,18 @@ class RoundEvents:
 class GameControl:
     """Central model holding the complete state of one game."""
 
-    def __init__(self, player_names: List[str]) -> None:
+    def __init__(
+        self,
+        player_names: List[str],
+        initial_dealer_index: Optional[int] = None,
+    ) -> None:
         self.players: List[Player] = [Player(name=n) for n in player_names]
         self.round_number: int = 0
+        self.initial_dealer_index: int = (
+            initial_dealer_index
+            if initial_dealer_index is not None
+            else random.randrange(len(player_names)) if player_names else 0
+        )
 
     # --- derived properties --------------------------------------------------
 
@@ -121,6 +131,25 @@ class GameControl:
     @property
     def player_names(self) -> List[str]:
         return [p.name for p in self.players]
+
+    @property
+    def current_dealer_index(self) -> int:
+        """Index of the player who deals in the current (next) round."""
+        if not self.players:
+            return 0
+        return (self.initial_dealer_index + self.round_number) % self.num_players
+
+    @property
+    def current_dealer(self) -> Optional[Player]:
+        """Player who deals in the current (next) round."""
+        if not self.players:
+            return None
+        return self.players[self.current_dealer_index]
+
+    @property
+    def cards_this_round(self) -> int:
+        """Number of cards to deal in the current (next) round."""
+        return self.round_number + 1
 
     @property
     def round_indices(self) -> List[int]:
@@ -190,12 +219,13 @@ class GameControl:
         return {
             "players": [p.to_dict() for p in self.players],
             "round_number": self.round_number,
+            "initial_dealer_index": self.initial_dealer_index,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> "GameControl":
         player_names = [p["name"] for p in data["players"]]
-        game = cls(player_names)
+        game = cls(player_names, initial_dealer_index=data.get("initial_dealer_index"))
         # Players are freshly created; rebuild from saved rounds
         for player, pd in zip(game.players, data["players"]):
             for rd in pd["rounds"]:
