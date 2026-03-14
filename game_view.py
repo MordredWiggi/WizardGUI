@@ -224,6 +224,8 @@ class MplCanvas(FigureCanvasQTAgg):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class PlayerCard(QtWidgets.QFrame):
+    bid_changed = QtCore.pyqtSignal()
+
     def __init__(self, player_name: str, color: str, parent=None):
         super().__init__(parent)
         self.player_name = player_name
@@ -284,8 +286,19 @@ class PlayerCard(QtWidgets.QFrame):
             input_row.addLayout(col)
             input_row.addStretch()
 
+        # Emit bid_changed whenever the announced (said) spinbox changes
+        self._spin_said.valueChanged.connect(self.bid_changed)
+
         input_row.addStretch()
         layout.addLayout(input_row)
+
+        # Dealer badge
+        self.lbl_dealer = QtWidgets.QLabel()
+        self.lbl_dealer.setStyleSheet(
+            f"color: {ACCENT}; font-size: 11px; font-weight: 600; background: transparent; border: none;"
+        )
+        self.lbl_dealer.setVisible(False)
+        layout.addWidget(self.lbl_dealer, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
 
         # Leader badge
         self.lbl_leader = QtWidgets.QLabel(t("leading"))
@@ -298,9 +311,20 @@ class PlayerCard(QtWidgets.QFrame):
     def get_round_result(self) -> RoundResult:
         return RoundResult(said=self._spin_said.value(), achieved=self._spin_achieved.value())
 
+    def get_current_bid(self) -> int:
+        return self._spin_said.value()
+
     def reset_inputs(self) -> None:
         self._spin_said.setValue(0)
         self._spin_achieved.setValue(0)
+
+    def set_dealer(self, is_dealer: bool, cards: int) -> None:
+        """Show or hide the dealer badge for this card."""
+        if is_dealer:
+            self.lbl_dealer.setText(t("dealer_badge", n=cards))
+            self.lbl_dealer.setVisible(True)
+        else:
+            self.lbl_dealer.setVisible(False)
 
     def update_score(self, score: int, delta: int, is_leader: bool) -> None:
         self.lbl_score.setText(str(score))
@@ -321,6 +345,7 @@ class PlayerCard(QtWidgets.QFrame):
     def retranslate_ui(self) -> None:
         """Update translatable labels on this card."""
         self.lbl_leader.setText(t("leading"))
+        # Dealer badge text is re-rendered via _refresh_scores() in GameView.
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -419,6 +444,16 @@ class GameView(QtWidgets.QWidget):
         scroll.setWidget(cards_widget)
         sidebar_layout.addWidget(scroll, 1)
 
+        # Bid counter (total tricks bid vs. possible tricks in current round)
+        self.lbl_bid_counter = QtWidgets.QLabel(
+            t("bid_total", bid=0, total=self.game.cards_this_round)
+        )
+        self.lbl_bid_counter.setStyleSheet(
+            f"color: {TEXT_DIM}; font-size: 12px; font-weight: 600;"
+        )
+        self.lbl_bid_counter.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        sidebar_layout.addWidget(self.lbl_bid_counter)
+
         # Runde-beendet-Button (mit etwas Abstand nach oben)
         sidebar_layout.addSpacing(8)
         self.btn_round_done = QtWidgets.QPushButton(t("complete_round"))
@@ -462,6 +497,7 @@ class GameView(QtWidgets.QWidget):
         root.addWidget(plot_wrapper, 1)
 
         # Initiale Darstellung
+        self._connect_bid_signals()
         self._refresh_scores()
         self.canvas.redraw(self.game)
 
@@ -516,15 +552,43 @@ class GameView(QtWidgets.QWidget):
         self.settings_changed.emit()
 
     def _refresh_scores(self) -> None:
-        self.lbl_round_header.setText(t("round_header", n=self.game.round_number))
+        self.lbl_round_header.setText(
+            t("round_header", n=self.game.round_number + 1)
+        )
         leader = self.game.leader
         deltas = self.game.last_deltas()
+        dealer_idx = self.game.current_dealer_index
+        cards = self.game.cards_this_round
         for i, (card, player) in enumerate(zip(self._player_cards, self.game.players)):
             card.update_score(
                 score=player.current_score,
                 delta=deltas[i],
                 is_leader=(player is leader),
             )
+            card.set_dealer(is_dealer=(i == dealer_idx), cards=cards)
+        self._update_bid_counter()
+
+    def _update_bid_counter(self) -> None:
+        """Recalculate and display total bids vs. total possible tricks."""
+        total_bid = sum(card.get_current_bid() for card in self._player_cards)
+        total_possible = self.game.cards_this_round
+        self.lbl_bid_counter.setText(
+            t("bid_total", bid=total_bid, total=total_possible)
+        )
+        if total_bid > total_possible:
+            color = DANGER
+        elif total_bid == total_possible:
+            color = SUCCESS
+        else:
+            color = TEXT_DIM
+        self.lbl_bid_counter.setStyleSheet(
+            f"color: {color}; font-size: 12px; font-weight: 600;"
+        )
+
+    def _connect_bid_signals(self) -> None:
+        """Connect each player card's bid_changed signal to the counter."""
+        for card in self._player_cards:
+            card.bid_changed.connect(self._update_bid_counter)
 
     def retranslate_ui(self) -> None:
         """Aktualisiert alle übersetzbaren UI-Texte (nach Sprach-/Themenwechsel)."""
@@ -538,9 +602,10 @@ class GameView(QtWidgets.QWidget):
         self.btn_new.setText(t("new"))
         self.btn_new.setToolTip(t("tooltip_new"))
         self.btn_settings.setToolTip(t("tooltip_settings"))
-        self.lbl_round_header.setText(t("round_header", n=self.game.round_number))
         for card in self._player_cards:
             card.retranslate_ui()
+        # _refresh_scores re-renders dealer badges + round header + bid counter
+        self._refresh_scores()
         self.canvas.redraw(self.game)
 
     # ── Zustand neu laden (für Load-Funktion) ─────────────────────────────────
@@ -564,6 +629,7 @@ class GameView(QtWidgets.QWidget):
             self._cards_layout.addWidget(card)
         self._cards_layout.addStretch()
 
+        self._connect_bid_signals()
         self._refresh_scores()
         self.canvas.redraw(self.game)
         self.btn_undo.setEnabled(self.game.round_number > 0)
