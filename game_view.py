@@ -345,7 +345,8 @@ class PlayerCard(QtWidgets.QFrame):
     def retranslate_ui(self) -> None:
         """Update translatable labels on this card."""
         self.lbl_leader.setText(t("leading"))
-        # Dealer badge text is re-rendered via _refresh_scores() in GameView.
+        # Dealer badge text is always re-rendered by GameView._refresh_scores(),
+        # which calls set_dealer() for every card after retranslate_ui() returns.
 
 
 # ─────────────────────────────────────────────────────────────────────────────

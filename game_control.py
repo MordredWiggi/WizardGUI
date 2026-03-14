@@ -119,7 +119,7 @@ class GameControl:
         self.initial_dealer_index: int = (
             initial_dealer_index
             if initial_dealer_index is not None
-            else random.randrange(max(len(player_names), 1))
+            else random.randrange(len(player_names)) if player_names else 0
         )
 
     # --- derived properties --------------------------------------------------
@@ -135,6 +135,8 @@ class GameControl:
     @property
     def current_dealer_index(self) -> int:
         """Index of the player who deals in the current (next) round."""
+        if not self.players:
+            return 0
         return (self.initial_dealer_index + self.round_number) % self.num_players
 
     @property
