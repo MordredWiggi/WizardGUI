@@ -92,6 +92,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "podium_2nd": "🥈 2. Platz",
         "podium_3rd": "🥉 3. Platz",
         "podium_close": "Schließen",
+        # Geber-Anzeige
+        "dealer_badge": "🃏 Geber · {n} Karten",
+        # Gebots-Zähler
+        "bid_total": "Stiche: {bid} / {total}",
     },
     "en": {
         "app_title": "🃏 WIZARD",
@@ -161,6 +165,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "podium_2nd": "🥈 2nd Place",
         "podium_3rd": "🥉 3rd Place",
         "podium_close": "Close",
+        # Dealer indicator
+        "dealer_badge": "🃏 Dealer · {n} cards",
+        # Bid counter
+        "bid_total": "Tricks: {bid} / {total}",
     },
     "fr": {
         "app_title": "🃏 WIZARD",
@@ -230,6 +238,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "podium_2nd": "🥈 2e place",
         "podium_3rd": "🥉 3e place",
         "podium_close": "Fermer",
+        # Indicateur de donneur
+        "dealer_badge": "🃏 Donneur · {n} cartes",
+        # Compteur de mises
+        "bid_total": "Plis: {bid} / {total}",
     },
     "hi": {
         "app_title": "🃏 WIZARD",
@@ -299,5 +311,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "podium_2nd": "🥈 दूसरा स्थान",
         "podium_3rd": "🥉 तीसरा स्थान",
         "podium_close": "बंद करें",
+        # डीलर संकेतक
+        "dealer_badge": "🃏 डीलर · {n} पत्ते",
+        # बिड काउंटर
+        "bid_total": "चालें: {bid} / {total}",
     },
 }
