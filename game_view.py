@@ -56,7 +56,7 @@ _configure_matplotlib_font()
 # ─────────────────────────────────────────────────────────────────────────────
 
 class MplCanvas(FigureCanvasQTAgg):
-    def __init__(self, parent=None, width=7, height=5):
+    def __init__(self, parent=None, width=8.5, height=6.5):
         self.fig, self.axes = plt.subplots(1, 1, figsize=(width, height))
         self._style_figure()
         super().__init__(self.fig)
@@ -360,9 +360,10 @@ class PlayerCard(QtWidgets.QFrame):
             col = QtWidgets.QVBoxLayout()
             lbl = QtWidgets.QLabel(label_key)
             lbl.setObjectName("input_label")
+            lbl.setStyleSheet(f"color: {TEXT_DIM}; font-size: 12px; font-weight: 600; letter-spacing: 1px; background: transparent; border: none;")
             spin = QtWidgets.QSpinBox()
             spin.setRange(0, 20)
-            spin.setMinimumWidth(72)
+            spin.setMinimumWidth(60)
             col.addWidget(lbl, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
             col.addWidget(spin, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
             setattr(self, attr, spin)
@@ -603,6 +604,16 @@ class GameView(QtWidgets.QWidget):
     # ── Spiellogik ────────────────────────────────────────────────────────────
 
     def _on_round_done(self) -> None:
+        # Check if total bids equal total possible tricks (invalid)
+        total_bid = sum(card.get_current_bid() for card in self._player_cards)
+        total_possible = self.game.cards_this_round
+        if total_bid == total_possible:
+            # Show blocking warning dialog
+            from dialogs import WarningDialog
+            dlg = WarningDialog(self, t("bid_warning"))
+            dlg.exec()
+            return  # Don't proceed with submitting the round
+
         results = [card.get_round_result() for card in self._player_cards]
         events = self.game.submit_round(results)
         for card in self._player_cards:
@@ -669,7 +680,8 @@ class GameView(QtWidgets.QWidget):
         self.lbl_bid_counter.setStyleSheet(
             f"color: {color}; font-size: 18px; font-weight: 700;"
         )
-        self.lbl_bid_warning.setVisible(equal)
+        # Remove the warning label display - warning will be shown as popup when trying to submit
+        # self.lbl_bid_warning.setVisible(equal)
 
     def _connect_bid_signals(self) -> None:
         """Connect each player card's bid_changed signal to the counter."""

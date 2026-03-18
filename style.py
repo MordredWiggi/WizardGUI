@@ -134,10 +134,10 @@ QSpinBox {{
     background-color: {BG_CARD};
     border: 1px solid #3a3a6a;
     border-radius: 6px;
-    padding: 5px 32px 5px 8px;
+    padding: 5px 24px 5px 5px;
     color: {TEXT_MAIN};
     font-size: 16px;
-    min-width: 72px;
+    min-width: 60px;
 }}
 QSpinBox:focus {{
     border: 1px solid {ACCENT};
@@ -148,8 +148,8 @@ QSpinBox::up-button {{
     border-left: 1px solid #3a3a6a;
     border-bottom: 1px solid #3a3a6a;
     border-top-right-radius: 6px;
-    width: 24px;
-    height: 14px;
+    width: 20px;
+    height: 13px;
     subcontrol-origin: border;
     subcontrol-position: top right;
 }}
@@ -158,8 +158,8 @@ QSpinBox::down-button {{
     border: none;
     border-left: 1px solid #3a3a6a;
     border-bottom-right-radius: 6px;
-    width: 24px;
-    height: 14px;
+    width: 20px;
+    height: 13px;
     subcontrol-origin: border;
     subcontrol-position: bottom right;
 }}
@@ -350,7 +350,8 @@ QRadioButton::indicator {{
     background: {BG_CARD};
 }}
 QRadioButton::indicator:checked {{
-    background: {ACCENT};
+    background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
+        stop:0 {ACCENT}, stop:0.5 {ACCENT}, stop:0.51 {BG_CARD}, stop:1 {BG_CARD});
     border: 2px solid {ACCENT};
 }}
 QRadioButton::indicator:hover {{
@@ -446,10 +447,10 @@ QSpinBox {{
     background-color: {BG_CARD_L};
     border: 1px solid #aaaacc;
     border-radius: 6px;
-    padding: 5px 32px 5px 8px;
+    padding: 5px 24px 5px 5px;
     color: {TEXT_MAIN_L};
     font-size: 16px;
-    min-width: 72px;
+    min-width: 60px;
 }}
 QSpinBox:focus {{
     border: 1px solid {ACCENT_L};
@@ -460,8 +461,8 @@ QSpinBox::up-button {{
     border-left: 1px solid #aaaacc;
     border-bottom: 1px solid #aaaacc;
     border-top-right-radius: 6px;
-    width: 24px;
-    height: 14px;
+    width: 20px;
+    height: 13px;
     subcontrol-origin: border;
     subcontrol-position: top right;
 }}
@@ -470,8 +471,8 @@ QSpinBox::down-button {{
     border: none;
     border-left: 1px solid #aaaacc;
     border-bottom-right-radius: 6px;
-    width: 24px;
-    height: 14px;
+    width: 20px;
+    height: 13px;
     subcontrol-origin: border;
     subcontrol-position: bottom right;
 }}
@@ -662,7 +663,8 @@ QRadioButton::indicator {{
     background: {BG_CARD_L};
 }}
 QRadioButton::indicator:checked {{
-    background: {ACCENT_L};
+    background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
+        stop:0 {ACCENT_L}, stop:0.5 {ACCENT_L}, stop:0.51 {BG_CARD_L}, stop:1 {BG_CARD_L});
     border: 2px solid {ACCENT_L};
 }}
 QRadioButton::indicator:hover {{
