@@ -62,6 +62,30 @@ class Player:
                 break
         return count
 
+    @property
+    def consecutive_losses(self) -> int:
+        """Number of consecutive rounds with a negative score delta at the end of history."""
+        count = 0
+        for r in reversed(self.round_results):
+            if r.score_delta < 0:
+                count += 1
+            else:
+                break
+        return count
+
+    @property
+    def revenge_triggered(self) -> bool:
+        """True if the player gained points in the last 2 rounds after losing ≥2 rounds in a row before that."""
+        if len(self.round_results) < 4:
+            return False
+        r = self.round_results
+        return (
+            r[-1].score_delta > 0   # current round: gain
+            and r[-2].score_delta > 0   # previous round: gain (2nd consecutive)
+            and r[-3].score_delta < 0   # before the gain streak: a loss
+            and r[-4].score_delta < 0   # and the round before that also a loss (≥2)
+        )
+
     # --- mutating methods ----------------------------------------------------
 
     def apply_round(self, result: RoundResult) -> None:
@@ -95,11 +119,16 @@ class Player:
 
 @dataclass
 class RoundEvents:
-    new_leader: Optional[Player]       # None → no leadership change
-    big_scorer: Optional[Player]       # gained ≥ 50 pts this round
+    new_leader: Optional[Player]           # None → no leadership change
+    big_scorer: Optional[Player]           # gained ≥ 50 pts this round
     big_score_delta: int
-    fire_player: Optional[Player]      # ≥ 3 consecutive perfect rounds
-    negative_player: Optional[Player]  # took the biggest loss this round
+    fire_player: Optional[Player]          # ≥ 3 consecutive perfect rounds
+    negative_player: Optional[Player]      # took the biggest loss this round
+    game_over: bool = False                  # True when all rounds are played
+    bow_players: List[Player] = field(default_factory=list)      # 3 consecutive losses
+    revenge_players: List[Player] = field(default_factory=list)  # 2 gains after ≥2 losses
+    huge_loss_player: Optional[Player] = None   # lost ≥ 40 pts this round
+    huge_loss_delta: int = 0                    # the actual loss (negative)
 
 
 # ---------------------------------------------------------------------------
@@ -131,6 +160,18 @@ class GameControl:
     @property
     def player_names(self) -> List[str]:
         return [p.name for p in self.players]
+
+    @property
+    def total_rounds(self) -> int:
+        """Total number of rounds in the game (round 0 doesn't count)."""
+        if self.num_players == 0:
+            return 0
+        return 60 // self.num_players
+
+    @property
+    def is_game_over(self) -> bool:
+        """True when all rounds have been played."""
+        return self.round_number >= self.total_rounds
 
     @property
     def current_dealer_index(self) -> int:
@@ -195,6 +236,9 @@ class GameControl:
         max_player = self.players[deltas.index(max_delta)]
         min_player = self.players[deltas.index(min_delta)]
 
+        # Determine the player who lost the most this round (≥40 pts loss)
+        huge_loss_player = min_player if min_delta <= -40 else None
+
         return RoundEvents(
             new_leader=new_leader if new_leader is not old_leader else None,
             big_scorer=max_player if max_delta >= 50 else None,
@@ -203,6 +247,11 @@ class GameControl:
                 (p for p in self.players if p.consecutive_perfect >= 3), None
             ),
             negative_player=min_player if min_delta < 0 else None,
+            game_over=self.is_game_over,
+            bow_players=[p for p in self.players if p.consecutive_losses == 3],
+            revenge_players=[p for p in self.players if p.revenge_triggered],
+            huge_loss_player=huge_loss_player,
+            huge_loss_delta=min_delta if huge_loss_player else 0,
         )
 
     def undo_round(self) -> bool:

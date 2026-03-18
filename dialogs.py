@@ -320,6 +320,105 @@ class SettingsDialog(QtWidgets.QDialog):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# PodiumDialog
+# ─────────────────────────────────────────────────────────────────────────────
+
+class PodiumDialog(QtWidgets.QDialog):
+    """
+    Displays the winner's podium at the end of the game.
+    Shows the top 3 players with their scores and places.
+    Emits accepted() when the user clicks 'Start New Game'.
+    """
+
+    def __init__(self, parent: QtWidgets.QWidget, players_sorted: list) -> None:
+        """
+        Parameters
+        ----------
+        players_sorted : list of (name, score) tuples, sorted descending by score.
+        """
+        super().__init__(parent)
+        self.setWindowTitle(t("podium_title"))
+        self.setMinimumWidth(460)
+        self.setModal(True)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setSpacing(18)
+        layout.setContentsMargins(32, 28, 32, 24)
+
+        # Title
+        title = QtWidgets.QLabel(t("podium_title"))
+        title.setStyleSheet(f"font-size: 22px; font-weight: 800; color: {ACCENT}; letter-spacing: 2px;")
+        title.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
+
+        subtitle = QtWidgets.QLabel(t("game_over_title"))
+        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_DIM}; letter-spacing: 1px;")
+        subtitle.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(subtitle)
+
+        layout.addWidget(_sep())
+
+        # Podium places
+        place_keys = ["podium_1st", "podium_2nd", "podium_3rd"]
+        place_colors = [LEADER, "#aaaacc", "#c9a84c"]  # gold, silver, bronze
+        place_sizes = ["20px", "17px", "15px"]
+
+        for rank, (place_key, color, size) in enumerate(zip(place_keys, place_colors, place_sizes)):
+            if rank >= len(players_sorted):
+                break
+            name, score = players_sorted[rank]
+
+            row = QtWidgets.QHBoxLayout()
+
+            place_lbl = QtWidgets.QLabel(t(place_key))
+            place_lbl.setStyleSheet(
+                f"font-size: {size}; font-weight: 700; color: {color}; min-width: 120px;"
+            )
+
+            name_lbl = QtWidgets.QLabel(name)
+            name_lbl.setStyleSheet(
+                f"font-size: {size}; font-weight: 600; color: {TEXT_MAIN};"
+            )
+
+            score_lbl = QtWidgets.QLabel(t("podium_points", pts=score))
+            score_lbl.setStyleSheet(
+                f"font-size: {size}; font-weight: 600; color: {color};"
+            )
+            score_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
+
+            row.addWidget(place_lbl)
+            row.addWidget(name_lbl, 1)
+            row.addWidget(score_lbl)
+            layout.addLayout(row)
+
+            if rank < min(2, len(players_sorted) - 1):
+                layout.addWidget(_sep())
+
+        # Show remaining players if more than 3
+        if len(players_sorted) > 3:
+            layout.addWidget(_sep())
+            others_lbl = QtWidgets.QLabel()
+            lines = []
+            for rank in range(3, len(players_sorted)):
+                name, score = players_sorted[rank]
+                lines.append(f"{rank + 1}. {name}  –  {t('podium_points', pts=score)}")
+            others_lbl.setText("\n".join(lines))
+            others_lbl.setStyleSheet(f"color: {TEXT_DIM}; font-size: 12px;")
+            layout.addWidget(others_lbl)
+
+        layout.addWidget(_sep())
+
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_row.addStretch()
+        btn_close = QtWidgets.QPushButton(t("podium_close"))
+        btn_close.setObjectName("primary")
+        btn_close.setMinimumHeight(40)
+        btn_close.clicked.connect(self.accept)
+        btn_row.addWidget(btn_close)
+        layout.addLayout(btn_row)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # CelebrationOverlay
 # ─────────────────────────────────────────────────────────────────────────────
 

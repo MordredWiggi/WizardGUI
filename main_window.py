@@ -23,7 +23,7 @@ from setup_view import SetupView
 from game_view import GameView
 from dialogs import (
     SaveGameDialog, LoadGameDialog,
-    CelebrationOverlay, WarningDialog,
+    CelebrationOverlay, WarningDialog, PodiumDialog,
 )
 from app_settings import t, get_theme
 
@@ -102,7 +102,21 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_round_submitted(self, events: RoundEvents) -> None:
         """Wählt den passenden Celebration-Effekt für die Runde."""
-        if events.fire_player:
+        # --- Priority 1: huge loss → play XP sound ---
+        if events.huge_loss_player:
+            try:
+                from sounds import play_xp_shutdown
+                play_xp_shutdown()
+            except Exception:
+                pass
+            self._overlay.show_event(
+                "💥",
+                t("huge_loss", name=events.huge_loss_player.name, delta=events.huge_loss_delta),
+                "",
+                color=DANGER,
+            )
+        # --- Priority 2: fire / leading / big-score celebrations ---
+        elif events.fire_player:
             self._overlay.show_event(
                 "🔥", f"{events.fire_player.name} ist auf Feuer!",
                 "3× perfekt in Folge!", color="#ff6b35",
@@ -117,6 +131,43 @@ class MainWindow(QtWidgets.QMainWindow):
                 "🎯", f"Meisterschuss!",
                 f"+{events.big_score_delta} für {events.big_scorer.name}", color=SUCCESS,
             )
+        # --- Bow stretched: 3 consecutive losses ---
+        elif events.bow_players:
+            name = events.bow_players[0].name
+            self._overlay.show_event(
+                "🏹",
+                t("bow_stretched", name=name),
+                "",
+                color=DANGER,
+            )
+        # --- Revenge: 2 gains after ≥2 losses ---
+        elif events.revenge_players:
+            name = events.revenge_players[0].name
+            self._overlay.show_event(
+                "⚡",
+                t("revenge_lever", name=name),
+                "",
+                color="#ff9900",
+            )
+
+        # --- Game over: show podium (delayed so overlay can finish first) ---
+        if events.game_over:
+            QtCore.QTimer.singleShot(2800, self._show_podium)
+
+    # ── Podium ────────────────────────────────────────────────────────────────
+
+    def _show_podium(self) -> None:
+        """Display the winner's podium dialog at the end of the game."""
+        if not self._game:
+            return
+        players_sorted = sorted(
+            [(p.name, p.current_score) for p in self._game.players],
+            key=lambda x: x[1],
+            reverse=True,
+        )
+        dlg = PodiumDialog(self, players_sorted)
+        if dlg.exec():
+            self._on_new_game()
 
     # ── Speichern ─────────────────────────────────────────────────────────────
 

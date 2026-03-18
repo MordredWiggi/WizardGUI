@@ -82,6 +82,18 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "dealer_badge": "🃏 Geber · {n} Karten",
         # Gebots-Zähler
         "bid_total": "Stiche: {bid} / {total}",
+        # Runden-Reaktionen
+        "bow_stretched": "Man muss den Bogen weit spannen – {name}!",
+        "revenge_lever": "Rachehebel zündet – {name}!",
+        "huge_loss": "💥 {name} verliert {delta} Punkte!",
+        # Spielende / Podium
+        "game_over_title": "Spiel beendet!",
+        "podium_title": "🏆 Siegertreppe",
+        "podium_1st": "🥇 1. Platz",
+        "podium_2nd": "🥈 2. Platz",
+        "podium_3rd": "🥉 3. Platz",
+        "podium_points": "{pts} Punkte",
+        "podium_close": "Neues Spiel starten",
     },
     "en": {
         "app_title": "🃏 WIZARD",
@@ -141,6 +153,18 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "dealer_badge": "🃏 Dealer · {n} cards",
         # Bid counter
         "bid_total": "Tricks: {bid} / {total}",
+        # Round reactions
+        "bow_stretched": "Stretched the bow too far – {name}!",
+        "revenge_lever": "Revenge lever ignites – {name}!",
+        "huge_loss": "💥 {name} loses {delta} points!",
+        # End of game / podium
+        "game_over_title": "Game over!",
+        "podium_title": "🏆 Winner's Podium",
+        "podium_1st": "🥇 1st Place",
+        "podium_2nd": "🥈 2nd Place",
+        "podium_3rd": "🥉 3rd Place",
+        "podium_points": "{pts} points",
+        "podium_close": "Start New Game",
     },
     "fr": {
         "app_title": "🃏 WIZARD",
@@ -200,6 +224,18 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "dealer_badge": "🃏 Donneur · {n} cartes",
         # Compteur de mises
         "bid_total": "Plis: {bid} / {total}",
+        # Réactions de manche
+        "bow_stretched": "Il ne faut pas tendre l'arc trop loin – {name} !",
+        "revenge_lever": "Le levier de vengeance s'active – {name} !",
+        "huge_loss": "💥 {name} perd {delta} points !",
+        # Fin de partie / podium
+        "game_over_title": "Partie terminée !",
+        "podium_title": "🏆 Podium des vainqueurs",
+        "podium_1st": "🥇 1ère place",
+        "podium_2nd": "🥈 2ème place",
+        "podium_3rd": "🥉 3ème place",
+        "podium_points": "{pts} points",
+        "podium_close": "Commencer une nouvelle partie",
     },
     "hi": {
         "app_title": "🃏 WIZARD",
@@ -259,5 +295,17 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "dealer_badge": "🃏 डीलर · {n} पत्ते",
         # बिड काउंटर
         "bid_total": "चालें: {bid} / {total}",
+        # राउंड प्रतिक्रियाएँ
+        "bow_stretched": "कमान बहुत खींच ली – {name}!",
+        "revenge_lever": "बदले का तीर चला – {name}!",
+        "huge_loss": "💥 {name} को {delta} अंक का नुकसान!",
+        # खेल समाप्त / पोडियम
+        "game_over_title": "खेल समाप्त!",
+        "podium_title": "🏆 विजेता मंच",
+        "podium_1st": "🥇 प्रथम स्थान",
+        "podium_2nd": "🥈 द्वितीय स्थान",
+        "podium_3rd": "🥉 तृतीय स्थान",
+        "podium_points": "{pts} अंक",
+        "podium_close": "नया खेल शुरू करें",
     },
 }
