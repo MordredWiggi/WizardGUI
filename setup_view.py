@@ -19,6 +19,7 @@ from style import (
 )
 from save_manager import SaveManager
 from app_settings import t
+from game_control import GAME_MODE_STANDARD, GAME_MODE_MULTIPLICATIVE
 
 
 AVATARS = ["🧙‍♂️", "🧙‍♀️", "🧚‍♂️", "🧚‍♀️", "🧞‍♂️", "🧞‍♀️", "🧝‍♂️", "🧝‍♀️", "🧛‍♂️", "🧛‍♀️"]
@@ -82,7 +83,7 @@ class SetupView(QtWidgets.QWidget):
     settings_changed()
     """
 
-    start_game = QtCore.pyqtSignal(list)
+    start_game = QtCore.pyqtSignal(list, str)
     load_game = QtCore.pyqtSignal(object)   # Path
     settings_changed = QtCore.pyqtSignal()
 
@@ -193,6 +194,27 @@ class SetupView(QtWidgets.QWidget):
         self._btn_start.setEnabled(False)
         self._btn_start.clicked.connect(self._on_start)
         sp_layout.addWidget(self._btn_start)
+
+        # ── Game Mode ─────────────────────────────────────────────────────
+        mode_panel = self._make_panel()
+        main.addWidget(mode_panel)
+
+        mode_layout = QtWidgets.QVBoxLayout(mode_panel)
+        mode_layout.setContentsMargins(24, 20, 24, 20)
+        mode_layout.setSpacing(10)
+
+        self._hdr_mode = QtWidgets.QLabel(t("game_mode_label"))
+        self._hdr_mode.setObjectName("section_header")
+        mode_layout.addWidget(self._hdr_mode)
+
+        mode_row = QtWidgets.QHBoxLayout()
+        self._radio_standard = QtWidgets.QRadioButton(t("game_mode_standard"))
+        self._radio_standard.setChecked(True)
+        self._radio_multi = QtWidgets.QRadioButton(t("game_mode_multiplicative"))
+        mode_row.addWidget(self._radio_standard)
+        mode_row.addWidget(self._radio_multi)
+        mode_row.addStretch()
+        mode_layout.addLayout(mode_row)
 
         # ── Gespeicherte Spiele ────────────────────────────────────────────
         saved_panel = self._make_panel()
@@ -334,6 +356,9 @@ class SetupView(QtWidgets.QWidget):
         self._sub_lbl.setText(t("subtitle"))
         self._hdr1.setText(t("add_players_header"))
         self._hdr2.setText(t("saved_games_header"))
+        self._hdr_mode.setText(t("game_mode_label"))
+        self._radio_standard.setText(t("game_mode_standard"))
+        self._radio_multi.setText(t("game_mode_multiplicative"))
         self._name_edit.setPlaceholderText(t("player_name_placeholder"))
         self._btn_add.setText(t("btn_add"))
         self._btn_refresh.setText(t("btn_refresh"))
@@ -353,7 +378,8 @@ class SetupView(QtWidgets.QWidget):
 
     def _on_start(self) -> None:
         if len(self._players) >= 2:
-            self.start_game.emit(list(self._players))
+            game_mode = GAME_MODE_MULTIPLICATIVE if self._radio_multi.isChecked() else GAME_MODE_STANDARD
+            self.start_game.emit(list(self._players), game_mode)
 
     def _on_load(self) -> None:
         current = self._saved_list.currentItem()

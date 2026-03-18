@@ -335,6 +335,27 @@ QToolTip {{
     padding: 4px 8px;
     font-size: 12px;
 }}
+
+/* ── RadioButton ── */
+QRadioButton {{
+    color: {TEXT_MAIN};
+    font-size: 13px;
+    spacing: 6px;
+}}
+QRadioButton::indicator {{
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    border: 2px solid {ACCENT_DIM};
+    background: {BG_CARD};
+}}
+QRadioButton::indicator:checked {{
+    background: {ACCENT};
+    border: 2px solid {ACCENT};
+}}
+QRadioButton::indicator:hover {{
+    border: 2px solid {ACCENT};
+}}
 """
 
 # ── Light-Mode Stylesheet ─────────────────────────────────────────────────────
@@ -625,6 +646,27 @@ QToolTip {{
     border-radius: 4px;
     padding: 4px 8px;
     font-size: 12px;
+}}
+
+/* ── RadioButton ── */
+QRadioButton {{
+    color: {TEXT_MAIN_L};
+    font-size: 13px;
+    spacing: 6px;
+}}
+QRadioButton::indicator {{
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    border: 2px solid {ACCENT_L};
+    background: {BG_CARD_L};
+}}
+QRadioButton::indicator:checked {{
+    background: {ACCENT_L};
+    border: 2px solid {ACCENT_L};
+}}
+QRadioButton::indicator:hover {{
+    border: 2px solid {ACCENT_L};
 }}
 """
 
