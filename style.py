@@ -663,10 +663,10 @@ QRadioButton::indicator {{
 }}
 QRadioButton::indicator:checked {{
     background: {ACCENT_L};
-    border: 2px solid {ACCENT_DIM_L};
+    border: 2px solid {ACCENT_L};
 }}
 QRadioButton::indicator:hover {{
-    border: 2px solid {ACCENT_DIM_L};
+    border: 2px solid {ACCENT_L};
 }}
 """
 

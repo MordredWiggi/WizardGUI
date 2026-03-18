@@ -46,12 +46,12 @@ class RoundResult:
 # Player
 # ---------------------------------------------------------------------------
 
-@dataclass
+@dataclass(init=False)
 class Player:
     name: str
-    avatar: str = "🧙‍♂️"
-    scores: List[int] = field(default_factory=lambda: [0])
-    round_results: List[RoundResult] = field(default_factory=list)
+    avatar: str
+    scores: List[int]
+    round_results: List[RoundResult]
 
     def __init__(self, name: str, avatar: str = "🧙‍♂️", initial_score: int = 0) -> None:
         self.name = name
