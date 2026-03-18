@@ -12,6 +12,7 @@ from typing import Optional, List
 
 import numpy as np
 import matplotlib
+import matplotlib.ticker
 matplotlib.use("QtAgg")
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as _fm
@@ -81,7 +82,12 @@ class MplCanvas(FigureCanvasQTAgg):
         ax.yaxis.label.set_color(TEXT_DIM)
         ax.set_xlabel(t("round"), color=TEXT_DIM, fontsize=11)
         ax.set_ylabel(t("points"), color=TEXT_DIM, fontsize=11)
-        ax.grid(True, color="#1e1e3a", linewidth=0.8, linestyle="--", alpha=0.6)
+        # Minor grid at 100-pt intervals (y), drawn before major grid
+        ax.yaxis.set_minor_locator(matplotlib.ticker.MultipleLocator(100))
+        ax.grid(True, which="minor", axis="y", color="#1e1e3a", linewidth=0.8,
+                linestyle="--", alpha=0.6)
+        ax.grid(True, which="major", color="#1e1e3a", linewidth=0.6,
+                linestyle="--", alpha=0.4)
 
     def _style_figure_light(self) -> None:
         self.fig.patch.set_facecolor("#f0f0f5")
@@ -93,7 +99,12 @@ class MplCanvas(FigureCanvasQTAgg):
         ax.yaxis.label.set_color("#555577")
         ax.set_xlabel(t("round"), color="#555577", fontsize=11)
         ax.set_ylabel(t("points"), color="#555577", fontsize=11)
-        ax.grid(True, color="#dcdcec", linewidth=0.8, linestyle="--", alpha=0.8)
+        # Minor grid at 100-pt intervals (y), drawn before major grid
+        ax.yaxis.set_minor_locator(matplotlib.ticker.MultipleLocator(100))
+        ax.grid(True, which="minor", axis="y", color="#dcdcec", linewidth=0.8,
+                linestyle="--", alpha=0.8)
+        ax.grid(True, which="major", color="#dcdcec", linewidth=0.6,
+                linestyle="--", alpha=0.5)
 
     def redraw(self, game: GameControl) -> None:
         self.axes.clear()
@@ -101,14 +112,70 @@ class MplCanvas(FigureCanvasQTAgg):
         self._hover_lines = []
 
         rounds = game.round_indices
+        n_rounds = len(rounds)
+
+        # ── Detect overlapping segments ────────────────────────────────────
+        # overlap_rank[(player_i, round_r)] = rank of this player in the overlap
+        # group for segment [r, r+1], used to pick different linestyles.
+        overlap_rank: dict = {}
+        for r in range(n_rounds - 1):
+            groups: dict = {}
+            for i, player in enumerate(game.players):
+                key = (player.scores[r], player.scores[r + 1])
+                groups.setdefault(key, []).append(i)
+            for group in groups.values():
+                if len(group) > 1:
+                    for rank, idx in enumerate(sorted(group)):
+                        overlap_rank[(idx, r)] = rank
+
+        OVERLAP_STYLES = ["--", ":", "-."]
+
         for i, player in enumerate(game.players):
             color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
-            line, = self.axes.plot(
-                rounds, player.scores,
-                color=color, marker="o", linewidth=2.2, markersize=6,
-                label=player.name, zorder=3,
-            )
-            self._hover_lines.append((line, player.name, player.scores, rounds))
+
+            if n_rounds <= 1:
+                # Only a single point – nothing to segment
+                line, = self.axes.plot(
+                    rounds, player.scores,
+                    color=color, marker="o", markersize=6, linewidth=0,
+                    label=player.name, zorder=4,
+                )
+                self._hover_lines.append((line, player.name, player.scores, rounds))
+            else:
+                # Build a style list for each segment
+                seg_styles = [
+                    OVERLAP_STYLES[overlap_rank[(i, r)] % len(OVERLAP_STYLES)]
+                    if (i, r) in overlap_rank else "-"
+                    for r in range(n_rounds - 1)
+                ]
+
+                # Plot consecutive segments that share the same style as one call
+                legend_added = False
+                r = 0
+                while r < n_rounds - 1:
+                    curr_style = seg_styles[r]
+                    r_end = r
+                    while r_end < n_rounds - 1 and seg_styles[r_end] == curr_style:
+                        r_end += 1
+                    x_seg = rounds[r:r_end + 1]
+                    y_seg = player.scores[r:r_end + 1]
+                    lbl = player.name if not legend_added else "_nolegend_"
+                    seg_line, = self.axes.plot(
+                        x_seg, y_seg,
+                        color=color, marker="o", linewidth=2.2, markersize=6,
+                        label=lbl, linestyle=curr_style, zorder=3,
+                    )
+                    if not legend_added:
+                        legend_added = True
+                    r = r_end
+
+                # Ghost line spanning all data points for reliable hover detection
+                ghost, = self.axes.plot(
+                    rounds, player.scores,
+                    color=color, linewidth=8, alpha=0.0, zorder=6,
+                )
+                self._hover_lines.append((ghost, player.name, player.scores, rounds))
+
             # Highlight maximum
             max_i = int(np.argmax(player.scores))
             self.axes.plot(
@@ -124,8 +191,15 @@ class MplCanvas(FigureCanvasQTAgg):
             label=t("average"), zorder=2,
         )
 
-        # Zero line
-        self.axes.axhline(0, color="#3a3a5a", linewidth=1.0, linestyle=":", zorder=1)
+        # Zero line – more prominent than regular grid
+        if get_theme() == "light":
+            self.axes.axhline(
+                0, color="#666688", linewidth=1.8, linestyle="-", zorder=2, alpha=0.85,
+            )
+        else:
+            self.axes.axhline(
+                0, color="#8888aa", linewidth=1.8, linestyle="-", zorder=2, alpha=0.9,
+            )
 
         # Integer-only x-axis ticks; bold label for the current round
         self.axes.set_xticks(rounds)
