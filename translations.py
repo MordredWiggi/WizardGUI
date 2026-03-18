@@ -82,6 +82,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "dealer_badge": "🃏 Geber · {n} Karten",
         # Gebots-Zähler
         "bid_total": "Stiche: {bid} / {total}",
+        "bid_warning": "⚠️ Gesamtgebot gleich Kartenzahl – Runde kann nicht gestartet werden!",
+        # Spielmodus
+        "game_mode_label": "SPIELMODUS",
+        "game_mode_standard": "Standard",
+        "game_mode_multiplicative": "Multiplikativ (×)",
         # Runden-Reaktionen
         "bow_stretched": "Man muss den Bogen weit spannen – {name}!",
         "revenge_lever": "Rachehebel zündet – {name}!",
@@ -153,6 +158,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "dealer_badge": "🃏 Dealer · {n} cards",
         # Bid counter
         "bid_total": "Tricks: {bid} / {total}",
+        "bid_warning": "⚠️ Total bids equal tricks – round cannot start!",
+        # Game mode
+        "game_mode_label": "GAME MODE",
+        "game_mode_standard": "Standard",
+        "game_mode_multiplicative": "Multiplicative (×)",
         # Round reactions
         "bow_stretched": "Stretched the bow too far – {name}!",
         "revenge_lever": "Revenge lever ignites – {name}!",
@@ -224,6 +234,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "dealer_badge": "🃏 Donneur · {n} cartes",
         # Compteur de mises
         "bid_total": "Plis: {bid} / {total}",
+        "bid_warning": "⚠️ Total des mises égal aux plis – la manche ne peut pas commencer !",
+        # Mode de jeu
+        "game_mode_label": "MODE DE JEU",
+        "game_mode_standard": "Standard",
+        "game_mode_multiplicative": "Multiplicatif (×)",
         # Réactions de manche
         "bow_stretched": "Il ne faut pas tendre l'arc trop loin – {name} !",
         "revenge_lever": "Le levier de vengeance s'active – {name} !",
@@ -295,6 +310,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "dealer_badge": "🃏 डीलर · {n} पत्ते",
         # बिड काउंटर
         "bid_total": "चालें: {bid} / {total}",
+        "bid_warning": "⚠️ कुल बोली चालों के बराबर – राउंड शुरू नहीं हो सकता!",
+        # खेल मोड
+        "game_mode_label": "खेल मोड",
+        "game_mode_standard": "मानक",
+        "game_mode_multiplicative": "गुणक (×)",
         # राउंड प्रतिक्रियाएँ
         "bow_stretched": "कमान बहुत खींच ली – {name}!",
         "revenge_lever": "बदले का तीर चला – {name}!",

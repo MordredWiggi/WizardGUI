@@ -77,17 +77,17 @@ class MplCanvas(FigureCanvasQTAgg):
         ax = self.axes
         ax.set_facecolor("#12122b")
         ax.tick_params(colors="#888aaa", labelsize=10)
-        ax.spines[:].set_color("#2a2a4a")
+        ax.spines[:].set_color("#3a3a6a")
         ax.xaxis.label.set_color(TEXT_DIM)
         ax.yaxis.label.set_color(TEXT_DIM)
         ax.set_xlabel(t("round"), color=TEXT_DIM, fontsize=11)
         ax.set_ylabel(t("points"), color=TEXT_DIM, fontsize=11)
         # Minor grid at 100-pt intervals (y), drawn before major grid
         ax.yaxis.set_minor_locator(matplotlib.ticker.MultipleLocator(100))
-        ax.grid(True, which="minor", axis="y", color="#1e1e3a", linewidth=0.8,
+        ax.grid(True, which="minor", axis="y", color="#3a3a6a", linewidth=0.8,
+                linestyle="--", alpha=0.7)
+        ax.grid(True, which="major", color="#4a4a7a", linewidth=0.8,
                 linestyle="--", alpha=0.6)
-        ax.grid(True, which="major", color="#1e1e3a", linewidth=0.6,
-                linestyle="--", alpha=0.4)
 
     def _style_figure_light(self) -> None:
         self.fig.patch.set_facecolor("#f0f0f5")
@@ -320,20 +320,28 @@ class PlayerCard(QtWidgets.QFrame):
         layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(8)
 
-        # Name + Punkte
+        # Name + Crown + Punkte
         top_row = QtWidgets.QHBoxLayout()
         display_name = f"{avatar}  {player_name}" if avatar else player_name
         self.lbl_name = QtWidgets.QLabel(display_name)
         self.lbl_name.setStyleSheet(
-            f"color: {color}; font-weight: 700; font-size: 14px; background: transparent; border: none;"
+            f"color: {color}; font-weight: 700; font-size: 16px; background: transparent; border: none;"
         )
+        # Leader crown placed right after the player name
+        self.lbl_leader = QtWidgets.QLabel("👑")
+        self.lbl_leader.setObjectName("leader_badge")
+        self.lbl_leader.setStyleSheet(
+            f"color: {LEADER}; font-size: 20px; background: transparent; border: none;"
+        )
+        self.lbl_leader.setVisible(False)
         self.lbl_score = QtWidgets.QLabel("0")
         self.lbl_score.setObjectName("score_value")
         self.lbl_delta = QtWidgets.QLabel("")
         self.lbl_delta.setStyleSheet(
-            "font-size: 11px; font-weight: 600; background: transparent; border: none;"
+            "font-size: 13px; font-weight: 600; background: transparent; border: none;"
         )
         top_row.addWidget(self.lbl_name)
+        top_row.addWidget(self.lbl_leader)
         top_row.addStretch()
         top_row.addWidget(self.lbl_delta)
         top_row.addWidget(self.lbl_score)
@@ -367,19 +375,14 @@ class PlayerCard(QtWidgets.QFrame):
         input_row.addStretch()
         layout.addLayout(input_row)
 
-        # Dealer badge
+        # Dealer badge – prominent, larger font with highlighted background
         self.lbl_dealer = QtWidgets.QLabel()
         self.lbl_dealer.setStyleSheet(
-            f"color: {ACCENT}; font-size: 11px; font-weight: 600; background: transparent; border: none;"
+            f"color: {BG_DEEP}; background: {ACCENT}; font-size: 14px; font-weight: 700; "
+            f"border-radius: 6px; padding: 3px 8px;"
         )
         self.lbl_dealer.setVisible(False)
         layout.addWidget(self.lbl_dealer, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
-
-        # Leader badge
-        self.lbl_leader = QtWidgets.QLabel(t("leading"))
-        self.lbl_leader.setObjectName("leader_badge")
-        self.lbl_leader.setVisible(False)
-        layout.addWidget(self.lbl_leader, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
 
     # ── public API ────────────────────────────────────────────────────────────
 
@@ -406,12 +409,12 @@ class PlayerCard(QtWidgets.QFrame):
         if delta > 0:
             self.lbl_delta.setText(f"▲ +{delta}")
             self.lbl_delta.setStyleSheet(
-                f"color: {SUCCESS}; font-size: 11px; font-weight: 600; background: transparent; border: none;"
+                f"color: {SUCCESS}; font-size: 13px; font-weight: 600; background: transparent; border: none;"
             )
         elif delta < 0:
             self.lbl_delta.setText(f"▼ {delta}")
             self.lbl_delta.setStyleSheet(
-                f"color: {DANGER}; font-size: 11px; font-weight: 600; background: transparent; border: none;"
+                f"color: {DANGER}; font-size: 13px; font-weight: 600; background: transparent; border: none;"
             )
         else:
             self.lbl_delta.setText("")
@@ -419,9 +422,9 @@ class PlayerCard(QtWidgets.QFrame):
 
     def retranslate_ui(self) -> None:
         """Update translatable labels on this card."""
-        self.lbl_leader.setText(t("leading"))
         # Dealer badge text is always re-rendered by GameView._refresh_scores(),
         # which calls set_dealer() for every card after retranslate_ui() returns.
+        pass
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -460,7 +463,7 @@ class GameView(QtWidgets.QWidget):
         # ── Linke Sidebar ──────────────────────────────────────────────────
         sidebar = QtWidgets.QWidget()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(300)
+        sidebar.setFixedWidth(360)
         sidebar_layout = QtWidgets.QVBoxLayout(sidebar)
         sidebar_layout.setContentsMargins(14, 14, 14, 14)
         sidebar_layout.setSpacing(10)
@@ -525,10 +528,20 @@ class GameView(QtWidgets.QWidget):
             t("bid_total", bid=0, total=self.game.cards_this_round)
         )
         self.lbl_bid_counter.setStyleSheet(
-            f"color: {TEXT_DIM}; font-size: 12px; font-weight: 600;"
+            f"color: {TEXT_DIM}; font-size: 18px; font-weight: 700;"
         )
         self.lbl_bid_counter.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         sidebar_layout.addWidget(self.lbl_bid_counter)
+
+        # Warning label shown when total bids == total possible tricks
+        self.lbl_bid_warning = QtWidgets.QLabel(t("bid_warning"))
+        self.lbl_bid_warning.setWordWrap(True)
+        self.lbl_bid_warning.setStyleSheet(
+            f"color: {DANGER}; font-size: 11px; font-weight: 600; background: transparent;"
+        )
+        self.lbl_bid_warning.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.lbl_bid_warning.setVisible(False)
+        sidebar_layout.addWidget(self.lbl_bid_warning)
 
         # Runde-beendet-Button (mit etwas Abstand nach oben)
         sidebar_layout.addSpacing(8)
@@ -631,7 +644,7 @@ class GameView(QtWidgets.QWidget):
         self.lbl_round_header.setText(
             t("round_header", n=self.game.round_number + 1)
         )
-        leader = self.game.leader
+        leaders = set(self.game.leaders)
         deltas = self.game.last_deltas()
         dealer_idx = self.game.current_dealer_index
         cards = self.game.cards_this_round
@@ -639,7 +652,7 @@ class GameView(QtWidgets.QWidget):
             card.update_score(
                 score=player.current_score,
                 delta=deltas[i],
-                is_leader=(player is leader),
+                is_leader=(player in leaders),
             )
             card.set_dealer(is_dealer=(i == dealer_idx), cards=cards)
         self._update_bid_counter()
@@ -651,15 +664,12 @@ class GameView(QtWidgets.QWidget):
         self.lbl_bid_counter.setText(
             t("bid_total", bid=total_bid, total=total_possible)
         )
-        if total_bid > total_possible:
-            color = DANGER
-        elif total_bid == total_possible:
-            color = SUCCESS
-        else:
-            color = TEXT_DIM
+        equal = total_bid == total_possible
+        color = DANGER if equal else SUCCESS
         self.lbl_bid_counter.setStyleSheet(
-            f"color: {color}; font-size: 12px; font-weight: 600;"
+            f"color: {color}; font-size: 18px; font-weight: 700;"
         )
+        self.lbl_bid_warning.setVisible(equal)
 
     def _connect_bid_signals(self) -> None:
         """Connect each player card's bid_changed signal to the counter."""
@@ -678,6 +688,7 @@ class GameView(QtWidgets.QWidget):
         self.btn_new.setText(t("new"))
         self.btn_new.setToolTip(t("tooltip_new"))
         self.btn_settings.setToolTip(t("tooltip_settings"))
+        self.lbl_bid_warning.setText(t("bid_warning"))
         for card in self._player_cards:
             card.retranslate_ui()
         # _refresh_scores re-renders dealer badges + round header + bid counter

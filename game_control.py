@@ -7,6 +7,13 @@ import random
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+# ---------------------------------------------------------------------------
+# Game modes
+# ---------------------------------------------------------------------------
+
+GAME_MODE_STANDARD = "standard"
+GAME_MODE_MULTIPLICATIVE = "multiplicative"
+
 
 # ---------------------------------------------------------------------------
 # Value objects
@@ -45,6 +52,12 @@ class Player:
     avatar: str = "🧙‍♂️"
     scores: List[int] = field(default_factory=lambda: [0])
     round_results: List[RoundResult] = field(default_factory=list)
+
+    def __init__(self, name: str, avatar: str = "🧙‍♂️", initial_score: int = 0) -> None:
+        self.name = name
+        self.avatar = avatar
+        self.scores = [initial_score]
+        self.round_results = []
 
     # --- computed properties -------------------------------------------------
 
@@ -92,6 +105,16 @@ class Player:
     def apply_round(self, result: RoundResult) -> None:
         self.round_results.append(result)
         self.scores.append(self.current_score + result.score_delta)
+
+    def apply_round_multiplicative(self, result: RoundResult) -> None:
+        """Apply a round result using multiplicative scoring (new game mode)."""
+        self.round_results.append(result)
+        current = self.current_score
+        if result.said == result.achieved:
+            new_score = current * (1 + (result.achieved + 2) / 10)
+        else:
+            new_score = current * (1 - abs(result.said - result.achieved) / 10)
+        self.scores.append(round(new_score))
 
     def undo_round(self) -> None:
         if self.round_results:
@@ -144,9 +167,13 @@ class GameControl:
         self,
         player_data: List[dict],
         initial_dealer_index: Optional[int] = None,
+        game_mode: str = GAME_MODE_STANDARD,
     ) -> None:
+        self.game_mode = game_mode
+        initial_score = 100 if game_mode == GAME_MODE_MULTIPLICATIVE else 0
         self.players: List[Player] = [
-            Player(name=p["name"], avatar=p.get("avatar", "🧙‍♂️")) for p in player_data
+            Player(name=p["name"], avatar=p.get("avatar", "🧙‍♂️"), initial_score=initial_score)
+            for p in player_data
         ]
         self.round_number: int = 0
         self.initial_dealer_index: int = (
@@ -217,6 +244,14 @@ class GameControl:
             return None
         return max(self.players, key=lambda p: p.current_score)
 
+    @property
+    def leaders(self) -> List[Player]:
+        """All players tied for the highest score."""
+        if not self.players:
+            return []
+        max_score = max(p.current_score for p in self.players)
+        return [p for p in self.players if p.current_score == max_score]
+
     def last_deltas(self) -> List[int]:
         if self.round_number == 0:
             return [0] * self.num_players
@@ -229,7 +264,10 @@ class GameControl:
         old_leader = self.leader
 
         for player, result in zip(self.players, results):
-            player.apply_round(result)
+            if self.game_mode == GAME_MODE_MULTIPLICATIVE:
+                player.apply_round_multiplicative(result)
+            else:
+                player.apply_round(result)
         self.round_number += 1
 
         new_leader = self.leader
@@ -273,18 +311,28 @@ class GameControl:
             "players": [p.to_dict() for p in self.players],
             "round_number": self.round_number,
             "initial_dealer_index": self.initial_dealer_index,
+            "game_mode": self.game_mode,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> "GameControl":
+        game_mode = data.get("game_mode", GAME_MODE_STANDARD)
         player_data = [
             {"name": p["name"], "avatar": p.get("avatar", "🧙‍♂️")}
             for p in data["players"]
         ]
-        game = cls(player_data, initial_dealer_index=data.get("initial_dealer_index"))
+        game = cls(
+            player_data,
+            initial_dealer_index=data.get("initial_dealer_index"),
+            game_mode=game_mode,
+        )
         # Players are freshly created; rebuild from saved rounds
         for player, pd in zip(game.players, data["players"]):
             for rd in pd["rounds"]:
-                player.apply_round(RoundResult.from_dict(rd))
+                result = RoundResult.from_dict(rd)
+                if game_mode == GAME_MODE_MULTIPLICATIVE:
+                    player.apply_round_multiplicative(result)
+                else:
+                    player.apply_round(result)
         game.round_number = data["round_number"]
         return game
