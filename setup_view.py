@@ -21,12 +21,15 @@ from save_manager import SaveManager
 from app_settings import t
 
 
+AVATARS = ["🧙‍♂️", "🧙‍♀️", "🧚‍♂️", "🧚‍♀️", "🧞‍♂️", "🧞‍♀️", "🧝‍♂️", "🧝‍♀️", "🧛‍♂️", "🧛‍♀️"]
+
+
 class PlayerChip(QtWidgets.QFrame):
     """Kleiner farbiger Chip für einen Spielernamen."""
 
     removed = QtCore.pyqtSignal(str)
 
-    def __init__(self, name: str, color: str, parent: Optional[QtWidgets.QWidget] = None):
+    def __init__(self, name: str, color: str, parent: Optional[QtWidgets.QWidget] = None, display: Optional[str] = None):
         super().__init__(parent)
         self.name = name
         self.setStyleSheet(
@@ -43,7 +46,7 @@ class PlayerChip(QtWidgets.QFrame):
         row.setContentsMargins(6, 3, 3, 3)
         row.setSpacing(4)
 
-        lbl = QtWidgets.QLabel(name)
+        lbl = QtWidgets.QLabel(display if display is not None else name)
         lbl.setStyleSheet(f"color: {color}; font-weight: 600; font-size: 12px; background: transparent; border: none;")
 
         btn_x = QtWidgets.QPushButton("✕")
@@ -86,7 +89,7 @@ class SetupView(QtWidgets.QWidget):
     def __init__(self, save_manager: SaveManager, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
         self._save_manager = save_manager
-        self._player_names: List[str] = []
+        self._players: List[dict] = []
         self._build_ui()
 
     # ── UI-Aufbau ─────────────────────────────────────────────────────────────
@@ -148,6 +151,12 @@ class SetupView(QtWidgets.QWidget):
         sp_layout.addWidget(self._hdr1)
 
         input_row = QtWidgets.QHBoxLayout()
+
+        self._avatar_combo = QtWidgets.QComboBox()
+        self._avatar_combo.addItems(AVATARS)
+        self._avatar_combo.setMinimumHeight(38)
+        self._avatar_combo.setStyleSheet("font-size: 18px;")
+
         self._name_edit = QtWidgets.QLineEdit()
         self._name_edit.setPlaceholderText(t("player_name_placeholder"))
         self._name_edit.setMinimumHeight(38)
@@ -157,6 +166,7 @@ class SetupView(QtWidgets.QWidget):
         self._btn_add.clicked.connect(self._add_player)
         self._btn_add.setMinimumHeight(38)
 
+        input_row.addWidget(self._avatar_combo)
         input_row.addWidget(self._name_edit, 1)
         input_row.addWidget(self._btn_add)
         sp_layout.addLayout(input_row)
@@ -228,13 +238,14 @@ class SetupView(QtWidgets.QWidget):
 
     def _add_player(self) -> None:
         name = self._name_edit.text().strip()
-        if not name or name in self._player_names:
+        avatar = self._avatar_combo.currentText()
+        if not name or any(p["name"] == name for p in self._players):
             return
-        if len(self._player_names) >= len(PLAYER_COLORS):
+        if len(self._players) >= len(PLAYER_COLORS):
             return
-        color = PLAYER_COLORS[len(self._player_names)]
-        self._player_names.append(name)
-        chip = PlayerChip(name, color, self._chips_container)
+        color = PLAYER_COLORS[len(self._players)]
+        self._players.append({"name": name, "avatar": avatar})
+        chip = PlayerChip(name, color, self._chips_container, display=f"{avatar}  {name}")
         chip.removed.connect(self._remove_player)
         # Insert before the stretch
         idx = self._chips_layout.count() - 1
@@ -243,7 +254,7 @@ class SetupView(QtWidgets.QWidget):
         self._update_state()
 
     def _remove_player(self, name: str) -> None:
-        self._player_names.remove(name)
+        self._players = [p for p in self._players if p["name"] != name]
         # Remove the chip widget
         for i in range(self._chips_layout.count()):
             item = self._chips_layout.itemAt(i)
@@ -275,7 +286,7 @@ class SetupView(QtWidgets.QWidget):
         self._update_state()
 
     def _update_state(self) -> None:
-        n = len(self._player_names)
+        n = len(self._players)
         self._btn_start.setEnabled(n >= 2)
         if n == 0:
             self._hint_lbl.setText(t("hint_min_players"))
@@ -330,7 +341,7 @@ class SetupView(QtWidgets.QWidget):
         self._btn_start.setText(t("start_game"))
         self._btn_settings.setToolTip(t("tooltip_settings"))
         # Update hint based on current player count
-        n = len(self._player_names)
+        n = len(self._players)
         if n == 0:
             self._hint_lbl.setText(t("hint_min_players"))
         else:
@@ -341,8 +352,8 @@ class SetupView(QtWidgets.QWidget):
     # ── Slots ─────────────────────────────────────────────────────────────────
 
     def _on_start(self) -> None:
-        if len(self._player_names) >= 2:
-            self.start_game.emit(list(self._player_names))
+        if len(self._players) >= 2:
+            self.start_game.emit(list(self._players))
 
     def _on_load(self) -> None:
         current = self._saved_list.currentItem()
