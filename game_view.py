@@ -644,7 +644,7 @@ class GameView(QtWidgets.QWidget):
         self.lbl_round_header.setText(
             t("round_header", n=self.game.round_number + 1)
         )
-        leaders = set(self.game.leaders)
+        leaders = list(self.game.leaders)
         deltas = self.game.last_deltas()
         dealer_idx = self.game.current_dealer_index
         cards = self.game.cards_this_round
