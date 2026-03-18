@@ -93,7 +93,7 @@ QLabel#leader_badge {{
 }}
 QLabel#input_label {{
     color: {TEXT_DIM};
-    font-size: 10px;
+    font-size: 13px;
     letter-spacing: 1px;
     background: transparent;
     border: none;
@@ -134,10 +134,11 @@ QSpinBox {{
     background-color: {BG_CARD};
     border: 1px solid #3a3a6a;
     border-radius: 6px;
-    padding: 5px 32px 5px 8px;
+    padding: 5px 26px 5px 8px;
     color: {TEXT_MAIN};
     font-size: 16px;
-    min-width: 72px;
+    min-width: 60px;
+    max-width: 72px;
 }}
 QSpinBox:focus {{
     border: 1px solid {ACCENT};
@@ -351,7 +352,7 @@ QRadioButton::indicator {{
 }}
 QRadioButton::indicator:checked {{
     background: {ACCENT};
-    border: 2px solid {ACCENT};
+    border: 3px solid {TEXT_MAIN};
 }}
 QRadioButton::indicator:hover {{
     border: 2px solid {ACCENT};
@@ -405,7 +406,7 @@ QLabel#leader_badge {{
 }}
 QLabel#input_label {{
     color: {TEXT_DIM_L};
-    font-size: 10px;
+    font-size: 13px;
     letter-spacing: 1px;
     background: transparent;
     border: none;
@@ -446,10 +447,11 @@ QSpinBox {{
     background-color: {BG_CARD_L};
     border: 1px solid #aaaacc;
     border-radius: 6px;
-    padding: 5px 32px 5px 8px;
+    padding: 5px 26px 5px 8px;
     color: {TEXT_MAIN_L};
     font-size: 16px;
-    min-width: 72px;
+    min-width: 60px;
+    max-width: 72px;
 }}
 QSpinBox:focus {{
     border: 1px solid {ACCENT_L};
@@ -663,7 +665,7 @@ QRadioButton::indicator {{
 }}
 QRadioButton::indicator:checked {{
     background: {ACCENT_L};
-    border: 2px solid {ACCENT_L};
+    border: 3px solid {TEXT_MAIN_L};
 }}
 QRadioButton::indicator:hover {{
     border: 2px solid {ACCENT_L};

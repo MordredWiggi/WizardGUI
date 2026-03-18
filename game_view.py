@@ -225,7 +225,7 @@ class MplCanvas(FigureCanvasQTAgg):
         # Set up hover annotation on the fresh axes
         self._setup_hover_annotation()
 
-        self.fig.tight_layout(pad=1.5)
+        self.fig.tight_layout(pad=0.5)
         self.draw()
 
     def _setup_hover_annotation(self) -> None:
@@ -362,7 +362,7 @@ class PlayerCard(QtWidgets.QFrame):
             lbl.setObjectName("input_label")
             spin = QtWidgets.QSpinBox()
             spin.setRange(0, 20)
-            spin.setMinimumWidth(72)
+            spin.setFixedWidth(72)
             col.addWidget(lbl, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
             col.addWidget(spin, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
             setattr(self, attr, spin)
@@ -533,16 +533,6 @@ class GameView(QtWidgets.QWidget):
         self.lbl_bid_counter.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         sidebar_layout.addWidget(self.lbl_bid_counter)
 
-        # Warning label shown when total bids == total possible tricks
-        self.lbl_bid_warning = QtWidgets.QLabel(t("bid_warning"))
-        self.lbl_bid_warning.setWordWrap(True)
-        self.lbl_bid_warning.setStyleSheet(
-            f"color: {DANGER}; font-size: 11px; font-weight: 600; background: transparent;"
-        )
-        self.lbl_bid_warning.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.lbl_bid_warning.setVisible(False)
-        sidebar_layout.addWidget(self.lbl_bid_warning)
-
         # Runde-beendet-Button (mit etwas Abstand nach oben)
         sidebar_layout.addSpacing(8)
         self.btn_round_done = QtWidgets.QPushButton(t("complete_round"))
@@ -577,7 +567,7 @@ class GameView(QtWidgets.QWidget):
         # ── Rechter Plot-Bereich ───────────────────────────────────────────
         plot_wrapper = QtWidgets.QWidget()
         plot_layout = QtWidgets.QVBoxLayout(plot_wrapper)
-        plot_layout.setContentsMargins(16, 16, 16, 16)
+        plot_layout.setContentsMargins(8, 8, 8, 8)
         plot_layout.setSpacing(0)
 
         self.canvas = MplCanvas(self)
@@ -603,6 +593,13 @@ class GameView(QtWidgets.QWidget):
     # ── Spiellogik ────────────────────────────────────────────────────────────
 
     def _on_round_done(self) -> None:
+        # Block if total bids equal total tricks (invalid round start)
+        total_bid = sum(card.get_current_bid() for card in self._player_cards)
+        if total_bid == self.game.cards_this_round:
+            from dialogs import WarningDialog
+            dlg = WarningDialog(self, t("bid_warning"))
+            dlg.exec()
+            return
         results = [card.get_round_result() for card in self._player_cards]
         events = self.game.submit_round(results)
         for card in self._player_cards:
@@ -669,7 +666,6 @@ class GameView(QtWidgets.QWidget):
         self.lbl_bid_counter.setStyleSheet(
             f"color: {color}; font-size: 18px; font-weight: 700;"
         )
-        self.lbl_bid_warning.setVisible(equal)
 
     def _connect_bid_signals(self) -> None:
         """Connect each player card's bid_changed signal to the counter."""
@@ -688,7 +684,6 @@ class GameView(QtWidgets.QWidget):
         self.btn_new.setText(t("new"))
         self.btn_new.setToolTip(t("tooltip_new"))
         self.btn_settings.setToolTip(t("tooltip_settings"))
-        self.lbl_bid_warning.setText(t("bid_warning"))
         for card in self._player_cards:
             card.retranslate_ui()
         # _refresh_scores re-renders dealer badges + round header + bid counter

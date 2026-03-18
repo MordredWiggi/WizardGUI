@@ -154,6 +154,7 @@ class RoundEvents:
     revenge_players: List[Player] = field(default_factory=list)  # 2 gains after ≥2 losses
     huge_loss_player: Optional[Player] = None   # lost ≥ 40 pts this round
     huge_loss_delta: int = 0                    # the actual loss (negative)
+    tobi_consolation: bool = False              # Tobi is last/2nd-last after ≥60% of rounds
 
 
 # ---------------------------------------------------------------------------
@@ -281,6 +282,18 @@ class GameControl:
         # Determine the player who lost the most this round (≥40 pts loss)
         huge_loss_player = min_player if min_delta <= -40 else None
 
+        # Tobi consolation: Tobi is last/second-last after ≥60% of rounds
+        tobi_consolation = False
+        if self.total_rounds > 0 and self.round_number / self.total_rounds >= 0.6:
+            tobi_player = next(
+                (p for p in self.players if p.name.lower() == "tobi"), None
+            )
+            if tobi_player is not None:
+                sorted_asc = sorted(self.players, key=lambda p: p.current_score)
+                rank_from_bottom = sorted_asc.index(tobi_player)
+                if rank_from_bottom <= 1:
+                    tobi_consolation = True
+
         return RoundEvents(
             new_leader=new_leader if new_leader is not old_leader else None,
             big_scorer=max_player if max_delta >= 50 else None,
@@ -294,6 +307,7 @@ class GameControl:
             revenge_players=[p for p in self.players if p.revenge_triggered],
             huge_loss_player=huge_loss_player,
             huge_loss_delta=min_delta if huge_loss_player else 0,
+            tobi_consolation=tobi_consolation,
         )
 
     def undo_round(self) -> bool:

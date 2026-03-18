@@ -187,25 +187,15 @@ class SetupView(QtWidgets.QWidget):
         self._hint_lbl.setStyleSheet(f"font-style: italic;")
         sp_layout.addWidget(self._hint_lbl)
 
-        # Start-Button
-        self._btn_start = QtWidgets.QPushButton(t("start_game"))
-        self._btn_start.setObjectName("primary")
-        self._btn_start.setMinimumHeight(44)
-        self._btn_start.setEnabled(False)
-        self._btn_start.clicked.connect(self._on_start)
-        sp_layout.addWidget(self._btn_start)
-
-        # ── Game Mode ─────────────────────────────────────────────────────
-        mode_panel = self._make_panel()
-        main.addWidget(mode_panel)
-
-        mode_layout = QtWidgets.QVBoxLayout(mode_panel)
-        mode_layout.setContentsMargins(24, 20, 24, 20)
-        mode_layout.setSpacing(10)
+        # ── Game Mode (embedded between players and start button) ──────────
+        mode_sep = QtWidgets.QFrame()
+        mode_sep.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        mode_sep.setStyleSheet("background: #2a2a4a; max-height: 1px; border: none;")
+        sp_layout.addWidget(mode_sep)
 
         self._hdr_mode = QtWidgets.QLabel(t("game_mode_label"))
         self._hdr_mode.setObjectName("section_header")
-        mode_layout.addWidget(self._hdr_mode)
+        sp_layout.addWidget(self._hdr_mode)
 
         mode_row = QtWidgets.QHBoxLayout()
         self._radio_standard = QtWidgets.QRadioButton(t("game_mode_standard"))
@@ -214,7 +204,15 @@ class SetupView(QtWidgets.QWidget):
         mode_row.addWidget(self._radio_standard)
         mode_row.addWidget(self._radio_multi)
         mode_row.addStretch()
-        mode_layout.addLayout(mode_row)
+        sp_layout.addLayout(mode_row)
+
+        # Start-Button
+        self._btn_start = QtWidgets.QPushButton(t("start_game"))
+        self._btn_start.setObjectName("primary")
+        self._btn_start.setMinimumHeight(44)
+        self._btn_start.setEnabled(False)
+        self._btn_start.clicked.connect(self._on_start)
+        sp_layout.addWidget(self._btn_start)
 
         # ── Gespeicherte Spiele ────────────────────────────────────────────
         saved_panel = self._make_panel()

@@ -9,6 +9,7 @@ Verwaltet:
 """
 from __future__ import annotations
 
+import random
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -102,53 +103,80 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_round_submitted(self, events: RoundEvents) -> None:
         """Wählt den passenden Celebration-Effekt für die Runde."""
-        # --- Priority 1: huge loss → play XP sound ---
-        if events.huge_loss_player:
-            try:
-                from sounds import play_xp_shutdown
-                play_xp_shutdown()
-            except Exception:
-                pass
+        # --- Priority 1: Tobi consolation ---
+        if events.tobi_consolation:
             self._overlay.show_event(
-                "💥",
-                t("huge_loss", name=events.huge_loss_player.name, delta=events.huge_loss_delta),
+                "🤝",
+                t("tobi_consolation"),
                 "",
-                color=DANGER,
+                color=SUCCESS,
             )
-        # --- Priority 2: fire / leading / big-score celebrations ---
-        elif events.fire_player:
-            self._overlay.show_event(
-                "🔥", f"{events.fire_player.name} ist auf Feuer!",
-                "3× perfekt in Folge!", color="#ff6b35",
-            )
-        elif events.new_leader:
-            self._overlay.show_event(
-                "👑", f"{events.new_leader.name} führt jetzt!",
-                f"{events.new_leader.current_score} Punkte", color=LEADER,
-            )
-        elif events.big_scorer and events.big_score_delta >= 50:
-            self._overlay.show_event(
-                "🎯", f"Meisterschuss!",
-                f"+{events.big_score_delta} für {events.big_scorer.name}", color=SUCCESS,
-            )
-        # --- Bow stretched: 3 consecutive losses ---
-        elif events.bow_players:
-            name = events.bow_players[0].name
-            self._overlay.show_event(
-                "🏹",
-                t("bow_stretched", name=name),
-                "",
-                color=DANGER,
-            )
-        # --- Revenge: 2 gains after ≥2 losses ---
-        elif events.revenge_players:
-            name = events.revenge_players[0].name
-            self._overlay.show_event(
-                "⚡",
-                t("revenge_lever", name=name),
-                "",
-                color="#ff9900",
-            )
+        else:
+            # Collect all eligible messages and pick one at random
+            candidates = []
+
+            if events.huge_loss_player:
+                candidates.append({
+                    "emoji": "💥",
+                    "title": t("huge_loss", name=events.huge_loss_player.name,
+                               delta=events.huge_loss_delta),
+                    "subtitle": "",
+                    "color": DANGER,
+                    "sound": "xp_shutdown",
+                })
+
+            if events.fire_player:
+                candidates.append({
+                    "emoji": "🔥",
+                    "title": f"{events.fire_player.name} ist auf Feuer!",
+                    "subtitle": "3× perfekt in Folge!",
+                    "color": "#ff6b35",
+                })
+
+            if events.new_leader:
+                candidates.append({
+                    "emoji": "👑",
+                    "title": f"{events.new_leader.name} führt jetzt!",
+                    "subtitle": f"{events.new_leader.current_score} Punkte",
+                    "color": LEADER,
+                })
+
+            if events.big_scorer and events.big_score_delta >= 50:
+                candidates.append({
+                    "emoji": "🎯",
+                    "title": "Meisterschuss!",
+                    "subtitle": f"+{events.big_score_delta} für {events.big_scorer.name}",
+                    "color": SUCCESS,
+                })
+
+            for p in events.bow_players:
+                candidates.append({
+                    "emoji": "🏹",
+                    "title": t("bow_stretched", name=p.name),
+                    "subtitle": "",
+                    "color": DANGER,
+                })
+
+            for p in events.revenge_players:
+                candidates.append({
+                    "emoji": "⚡",
+                    "title": t("revenge_lever", name=p.name),
+                    "subtitle": "",
+                    "color": "#ff9900",
+                })
+
+            if candidates:
+                msg = random.choice(candidates)
+                if msg.get("sound") == "xp_shutdown":
+                    try:
+                        from sounds import play_xp_shutdown
+                        play_xp_shutdown()
+                    except Exception:
+                        pass
+                self._overlay.show_event(
+                    msg["emoji"], msg["title"], msg["subtitle"],
+                    color=msg["color"],
+                )
 
         # --- Game over: show podium (delayed so overlay can finish first) ---
         if events.game_over:
