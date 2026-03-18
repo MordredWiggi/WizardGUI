@@ -152,7 +152,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # --- Game over: show podium (delayed so overlay can finish first) ---
         if events.game_over:
-            QtCore.QTimer.singleShot(2800, self._show_podium)
+            QtCore.QTimer.singleShot(0, self._show_podium)
 
     # ── Podium ────────────────────────────────────────────────────────────────
 
