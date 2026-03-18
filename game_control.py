@@ -42,6 +42,7 @@ class RoundResult:
 @dataclass
 class Player:
     name: str
+    avatar: str = "🧙‍♂️"
     scores: List[int] = field(default_factory=lambda: [0])
     round_results: List[RoundResult] = field(default_factory=list)
 
@@ -102,12 +103,13 @@ class Player:
     def to_dict(self) -> dict:
         return {
             "name": self.name,
+            "avatar": self.avatar,
             "rounds": [r.to_dict() for r in self.round_results],
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> "Player":
-        p = cls(name=data["name"])
+        p = cls(name=data["name"], avatar=data.get("avatar", "🧙‍♂️"))
         for rd in data["rounds"]:
             p.apply_round(RoundResult.from_dict(rd))
         return p
@@ -140,15 +142,17 @@ class GameControl:
 
     def __init__(
         self,
-        player_names: List[str],
+        player_data: List[dict],
         initial_dealer_index: Optional[int] = None,
     ) -> None:
-        self.players: List[Player] = [Player(name=n) for n in player_names]
+        self.players: List[Player] = [
+            Player(name=p["name"], avatar=p.get("avatar", "🧙‍♂️")) for p in player_data
+        ]
         self.round_number: int = 0
         self.initial_dealer_index: int = (
             initial_dealer_index
             if initial_dealer_index is not None
-            else random.randrange(len(player_names)) if player_names else 0
+            else random.randrange(len(player_data)) if player_data else 0
         )
 
     # --- derived properties --------------------------------------------------
@@ -273,8 +277,11 @@ class GameControl:
 
     @classmethod
     def from_dict(cls, data: dict) -> "GameControl":
-        player_names = [p["name"] for p in data["players"]]
-        game = cls(player_names, initial_dealer_index=data.get("initial_dealer_index"))
+        player_data = [
+            {"name": p["name"], "avatar": p.get("avatar", "🧙‍♂️")}
+            for p in data["players"]
+        ]
+        game = cls(player_data, initial_dealer_index=data.get("initial_dealer_index"))
         # Players are freshly created; rebuild from saved rounds
         for player, pd in zip(game.players, data["players"]):
             for rd in pd["rounds"]:

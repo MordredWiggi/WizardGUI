@@ -73,8 +73,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # ── State-Übergänge ───────────────────────────────────────────────────────
 
-    def _on_start_game(self, player_names: list) -> None:
-        self._game = GameControl(player_names)
+    def _on_start_game(self, player_data: list) -> None:
+        self._game = GameControl(player_data)
         self._show_game_view()
 
     def _show_game_view(self) -> None:

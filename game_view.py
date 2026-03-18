@@ -300,7 +300,7 @@ class MplCanvas(FigureCanvasQTAgg):
 class PlayerCard(QtWidgets.QFrame):
     bid_changed = QtCore.pyqtSignal()
 
-    def __init__(self, player_name: str, color: str, parent=None):
+    def __init__(self, player_name: str, color: str, parent=None, avatar: str = ""):
         super().__init__(parent)
         self.player_name = player_name
         self.color = color
@@ -322,7 +322,8 @@ class PlayerCard(QtWidgets.QFrame):
 
         # Name + Punkte
         top_row = QtWidgets.QHBoxLayout()
-        self.lbl_name = QtWidgets.QLabel(player_name)
+        display_name = f"{avatar}  {player_name}" if avatar else player_name
+        self.lbl_name = QtWidgets.QLabel(display_name)
         self.lbl_name.setStyleSheet(
             f"color: {color}; font-weight: 700; font-size: 14px; background: transparent; border: none;"
         )
@@ -511,7 +512,7 @@ class GameView(QtWidgets.QWidget):
 
         for i, player in enumerate(self.game.players):
             color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
-            card = PlayerCard(player.name, color)
+            card = PlayerCard(player.name, color, avatar=player.avatar)
             self._player_cards.append(card)
             self._cards_layout.addWidget(card)
         self._cards_layout.addStretch()
@@ -699,7 +700,7 @@ class GameView(QtWidgets.QWidget):
 
         for i, player in enumerate(self.game.players):
             color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
-            card = PlayerCard(player.name, color)
+            card = PlayerCard(player.name, color, avatar=player.avatar)
             self._player_cards.append(card)
             self._cards_layout.addWidget(card)
         self._cards_layout.addStretch()
