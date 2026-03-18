@@ -91,6 +91,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "bow_stretched": "Man muss den Bogen weit spannen – {name}!",
         "revenge_lever": "Rachehebel zündet – {name}!",
         "huge_loss": "💥 {name} verliert {delta} Punkte!",
+        "tobi_message": "Alles gut {name}, die dicken Runden kommen noch",
         # Spielende / Podium
         "game_over_title": "Spiel beendet!",
         "podium_title": "🏆 Siegertreppe",
@@ -167,6 +168,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "bow_stretched": "Stretched the bow too far – {name}!",
         "revenge_lever": "Revenge lever ignites – {name}!",
         "huge_loss": "💥 {name} loses {delta} points!",
+        "tobi_message": "It's all good {name}, the big rounds are still to come",
         # End of game / podium
         "game_over_title": "Game over!",
         "podium_title": "🏆 Winner's Podium",
@@ -243,6 +245,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "bow_stretched": "Il ne faut pas tendre l'arc trop loin – {name} !",
         "revenge_lever": "Le levier de vengeance s'active – {name} !",
         "huge_loss": "💥 {name} perd {delta} points !",
+        "tobi_message": "Tout va bien {name}, les grosses manches arrivent encore",
         # Fin de partie / podium
         "game_over_title": "Partie terminée !",
         "podium_title": "🏆 Podium des vainqueurs",
@@ -319,6 +322,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "bow_stretched": "कमान बहुत खींच ली – {name}!",
         "revenge_lever": "बदले का तीर चला – {name}!",
         "huge_loss": "💥 {name} को {delta} अंक का नुकसान!",
+        "tobi_message": "सब ठीक है {name}, बड़े राउंड अभी आने हैं",
         # खेल समाप्त / पोडियम
         "game_over_title": "खेल समाप्त!",
         "podium_title": "🏆 विजेता मंच",

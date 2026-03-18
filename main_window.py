@@ -102,8 +102,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_round_submitted(self, events: RoundEvents) -> None:
         """Wählt den passenden Celebration-Effekt für die Runde."""
-        # --- Priority 1: huge loss → play XP sound ---
-        if events.huge_loss_player:
+        import random
+
+        # --- Priority 1: Check for special Tobi message at 60% rounds ---
+        if self._game and self._check_tobi_message(events):
+            # Tobi message was shown, skip other messages
+            pass
+        # --- Priority 2: huge loss → play XP sound ---
+        elif events.huge_loss_player:
             try:
                 from sounds import play_xp_shutdown
                 play_xp_shutdown()
@@ -115,44 +121,89 @@ class MainWindow(QtWidgets.QMainWindow):
                 "",
                 color=DANGER,
             )
-        # --- Priority 2: fire / leading / big-score celebrations ---
-        elif events.fire_player:
-            self._overlay.show_event(
-                "🔥", f"{events.fire_player.name} ist auf Feuer!",
-                "3× perfekt in Folge!", color="#ff6b35",
-            )
-        elif events.new_leader:
-            self._overlay.show_event(
-                "👑", f"{events.new_leader.name} führt jetzt!",
-                f"{events.new_leader.current_score} Punkte", color=LEADER,
-            )
-        elif events.big_scorer and events.big_score_delta >= 50:
-            self._overlay.show_event(
-                "🎯", f"Meisterschuss!",
-                f"+{events.big_score_delta} für {events.big_scorer.name}", color=SUCCESS,
-            )
-        # --- Bow stretched: 3 consecutive losses ---
-        elif events.bow_players:
-            name = events.bow_players[0].name
-            self._overlay.show_event(
-                "🏹",
-                t("bow_stretched", name=name),
-                "",
-                color=DANGER,
-            )
-        # --- Revenge: 2 gains after ≥2 losses ---
-        elif events.revenge_players:
-            name = events.revenge_players[0].name
-            self._overlay.show_event(
-                "⚡",
-                t("revenge_lever", name=name),
-                "",
-                color="#ff9900",
-            )
+        # --- Priority 3: Collect all possible messages and randomize ---
+        else:
+            possible_messages = []
+
+            if events.fire_player:
+                possible_messages.append((
+                    "🔥", f"{events.fire_player.name} ist auf Feuer!",
+                    "3× perfekt in Folge!", "#ff6b35"
+                ))
+
+            if events.new_leader:
+                possible_messages.append((
+                    "👑", f"{events.new_leader.name} führt jetzt!",
+                    f"{events.new_leader.current_score} Punkte", LEADER
+                ))
+
+            if events.big_scorer and events.big_score_delta >= 50:
+                possible_messages.append((
+                    "🎯", "Meisterschuss!",
+                    f"+{events.big_score_delta} für {events.big_scorer.name}", SUCCESS
+                ))
+
+            if events.bow_players:
+                for player in events.bow_players:
+                    possible_messages.append((
+                        "🏹", t("bow_stretched", name=player.name),
+                        "", DANGER
+                    ))
+
+            if events.revenge_players:
+                for player in events.revenge_players:
+                    possible_messages.append((
+                        "⚡", t("revenge_lever", name=player.name),
+                        "", "#ff9900"
+                    ))
+
+            # Show one random message from all possibilities
+            if possible_messages:
+                emoji, title, subtitle, color = random.choice(possible_messages)
+                self._overlay.show_event(emoji, title, subtitle, color=color)
 
         # --- Game over: show podium (delayed so overlay can finish first) ---
         if events.game_over:
             QtCore.QTimer.singleShot(0, self._show_podium)
+
+    def _check_tobi_message(self, events: RoundEvents) -> bool:
+        """Check if we should show the special Tobi message. Returns True if shown."""
+        if not self._game:
+            return False
+
+        # Check if we're at 60% of rounds
+        total_rounds = self._game.total_rounds
+        rounds_60_percent = int(total_rounds * 0.6)
+        if self._game.round_number != rounds_60_percent:
+            return False
+
+        # Check if a player named "Tobi" exists and is last or second-last
+        tobi_player = None
+        for player in self._game.players:
+            if player.name.lower() == "tobi":
+                tobi_player = player
+                break
+
+        if not tobi_player:
+            return False
+
+        # Sort players by score (descending) to find position
+        sorted_players = sorted(self._game.players, key=lambda p: p.current_score, reverse=True)
+        tobi_position = sorted_players.index(tobi_player)
+
+        # Check if last or second-last (index: len-1 or len-2)
+        num_players = len(sorted_players)
+        if tobi_position == num_players - 1 or tobi_position == num_players - 2:
+            # Show special message
+            self._overlay.show_event(
+                "💪",
+                t("tobi_message", name=tobi_player.name),
+                "",
+                color="#4fc3f7",
+            )
+            return True
+
+        return False
 
     # ── Podium ────────────────────────────────────────────────────────────────
 

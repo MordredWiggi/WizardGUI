@@ -187,14 +187,6 @@ class SetupView(QtWidgets.QWidget):
         self._hint_lbl.setStyleSheet(f"font-style: italic;")
         sp_layout.addWidget(self._hint_lbl)
 
-        # Start-Button
-        self._btn_start = QtWidgets.QPushButton(t("start_game"))
-        self._btn_start.setObjectName("primary")
-        self._btn_start.setMinimumHeight(44)
-        self._btn_start.setEnabled(False)
-        self._btn_start.clicked.connect(self._on_start)
-        sp_layout.addWidget(self._btn_start)
-
         # ── Game Mode ─────────────────────────────────────────────────────
         mode_panel = self._make_panel()
         main.addWidget(mode_panel)
@@ -215,6 +207,14 @@ class SetupView(QtWidgets.QWidget):
         mode_row.addWidget(self._radio_multi)
         mode_row.addStretch()
         mode_layout.addLayout(mode_row)
+
+        # Start-Button
+        self._btn_start = QtWidgets.QPushButton(t("start_game"))
+        self._btn_start.setObjectName("primary")
+        self._btn_start.setMinimumHeight(44)
+        self._btn_start.setEnabled(False)
+        self._btn_start.clicked.connect(self._on_start)
+        mode_layout.addWidget(self._btn_start)
 
         # ── Gespeicherte Spiele ────────────────────────────────────────────
         saved_panel = self._make_panel()
