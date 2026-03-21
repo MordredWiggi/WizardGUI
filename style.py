@@ -164,7 +164,7 @@ QSpinBox::up-button {{
     border-bottom: 1px solid #3a3a6a;
     border-top-right-radius: 6px;
     width: 20px;
-    height: 9px;
+    height: 15px;
     subcontrol-origin: border;
     subcontrol-position: top right;
 }}
@@ -174,7 +174,7 @@ QSpinBox::down-button {{
     border-left: 1px solid #3a3a6a;
     border-bottom-right-radius: 6px;
     width: 20px;
-    height: 9px;
+    height: 15px;
     subcontrol-origin: border;
     subcontrol-position: bottom right;
 }}
@@ -187,12 +187,12 @@ QSpinBox::up-button:pressed, QSpinBox::down-button:pressed {{
 QSpinBox::up-arrow {{
     image: url({_UP_DARK});
     width: 10px;
-    height: 8px;
+    height: 15px;
 }}
 QSpinBox::down-arrow {{
     image: url({_DOWN_DARK});
     width: 10px;
-    height: 8px;
+    height: 15px;
 }}
 
 /* ── ComboBox ── */
