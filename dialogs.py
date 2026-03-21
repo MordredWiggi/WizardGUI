@@ -50,10 +50,10 @@ class WarningDialog(QtWidgets.QDialog):
 
         icon_row = QtWidgets.QHBoxLayout()
         icon_lbl = QtWidgets.QLabel("⚠️")
-        icon_lbl.setStyleSheet("font-size: 28px;")
+        icon_lbl.setStyleSheet("font-size: 28px; background: transparent;")
         msg_lbl = QtWidgets.QLabel(message)
         msg_lbl.setWordWrap(True)
-        msg_lbl.setStyleSheet(f"color: {TEXT_MAIN}; font-size: 13px; line-height: 1.5;")
+        msg_lbl.setStyleSheet(f"color: {TEXT_MAIN}; font-size: 13px; line-height: 1.5; background: transparent;")
         icon_row.addWidget(icon_lbl, 0, QtCore.Qt.AlignmentFlag.AlignTop)
         icon_row.addWidget(msg_lbl, 1)
         layout.addLayout(icon_row)
@@ -87,7 +87,7 @@ class SaveGameDialog(QtWidgets.QDialog):
         layout.setContentsMargins(24, 24, 24, 20)
 
         title = QtWidgets.QLabel(f"💾  {t('save_game_title')}")
-        title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {ACCENT};")
+        title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {ACCENT}; background: transparent;")
         layout.addWidget(title)
         layout.addWidget(_sep())
 
@@ -130,13 +130,13 @@ class LoadGameDialog(QtWidgets.QDialog):
         layout.setContentsMargins(24, 24, 24, 20)
 
         title = QtWidgets.QLabel(f"📂  {t('load_game_title')}")
-        title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {ACCENT};")
+        title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {ACCENT}; background: transparent;")
         layout.addWidget(title)
         layout.addWidget(_sep())
 
         if not saved_games:
             empty = QtWidgets.QLabel(t("load_game_empty"))
-            empty.setStyleSheet(f"color: {TEXT_DIM}; font-style: italic; padding: 20px;")
+            empty.setStyleSheet(f"color: {TEXT_DIM}; font-style: italic; padding: 20px; background: transparent;")
             empty.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(empty)
         else:
@@ -220,13 +220,13 @@ class SettingsDialog(QtWidgets.QDialog):
 
         # ── Titel ──────────────────────────────────────────────────────────
         title_lbl = QtWidgets.QLabel(f"⚙  {t('settings_title')}")
-        title_lbl.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {ACCENT};")
+        title_lbl.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;")
         layout.addWidget(title_lbl)
         layout.addWidget(_sep())
 
         # ── Theme ──────────────────────────────────────────────────────────
         theme_lbl = QtWidgets.QLabel(t("settings_theme"))
-        theme_lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {TEXT_DIM};")
+        theme_lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {TEXT_DIM}; background: transparent;")
         layout.addWidget(theme_lbl)
 
         theme_row = QtWidgets.QHBoxLayout()
@@ -245,7 +245,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         # ── Sprache ────────────────────────────────────────────────────────
         lang_lbl = QtWidgets.QLabel(t("settings_language"))
-        lang_lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {TEXT_DIM};")
+        lang_lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {TEXT_DIM}; background: transparent;")
         layout.addWidget(lang_lbl)
 
         from translations import LANGUAGE_NAMES
@@ -347,12 +347,12 @@ class PodiumDialog(QtWidgets.QDialog):
 
         # Title
         title = QtWidgets.QLabel(t("podium_title"))
-        title.setStyleSheet(f"font-size: 22px; font-weight: 800; color: {ACCENT}; letter-spacing: 2px;")
+        title.setStyleSheet(f"font-size: 22px; font-weight: 800; color: {ACCENT}; letter-spacing: 2px; background: transparent;")
         title.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
         subtitle = QtWidgets.QLabel(t("game_over_title"))
-        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_DIM}; letter-spacing: 1px;")
+        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_DIM}; letter-spacing: 1px; background: transparent;")
         subtitle.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle)
 
@@ -372,17 +372,17 @@ class PodiumDialog(QtWidgets.QDialog):
 
             place_lbl = QtWidgets.QLabel(t(place_key))
             place_lbl.setStyleSheet(
-                f"font-size: {size}; font-weight: 700; color: {color}; min-width: 120px;"
+                f"font-size: {size}; font-weight: 700; color: {color}; min-width: 120px; background: transparent;"
             )
 
             name_lbl = QtWidgets.QLabel(name)
             name_lbl.setStyleSheet(
-                f"font-size: {size}; font-weight: 600; color: {TEXT_MAIN};"
+                f"font-size: {size}; font-weight: 600; color: {TEXT_MAIN}; background: transparent;"
             )
 
             score_lbl = QtWidgets.QLabel(t("podium_points", pts=score))
             score_lbl.setStyleSheet(
-                f"font-size: {size}; font-weight: 600; color: {color};"
+                f"font-size: {size}; font-weight: 600; color: {color}; background: transparent;"
             )
             score_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
 
@@ -403,7 +403,7 @@ class PodiumDialog(QtWidgets.QDialog):
                 name, score = players_sorted[rank]
                 lines.append(f"{rank + 1}. {name}  –  {t('podium_points', pts=score)}")
             others_lbl.setText("\n".join(lines))
-            others_lbl.setStyleSheet(f"color: {TEXT_DIM}; font-size: 12px;")
+            others_lbl.setStyleSheet(f"color: {TEXT_DIM}; font-size: 12px; background: transparent;")
             layout.addWidget(others_lbl)
 
         layout.addWidget(_sep())

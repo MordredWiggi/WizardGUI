@@ -76,12 +76,12 @@ class MplCanvas(FigureCanvasQTAgg):
         self.fig.patch.set_facecolor("#0d0d1a")
         ax = self.axes
         ax.set_facecolor("#12122b")
-        ax.tick_params(colors="#888aaa", labelsize=10)
+        ax.tick_params(colors="#888aaa", labelsize=14)
         ax.spines[:].set_color("#3a3a6a")
         ax.xaxis.label.set_color(TEXT_DIM)
         ax.yaxis.label.set_color(TEXT_DIM)
-        ax.set_xlabel(t("round"), color=TEXT_DIM, fontsize=11)
-        ax.set_ylabel(t("points"), color=TEXT_DIM, fontsize=11)
+        ax.set_xlabel(t("round"), color=TEXT_DIM, fontsize=15)
+        ax.set_ylabel(t("points"), color=TEXT_DIM, fontsize=15)
         # Minor grid at 100-pt intervals (y), drawn before major grid
         ax.yaxis.set_minor_locator(matplotlib.ticker.MultipleLocator(100))
         ax.grid(True, which="minor", axis="y", color="#3a3a6a", linewidth=0.8,
@@ -93,12 +93,12 @@ class MplCanvas(FigureCanvasQTAgg):
         self.fig.patch.set_facecolor("#f0f0f5")
         ax = self.axes
         ax.set_facecolor("#f8f8ff")
-        ax.tick_params(colors="#555577", labelsize=10)
+        ax.tick_params(colors="#555577", labelsize=14)
         ax.spines[:].set_color("#ccccdd")
         ax.xaxis.label.set_color("#555577")
         ax.yaxis.label.set_color("#555577")
-        ax.set_xlabel(t("round"), color="#555577", fontsize=11)
-        ax.set_ylabel(t("points"), color="#555577", fontsize=11)
+        ax.set_xlabel(t("round"), color="#555577", fontsize=15)
+        ax.set_ylabel(t("points"), color="#555577", fontsize=15)
         # Minor grid at 100-pt intervals (y), drawn before major grid
         ax.yaxis.set_minor_locator(matplotlib.ticker.MultipleLocator(100))
         ax.grid(True, which="minor", axis="y", color="#dcdcec", linewidth=0.8,
@@ -212,13 +212,13 @@ class MplCanvas(FigureCanvasQTAgg):
         if get_theme() == "light":
             legend = self.axes.legend(
                 facecolor="#e4e4ee", edgecolor="#ccccdd",
-                labelcolor="#1a1a2e", fontsize=17, loc="upper left",
+                labelcolor="#1a1a2e", fontsize=21, loc="upper left",
                 framealpha=0.9,
             )
         else:
             legend = self.axes.legend(
                 facecolor="#1a1a3a", edgecolor="#2a2a4a",
-                labelcolor=TEXT_MAIN, fontsize=17, loc="upper left",
+                labelcolor=TEXT_MAIN, fontsize=21, loc="upper left",
                 framealpha=0.9,
             )
 
@@ -244,7 +244,7 @@ class MplCanvas(FigureCanvasQTAgg):
             xy=(0, 0),
             xytext=(15, 15),
             textcoords="offset points",
-            fontsize=10,
+            fontsize=13,
             color=text_color,
             bbox=dict(
                 boxstyle="round,pad=0.5",
@@ -480,7 +480,7 @@ class GameView(QtWidgets.QWidget):
         header_row.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
 
         title = QtWidgets.QLabel(t("app_title"))
-        title.setStyleSheet(f"color: {ACCENT}; font-size: 16px; font-weight: 800; letter-spacing: 2px;")
+        title.setStyleSheet(f"color: {ACCENT}; font-size: 16px; font-weight: 800; letter-spacing: 2px; background: transparent;")
         title.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
 
         self.lbl_round_header = QtWidgets.QLabel(t("round_header", n=0, total=self.game.total_rounds))
@@ -496,6 +496,10 @@ class GameView(QtWidgets.QWidget):
         self.btn_settings.setObjectName("toolbar_btn")
         self.btn_settings.setToolTip(t("tooltip_settings"))
         self.btn_settings.setFixedSize(36, 36)
+        self.btn_settings.setStyleSheet(
+            "QPushButton { font-size: 24px; padding: 0; background: transparent; border: none; }"
+            "QPushButton:hover { background-color: #1a1a3a; border-radius: 4px; }"
+        )
         self.btn_settings.clicked.connect(self._on_settings)
 
         header_row.addWidget(title)
