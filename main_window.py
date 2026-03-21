@@ -17,7 +17,7 @@ from PyQt6 import QtCore, QtWidgets, QtGui
 
 from game_control import GameControl, RoundEvents
 from save_manager import SaveManager
-from style import ACCENT, BG_BASE, SUCCESS, DANGER, LEADER, PLAYER_COLORS
+from style import ACCENT, BG_BASE, SUCCESS, DANGER, LEADER, PLAYER_COLORS, apply_titlebar_theme
 
 from setup_view import SetupView
 from game_view import GameView
@@ -70,6 +70,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self._game_view.retranslate_ui()
         self.setWindowTitle(t("window_title"))
         self._update_status_bar_style()
+        apply_titlebar_theme(self)
 
     # ── State-Übergänge ───────────────────────────────────────────────────────
 

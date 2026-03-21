@@ -52,6 +52,18 @@ _configure_matplotlib_font()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# NoScrollSpinBox – QSpinBox with mouse-wheel scrolling disabled
+# ─────────────────────────────────────────────────────────────────────────────
+
+class NoScrollSpinBox(QtWidgets.QSpinBox):
+    """QSpinBox that ignores mouse wheel events so the value cannot be changed
+    by scrolling, even when the widget has focus."""
+
+    def wheelEvent(self, event: QtGui.QWheelEvent) -> None:
+        event.ignore()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Matplotlib Canvas
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -362,7 +374,7 @@ class PlayerCard(QtWidgets.QFrame):
             lbl = QtWidgets.QLabel(label_key)
             lbl.setObjectName("input_label")
             lbl.setStyleSheet(f"color: {TEXT_DIM}; font-size: 15px; font-weight: 600; letter-spacing: 1px; background: transparent; border: none;")
-            spin = QtWidgets.QSpinBox()
+            spin = NoScrollSpinBox()
             spin.setRange(0, 20)
             spin.setMaximumWidth(60)
             col.addWidget(lbl, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)

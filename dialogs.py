@@ -20,7 +20,7 @@ from PyQt6 import QtCore, QtWidgets, QtGui
 from style import (
     BG_PANEL, BG_CARD, BG_DEEP,
     ACCENT, ACCENT_DIM, TEXT_MAIN, TEXT_DIM,
-    SUCCESS, DANGER, LEADER,
+    SUCCESS, DANGER, LEADER, apply_titlebar_theme,
 )
 from app_settings import t
 
@@ -34,11 +34,21 @@ def _sep() -> QtWidgets.QFrame:
     return line
 
 
+# ── Basis-Klasse für alle Dialoge mit Theme-Titelleiste ───────────────────────
+
+class ThemedDialog(QtWidgets.QDialog):
+    """Base dialog that applies the current theme to the OS title bar."""
+
+    def showEvent(self, event: QtGui.QShowEvent) -> None:
+        super().showEvent(event)
+        apply_titlebar_theme(self)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # WarningDialog
 # ─────────────────────────────────────────────────────────────────────────────
 
-class WarningDialog(QtWidgets.QDialog):
+class WarningDialog(ThemedDialog):
     def __init__(self, parent: QtWidgets.QWidget, message: str) -> None:
         super().__init__(parent)
         self.setWindowTitle(t("warning_title"))
@@ -50,10 +60,10 @@ class WarningDialog(QtWidgets.QDialog):
 
         icon_row = QtWidgets.QHBoxLayout()
         icon_lbl = QtWidgets.QLabel("⚠️")
-        icon_lbl.setStyleSheet("font-size: 28px; background: transparent;")
+        icon_lbl.setStyleSheet("font-size: 32px; background: transparent;")
         msg_lbl = QtWidgets.QLabel(message)
         msg_lbl.setWordWrap(True)
-        msg_lbl.setStyleSheet(f"color: {TEXT_MAIN}; font-size: 13px; line-height: 1.5; background: transparent;")
+        msg_lbl.setStyleSheet(f"color: {TEXT_MAIN}; font-size: 15px; line-height: 1.5; background: transparent;")
         icon_row.addWidget(icon_lbl, 0, QtCore.Qt.AlignmentFlag.AlignTop)
         icon_row.addWidget(msg_lbl, 1)
         layout.addLayout(icon_row)
@@ -76,7 +86,7 @@ class WarningDialog(QtWidgets.QDialog):
 # SaveGameDialog
 # ─────────────────────────────────────────────────────────────────────────────
 
-class SaveGameDialog(QtWidgets.QDialog):
+class SaveGameDialog(ThemedDialog):
     def __init__(self, parent: QtWidgets.QWidget, default_name: str = "") -> None:
         super().__init__(parent)
         self.setWindowTitle(t("save_game_title"))
@@ -87,11 +97,13 @@ class SaveGameDialog(QtWidgets.QDialog):
         layout.setContentsMargins(24, 24, 24, 20)
 
         title = QtWidgets.QLabel(f"💾  {t('save_game_title')}")
-        title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {ACCENT}; background: transparent;")
+        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;")
         layout.addWidget(title)
         layout.addWidget(_sep())
 
-        layout.addWidget(QtWidgets.QLabel(t("save_game_label")))
+        lbl = QtWidgets.QLabel(t("save_game_label"))
+        lbl.setStyleSheet(f"font-size: 15px; background: transparent;")
+        layout.addWidget(lbl)
         self.name_edit = QtWidgets.QLineEdit(default_name)
         self.name_edit.setPlaceholderText(t("save_game_placeholder"))
         layout.addWidget(self.name_edit)
@@ -117,7 +129,7 @@ class SaveGameDialog(QtWidgets.QDialog):
 # LoadGameDialog
 # ─────────────────────────────────────────────────────────────────────────────
 
-class LoadGameDialog(QtWidgets.QDialog):
+class LoadGameDialog(ThemedDialog):
     def __init__(self, parent: QtWidgets.QWidget, saved_games: List[Dict]) -> None:
         super().__init__(parent)
         self.setWindowTitle(t("load_game_title"))
@@ -130,13 +142,13 @@ class LoadGameDialog(QtWidgets.QDialog):
         layout.setContentsMargins(24, 24, 24, 20)
 
         title = QtWidgets.QLabel(f"📂  {t('load_game_title')}")
-        title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {ACCENT}; background: transparent;")
+        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;")
         layout.addWidget(title)
         layout.addWidget(_sep())
 
         if not saved_games:
             empty = QtWidgets.QLabel(t("load_game_empty"))
-            empty.setStyleSheet(f"color: {TEXT_DIM}; font-style: italic; padding: 20px; background: transparent;")
+            empty.setStyleSheet(f"color: {TEXT_DIM}; font-size: 15px; font-style: italic; padding: 20px; background: transparent;")
             empty.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(empty)
         else:
@@ -198,7 +210,7 @@ class LoadGameDialog(QtWidgets.QDialog):
 _RULES_URL = "https://www.brettspiele-report.de/images/wizard/Spielanleitung_Wizard.pdf"
 
 
-class SettingsDialog(QtWidgets.QDialog):
+class SettingsDialog(ThemedDialog):
     """
     Einstellungen-Popup mit:
       • Dark-/Light-Mode Umschalter
@@ -220,13 +232,13 @@ class SettingsDialog(QtWidgets.QDialog):
 
         # ── Titel ──────────────────────────────────────────────────────────
         title_lbl = QtWidgets.QLabel(f"⚙  {t('settings_title')}")
-        title_lbl.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;")
+        title_lbl.setStyleSheet(f"font-size: 20px; font-weight: 700; color: {ACCENT}; background: transparent;")
         layout.addWidget(title_lbl)
         layout.addWidget(_sep())
 
         # ── Theme ──────────────────────────────────────────────────────────
         theme_lbl = QtWidgets.QLabel(t("settings_theme"))
-        theme_lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {TEXT_DIM}; background: transparent;")
+        theme_lbl.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_DIM}; background: transparent;")
         layout.addWidget(theme_lbl)
 
         theme_row = QtWidgets.QHBoxLayout()
@@ -245,7 +257,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         # ── Sprache ────────────────────────────────────────────────────────
         lang_lbl = QtWidgets.QLabel(t("settings_language"))
-        lang_lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {TEXT_DIM}; background: transparent;")
+        lang_lbl.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_DIM}; background: transparent;")
         layout.addWidget(lang_lbl)
 
         from translations import LANGUAGE_NAMES
@@ -323,7 +335,7 @@ class SettingsDialog(QtWidgets.QDialog):
 # PodiumDialog
 # ─────────────────────────────────────────────────────────────────────────────
 
-class PodiumDialog(QtWidgets.QDialog):
+class PodiumDialog(ThemedDialog):
     """
     Displays the winner's podium at the end of the game.
     Shows the top 3 players with their scores and places.
@@ -347,12 +359,12 @@ class PodiumDialog(QtWidgets.QDialog):
 
         # Title
         title = QtWidgets.QLabel(t("podium_title"))
-        title.setStyleSheet(f"font-size: 22px; font-weight: 800; color: {ACCENT}; letter-spacing: 2px; background: transparent;")
+        title.setStyleSheet(f"font-size: 24px; font-weight: 800; color: {ACCENT}; letter-spacing: 2px; background: transparent;")
         title.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
         subtitle = QtWidgets.QLabel(t("game_over_title"))
-        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_DIM}; letter-spacing: 1px; background: transparent;")
+        subtitle.setStyleSheet(f"font-size: 15px; color: {TEXT_DIM}; letter-spacing: 1px; background: transparent;")
         subtitle.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle)
 
@@ -361,7 +373,7 @@ class PodiumDialog(QtWidgets.QDialog):
         # Podium places
         place_keys = ["podium_1st", "podium_2nd", "podium_3rd"]
         place_colors = [LEADER, "#aaaacc", "#c9a84c"]  # gold, silver, bronze
-        place_sizes = ["20px", "17px", "15px"]
+        place_sizes = ["22px", "19px", "17px"]
 
         for rank, (place_key, color, size) in enumerate(zip(place_keys, place_colors, place_sizes)):
             if rank >= len(players_sorted):
@@ -403,7 +415,7 @@ class PodiumDialog(QtWidgets.QDialog):
                 name, score = players_sorted[rank]
                 lines.append(f"{rank + 1}. {name}  –  {t('podium_points', pts=score)}")
             others_lbl.setText("\n".join(lines))
-            others_lbl.setStyleSheet(f"color: {TEXT_DIM}; font-size: 12px; background: transparent;")
+            others_lbl.setStyleSheet(f"color: {TEXT_DIM}; font-size: 14px; background: transparent;")
             layout.addWidget(others_lbl)
 
         layout.addWidget(_sep())
