@@ -64,6 +64,11 @@ QMainWindow, QWidget {{
     font-size: 13px;
 }}
 
+/* ── Labels: transparenter Hintergrund ── */
+QLabel {{
+    background: transparent;
+}}
+
 /* ── Sidebar ── */
 QWidget#sidebar {{
     background-color: {BG_PANEL};
@@ -159,7 +164,7 @@ QSpinBox::up-button {{
     border-bottom: 1px solid #3a3a6a;
     border-top-right-radius: 6px;
     width: 20px;
-    height: 13px;
+    height: 9px;
     subcontrol-origin: border;
     subcontrol-position: top right;
 }}
@@ -169,7 +174,7 @@ QSpinBox::down-button {{
     border-left: 1px solid #3a3a6a;
     border-bottom-right-radius: 6px;
     width: 20px;
-    height: 13px;
+    height: 9px;
     subcontrol-origin: border;
     subcontrol-position: bottom right;
 }}
@@ -386,6 +391,11 @@ QMainWindow, QWidget {{
     font-size: 13px;
 }}
 
+/* ── Labels: transparenter Hintergrund ── */
+QLabel {{
+    background: transparent;
+}}
+
 /* ── Sidebar ── */
 QWidget#sidebar {{
     background-color: {BG_PANEL_L};
@@ -481,7 +491,7 @@ QSpinBox::up-button {{
     border-bottom: 1px solid #aaaacc;
     border-top-right-radius: 6px;
     width: 20px;
-    height: 13px;
+    height: 9px;
     subcontrol-origin: border;
     subcontrol-position: top right;
 }}
@@ -491,7 +501,7 @@ QSpinBox::down-button {{
     border-left: 1px solid #aaaacc;
     border-bottom-right-radius: 6px;
     width: 20px;
-    height: 13px;
+    height: 9px;
     subcontrol-origin: border;
     subcontrol-position: bottom right;
 }}

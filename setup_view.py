@@ -131,7 +131,11 @@ class SetupView(QtWidgets.QWidget):
         self._btn_settings = QtWidgets.QPushButton("⚙")
         self._btn_settings.setObjectName("toolbar_btn")
         self._btn_settings.setToolTip(t("tooltip_settings"))
-        self._btn_settings.setFixedSize(36, 36)
+        self._btn_settings.setFixedSize(44, 44)
+        self._btn_settings.setStyleSheet(
+            "QPushButton { font-size: 28px; padding: 0; background: transparent; border: none; }"
+            "QPushButton:hover { background-color: #1a1a3a; border-radius: 4px; }"
+        )
         self._btn_settings.clicked.connect(self._on_settings)
         title_row.addWidget(self._btn_settings)
 

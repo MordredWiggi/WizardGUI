@@ -111,9 +111,9 @@ class Player:
         self.round_results.append(result)
         current = self.current_score
         if result.said == result.achieved:
-            new_score = current * (1 + (result.achieved + 2) / 10)
+            new_score = current * (2 + result.achieved)
         else:
-            new_score = current * (1 - abs(result.said - result.achieved) / 10)
+            new_score = current / (1 + abs(result.achieved - result.said))
         self.scores.append(round(new_score))
 
     def undo_round(self) -> None:

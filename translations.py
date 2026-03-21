@@ -66,7 +66,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         # Runden-Header
         "round_header": "Runde {n}/{total}",
         # Stiche-Validierung
-        "made_tricks_warning": "⚠️ Gemachte Stiche ({made}) ≠ Kartenzahl ({total}) – bitte korrigieren!",
+        "made_tricks_warning": "Gemachte Stiche ({made}) ≠ Kartenzahl ({total}) – bitte korrigieren!",
         # Einstellungen
         "settings_title": "Einstellungen",
         "settings_theme": "Design",
@@ -84,7 +84,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "dealer_badge": "🃏 Geber · {n} Karten",
         # Gebots-Zähler
         "bid_total": "Stiche: {bid} / {total}",
-        "bid_warning": "⚠️ Gesamtgebot gleich Kartenzahl – Runde kann nicht gestartet werden!",
+        "bid_warning": "Gesamtgebot gleich Kartenzahl – Runde kann nicht gestartet werden!",
         # Spielmodus
         "game_mode_label": "SPIELMODUS",
         "game_mode_standard": "Standard",
@@ -147,7 +147,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "load": "Load",
         "round_header": "Round {n}/{total}",
         # Made tricks validation
-        "made_tricks_warning": "⚠️ Made tricks ({made}) ≠ cards in round ({total}) – please correct!",
+        "made_tricks_warning": "Made tricks ({made}) ≠ cards in round ({total}) – please correct!",
         "settings_title": "Settings",
         "settings_theme": "Theme",
         "settings_theme_dark": "Dark",
@@ -163,7 +163,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "dealer_badge": "🃏 Dealer · {n} cards",
         # Bid counter
         "bid_total": "Tricks: {bid} / {total}",
-        "bid_warning": "⚠️ Total bids equal tricks – round cannot start!",
+        "bid_warning": "Total bids equal tricks – round cannot start!",
         # Game mode
         "game_mode_label": "GAME MODE",
         "game_mode_standard": "Standard",
@@ -226,7 +226,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "load": "Charger",
         "round_header": "Manche {n}/{total}",
         # Validation des plis réalisés
-        "made_tricks_warning": "⚠️ Plis réalisés ({made}) ≠ cartes de la manche ({total}) – veuillez corriger !",
+        "made_tricks_warning": "Plis réalisés ({made}) ≠ cartes de la manche ({total}) – veuillez corriger !",
         "settings_title": "Paramètres",
         "settings_theme": "Thème",
         "settings_theme_dark": "Sombre",
@@ -242,7 +242,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "dealer_badge": "🃏 Donneur · {n} cartes",
         # Compteur de mises
         "bid_total": "Plis: {bid} / {total}",
-        "bid_warning": "⚠️ Total des mises égal aux plis – la manche ne peut pas commencer !",
+        "bid_warning": "Total des mises égal aux plis – la manche ne peut pas commencer !",
         # Mode de jeu
         "game_mode_label": "MODE DE JEU",
         "game_mode_standard": "Standard",
@@ -305,7 +305,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "load": "लोड करें",
         "round_header": "राउंड {n}/{total}",
         # बनाए गए स्टिक्स सत्यापन
-        "made_tricks_warning": "⚠️ बनाए गए स्टिक्स ({made}) ≠ राउंड के पत्ते ({total}) – कृपया सुधारें!",
+        "made_tricks_warning": "बनाए गए स्टिक्स ({made}) ≠ राउंड के पत्ते ({total}) – कृपया सुधारें!",
         "settings_title": "सेटिंग्स",
         "settings_theme": "थीम",
         "settings_theme_dark": "डार्क",
@@ -321,7 +321,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "dealer_badge": "🃏 डीलर · {n} पत्ते",
         # बिड काउंटर
         "bid_total": "चालें: {bid} / {total}",
-        "bid_warning": "⚠️ कुल बोली चालों के बराबर – राउंड शुरू नहीं हो सकता!",
+        "bid_warning": "कुल बोली चालों के बराबर – राउंड शुरू नहीं हो सकता!",
         # खेल मोड
         "game_mode_label": "खेल मोड",
         "game_mode_standard": "मानक",
