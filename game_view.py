@@ -357,9 +357,7 @@ class PlayerCard(QtWidgets.QFrame):
         input_row = QtWidgets.QHBoxLayout()
         input_row.addStretch()
 
-        for i, (label_key, attr) in enumerate([(t("announced"), "_spin_said"), (t("achieved"), "_spin_achieved")]):
-            if i > 0:
-                input_row.addSpacing(20)
+        def _make_spin_col(label_key: str) -> tuple:
             col = QtWidgets.QVBoxLayout()
             lbl = QtWidgets.QLabel(label_key)
             lbl.setObjectName("input_label")
@@ -369,8 +367,13 @@ class PlayerCard(QtWidgets.QFrame):
             spin.setMaximumWidth(60)
             col.addWidget(lbl, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
             col.addWidget(spin, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
-            setattr(self, attr, spin)
-            input_row.addLayout(col)
+            return col, spin
+
+        col_bid, self._spin_said = _make_spin_col(t("announced"))
+        input_row.addLayout(col_bid)
+        input_row.addSpacing(20)
+        col_made, self._spin_achieved = _make_spin_col(t("achieved"))
+        input_row.addLayout(col_made)
 
         input_row.addStretch()
 

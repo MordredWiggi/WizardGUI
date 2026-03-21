@@ -43,8 +43,9 @@ PLAYER_COLORS = [
 # ── Icon-Pfade für SpinBox-Pfeile ─────────────────────────────────────────────
 def _get_base_dir() -> str:
     """Return base directory for assets, supporting PyInstaller frozen executables."""
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-        return sys._MEIPASS
+    meipass = getattr(sys, '_MEIPASS', None)
+    if getattr(sys, 'frozen', False) and meipass:
+        return meipass
     return os.path.dirname(os.path.abspath(__file__))
 
 _ICONS_DIR = os.path.join(_get_base_dir(), "icons")
