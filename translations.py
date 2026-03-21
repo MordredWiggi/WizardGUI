@@ -64,7 +64,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "load_game_empty": "Keine gespeicherten Spiele gefunden.",
         "load": "Laden",
         # Runden-Header
-        "round_header": "Runde {n}",
+        "round_header": "Runde {n}/{total}",
+        # Stiche-Validierung
+        "made_tricks_warning": "⚠️ Gemachte Stiche ({made}) ≠ Kartenzahl ({total}) – bitte korrigieren!",
         # Einstellungen
         "settings_title": "Einstellungen",
         "settings_theme": "Design",
@@ -143,7 +145,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "load_game_title": "Load Saved Games",
         "load_game_empty": "No saved games found.",
         "load": "Load",
-        "round_header": "Round {n}",
+        "round_header": "Round {n}/{total}",
+        # Made tricks validation
+        "made_tricks_warning": "⚠️ Made tricks ({made}) ≠ cards in round ({total}) – please correct!",
         "settings_title": "Settings",
         "settings_theme": "Theme",
         "settings_theme_dark": "Dark",
@@ -220,7 +224,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "load_game_title": "Charger une partie sauvegardée",
         "load_game_empty": "Aucune partie sauvegardée trouvée.",
         "load": "Charger",
-        "round_header": "Manche {n}",
+        "round_header": "Manche {n}/{total}",
+        # Validation des plis réalisés
+        "made_tricks_warning": "⚠️ Plis réalisés ({made}) ≠ cartes de la manche ({total}) – veuillez corriger !",
         "settings_title": "Paramètres",
         "settings_theme": "Thème",
         "settings_theme_dark": "Sombre",
@@ -297,7 +303,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "load_game_title": "सहेजे गए खेल लोड करें",
         "load_game_empty": "कोई सहेजा गया खेल नहीं मिला।",
         "load": "लोड करें",
-        "round_header": "राउंड {n}",
+        "round_header": "राउंड {n}/{total}",
+        # बनाए गए स्टिक्स सत्यापन
+        "made_tricks_warning": "⚠️ बनाए गए स्टिक्स ({made}) ≠ राउंड के पत्ते ({total}) – कृपया सुधारें!",
         "settings_title": "सेटिंग्स",
         "settings_theme": "थीम",
         "settings_theme_dark": "डार्क",

@@ -5,6 +5,7 @@ Farbpalette: dunkles Midnight-Navy mit Goldakzenten (Karten-Spieltisch-Ästhetik
 Enthält Dark Mode (Standard) und Light Mode Varianten.
 """
 import os
+import sys
 
 # ── Farb-Tokens (Dark Mode) ───────────────────────────────────────────────────
 BG_DEEP    = "#0d0d1a"   # tiefstes Schwarz-Blau
@@ -40,7 +41,14 @@ PLAYER_COLORS = [
 ]
 
 # ── Icon-Pfade für SpinBox-Pfeile ─────────────────────────────────────────────
-_ICONS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons")
+def _get_base_dir() -> str:
+    """Return base directory for assets, supporting PyInstaller frozen executables."""
+    meipass = getattr(sys, '_MEIPASS', None)
+    if getattr(sys, 'frozen', False) and meipass:
+        return meipass
+    return os.path.dirname(os.path.abspath(__file__))
+
+_ICONS_DIR = os.path.join(_get_base_dir(), "icons")
 _UP_DARK   = os.path.join(_ICONS_DIR, "up_arrow_dark.svg").replace("\\", "/")
 _DOWN_DARK = os.path.join(_ICONS_DIR, "down_arrow_dark.svg").replace("\\", "/")
 _UP_LIGHT  = os.path.join(_ICONS_DIR, "up_arrow_light.svg").replace("\\", "/")
@@ -80,6 +88,7 @@ QLabel#section_header {{
     color: {ACCENT_DIM};
     letter-spacing: 2px;
     text-transform: uppercase;
+    background: transparent;
 }}
 QLabel#score_value {{
     font-size: 22px;
@@ -134,10 +143,11 @@ QSpinBox {{
     background-color: {BG_CARD};
     border: 1px solid #3a3a6a;
     border-radius: 6px;
-    padding: 5px 24px 5px 5px;
+    padding: 5px 22px 5px 5px;
     color: {TEXT_MAIN};
-    font-size: 16px;
-    min-width: 60px;
+    font-size: 18px;
+    min-width: 45px;
+    max-width: 60px;
 }}
 QSpinBox:focus {{
     border: 1px solid {ACCENT};
@@ -232,7 +242,7 @@ QPushButton#primary {{
     border: 1px solid {ACCENT};
     color: #fff8e0;
     font-weight: 700;
-    font-size: 14px;
+    font-size: 17px;
     padding: 10px 28px;
 }}
 QPushButton#primary:hover {{
@@ -251,8 +261,8 @@ QPushButton#toolbar_btn {{
     background-color: transparent;
     border: none;
     color: {TEXT_DIM};
-    font-size: 11px;
-    padding: 4px 8px;
+    font-size: 14px;
+    padding: 6px 12px;
 }}
 QPushButton#toolbar_btn:hover {{
     color: {ACCENT};
@@ -276,6 +286,12 @@ QScrollBar::handle:vertical:hover {{
 }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
     height: 0;
+}}
+QListWidget QScrollBar:vertical {{
+    background: {BG_PANEL};
+}}
+QListWidget QScrollBar::handle:vertical {{
+    background: #3a3a6a;
 }}
 
 /* ── Listen ── */
@@ -393,6 +409,7 @@ QLabel#section_header {{
     color: {ACCENT_L};
     letter-spacing: 2px;
     text-transform: uppercase;
+    background: transparent;
 }}
 QLabel#score_value {{
     font-size: 22px;
@@ -447,10 +464,11 @@ QSpinBox {{
     background-color: {BG_CARD_L};
     border: 1px solid #aaaacc;
     border-radius: 6px;
-    padding: 5px 24px 5px 5px;
+    padding: 5px 22px 5px 5px;
     color: {TEXT_MAIN_L};
-    font-size: 16px;
-    min-width: 60px;
+    font-size: 18px;
+    min-width: 45px;
+    max-width: 60px;
 }}
 QSpinBox:focus {{
     border: 1px solid {ACCENT_L};
@@ -545,7 +563,7 @@ QPushButton#primary {{
     border: 1px solid {ACCENT_DIM_L};
     color: #ffffff;
     font-weight: 700;
-    font-size: 14px;
+    font-size: 17px;
     padding: 10px 28px;
 }}
 QPushButton#primary:hover {{
@@ -564,8 +582,8 @@ QPushButton#toolbar_btn {{
     background-color: transparent;
     border: none;
     color: {TEXT_DIM_L};
-    font-size: 11px;
-    padding: 4px 8px;
+    font-size: 14px;
+    padding: 6px 12px;
 }}
 QPushButton#toolbar_btn:hover {{
     color: {ACCENT_L};
@@ -589,6 +607,12 @@ QScrollBar::handle:vertical:hover {{
 }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
     height: 0;
+}}
+QListWidget QScrollBar:vertical {{
+    background: {BG_PANEL_L};
+}}
+QListWidget QScrollBar::handle:vertical {{
+    background: #aaaacc;
 }}
 
 /* ── Listen ── */
