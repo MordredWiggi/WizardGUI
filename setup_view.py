@@ -128,7 +128,7 @@ class SetupView(QtWidgets.QWidget):
         self._btn_settings = QtWidgets.QPushButton("⚙")
         self._btn_settings.setObjectName("toolbar_btn")
         self._btn_settings.setToolTip(t("tooltip_settings"))
-        self._btn_settings.setFixedSize(32, 32)
+        self._btn_settings.setFixedSize(36, 36)
         self._btn_settings.clicked.connect(self._on_settings)
         title_row.addWidget(self._btn_settings)
 
@@ -226,12 +226,15 @@ class SetupView(QtWidgets.QWidget):
 
         self._hdr2 = QtWidgets.QLabel(t("saved_games_header"))
         self._hdr2.setObjectName("section_header")
+        self._hdr2.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Preferred,
+            QtWidgets.QSizePolicy.Policy.Fixed,
+        )
         sv_layout.addWidget(self._hdr2)
 
         self._saved_list = QtWidgets.QListWidget()
-        self._saved_list.setMaximumHeight(200)
         self._saved_list.itemDoubleClicked.connect(self._on_load_double)
-        sv_layout.addWidget(self._saved_list)
+        sv_layout.addWidget(self._saved_list, 1)
 
         btn_row2 = QtWidgets.QHBoxLayout()
         btn_row2.addStretch()

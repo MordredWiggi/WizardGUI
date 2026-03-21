@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('translations.py', '.'), ('app_settings.py', '.')],
+    datas=[('translations.py', '.'), ('app_settings.py', '.'), ('icons', 'icons')],
     hiddenimports=['matplotlib.backends.backend_qtagg'],
     hookspath=[],
     hooksconfig={},

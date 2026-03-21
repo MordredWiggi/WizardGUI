@@ -325,7 +325,7 @@ class PlayerCard(QtWidgets.QFrame):
         display_name = f"{avatar}  {player_name}" if avatar else player_name
         self.lbl_name = QtWidgets.QLabel(display_name)
         self.lbl_name.setStyleSheet(
-            f"color: {color}; font-weight: 700; font-size: 16px; background: transparent; border: none;"
+            f"color: {color}; font-weight: 700; font-size: 20px; background: transparent; border: none;"
         )
         # Leader crown placed right after the player name
         self.lbl_leader = QtWidgets.QLabel("👑")
@@ -355,25 +355,28 @@ class PlayerCard(QtWidgets.QFrame):
 
         # Eingabe-Zeile
         input_row = QtWidgets.QHBoxLayout()
+        input_row.addStretch()
 
-        for label_key, attr in [(t("announced"), "_spin_said"), (t("achieved"), "_spin_achieved")]:
+        for i, (label_key, attr) in enumerate([(t("announced"), "_spin_said"), (t("achieved"), "_spin_achieved")]):
+            if i > 0:
+                input_row.addSpacing(20)
             col = QtWidgets.QVBoxLayout()
             lbl = QtWidgets.QLabel(label_key)
             lbl.setObjectName("input_label")
-            lbl.setStyleSheet(f"color: {TEXT_DIM}; font-size: 12px; font-weight: 600; letter-spacing: 1px; background: transparent; border: none;")
+            lbl.setStyleSheet(f"color: {TEXT_DIM}; font-size: 15px; font-weight: 600; letter-spacing: 1px; background: transparent; border: none;")
             spin = QtWidgets.QSpinBox()
             spin.setRange(0, 20)
-            spin.setMinimumWidth(60)
+            spin.setMaximumWidth(60)
             col.addWidget(lbl, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
             col.addWidget(spin, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
             setattr(self, attr, spin)
             input_row.addLayout(col)
-            input_row.addStretch()
+
+        input_row.addStretch()
 
         # Emit bid_changed whenever the announced (said) spinbox changes
         self._spin_said.valueChanged.connect(self.bid_changed)
 
-        input_row.addStretch()
         layout.addLayout(input_row)
 
         # Dealer badge – prominent, larger font with highlighted background
@@ -477,9 +480,9 @@ class GameView(QtWidgets.QWidget):
         title.setStyleSheet(f"color: {ACCENT}; font-size: 16px; font-weight: 800; letter-spacing: 2px;")
         title.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
 
-        self.lbl_round_header = QtWidgets.QLabel(t("round_header", n=0))
+        self.lbl_round_header = QtWidgets.QLabel(t("round_header", n=0, total=self.game.total_rounds))
         self.lbl_round_header.setStyleSheet(
-            f"color: {TEXT_DIM}; font-size: 11px; font-weight: 600;"
+            f"color: {TEXT_DIM}; font-size: 20px; font-weight: 700;"
         )
         self.lbl_round_header.setAlignment(
             QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter
@@ -489,7 +492,7 @@ class GameView(QtWidgets.QWidget):
         self.btn_settings = QtWidgets.QPushButton("⚙")
         self.btn_settings.setObjectName("toolbar_btn")
         self.btn_settings.setToolTip(t("tooltip_settings"))
-        self.btn_settings.setFixedSize(28, 28)
+        self.btn_settings.setFixedSize(36, 36)
         self.btn_settings.clicked.connect(self._on_settings)
 
         header_row.addWidget(title)
@@ -529,7 +532,7 @@ class GameView(QtWidgets.QWidget):
             t("bid_total", bid=0, total=self.game.cards_this_round)
         )
         self.lbl_bid_counter.setStyleSheet(
-            f"color: {TEXT_DIM}; font-size: 18px; font-weight: 700;"
+            f"color: {TEXT_DIM}; font-size: 22px; font-weight: 700;"
         )
         self.lbl_bid_counter.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         sidebar_layout.addWidget(self.lbl_bid_counter)
@@ -595,7 +598,7 @@ class GameView(QtWidgets.QWidget):
     def _make_action_btn(text: str, tooltip: str = "") -> QtWidgets.QPushButton:
         btn = QtWidgets.QPushButton(text)
         btn.setObjectName("toolbar_btn")
-        btn.setMinimumHeight(32)
+        btn.setMinimumHeight(36)
         btn.setFlat(True)
         if tooltip:
             btn.setToolTip(tooltip)
@@ -604,9 +607,10 @@ class GameView(QtWidgets.QWidget):
     # ── Spiellogik ────────────────────────────────────────────────────────────
 
     def _on_round_done(self) -> None:
-        # Check if total bids equal total possible tricks (invalid)
-        total_bid = sum(card.get_current_bid() for card in self._player_cards)
         total_possible = self.game.cards_this_round
+
+        # Check if total bids equal total possible tricks (invalid game rule)
+        total_bid = sum(card.get_current_bid() for card in self._player_cards)
         if total_bid == total_possible:
             # Show blocking warning dialog
             from dialogs import WarningDialog
@@ -614,7 +618,15 @@ class GameView(QtWidgets.QWidget):
             dlg.exec()
             return  # Don't proceed with submitting the round
 
+        # Check if total made tricks equals total possible tricks (data validation)
         results = [card.get_round_result() for card in self._player_cards]
+        total_made = sum(r.achieved for r in results)
+        if total_made != total_possible:
+            from dialogs import WarningDialog
+            dlg = WarningDialog(self, t("made_tricks_warning", made=total_made, total=total_possible))
+            dlg.exec()
+            return  # Don't proceed until made tricks are corrected
+
         events = self.game.submit_round(results)
         for card in self._player_cards:
             card.reset_inputs()
@@ -653,7 +665,7 @@ class GameView(QtWidgets.QWidget):
 
     def _refresh_scores(self) -> None:
         self.lbl_round_header.setText(
-            t("round_header", n=self.game.round_number + 1)
+            t("round_header", n=self.game.round_number + 1, total=self.game.total_rounds)
         )
         leaders = list(self.game.leaders)
         deltas = self.game.last_deltas()
@@ -678,7 +690,7 @@ class GameView(QtWidgets.QWidget):
         equal = total_bid == total_possible
         color = DANGER if equal else SUCCESS
         self.lbl_bid_counter.setStyleSheet(
-            f"color: {color}; font-size: 18px; font-weight: 700;"
+            f"color: {color}; font-size: 22px; font-weight: 700;"
         )
         # Remove the warning label display - warning will be shown as popup when trying to submit
         # self.lbl_bid_warning.setVisible(equal)
