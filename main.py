@@ -10,28 +10,9 @@ import sys
 import os
 from PyQt6 import QtWidgets, QtGui
 from app_settings import load_settings, get_theme
-from style import STYLESHEET, STYLESHEET_LIGHT
+from style import STYLESHEET, STYLESHEET_LIGHT, apply_titlebar_theme
 from main_window import MainWindow
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-
-def _apply_dark_titlebar_to_window(window: QtWidgets.QMainWindow) -> None:
-    """Apply dark title bar to a specific top-level window (Windows only)."""
-    if sys.platform != "win32":
-        return
-    try:
-        import ctypes
-        DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-        hwnd = int(window.winId())
-        value = ctypes.c_int(1)
-        ctypes.windll.dwmapi.DwmSetWindowAttribute(
-            hwnd,
-            DWMWA_USE_IMMERSIVE_DARK_MODE,
-            ctypes.byref(value),
-            ctypes.sizeof(value),
-        )
-    except Exception:
-        pass
 
 
 def main() -> None:
@@ -69,8 +50,8 @@ def main() -> None:
     window = MainWindow()
     window.show()
 
-    # Apply dark title bar on Windows after the window is shown
-    _apply_dark_titlebar_to_window(window)
+    # Apply title bar theme after the window is shown
+    apply_titlebar_theme(window)
 
     sys.exit(app.exec())
 

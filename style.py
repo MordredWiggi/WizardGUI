@@ -707,3 +707,53 @@ QRadioButton::indicator:hover {{
 }}
 """
 
+
+def apply_titlebar_theme(widget, theme: str = None) -> None:
+    """Apply themed title bar to a top-level window (Windows only).
+
+    In dark mode the title bar is set to dark (immersive dark mode) and
+    coloured to match the application background (#12122b).  In light mode
+    the dark-mode flag is cleared and the caption colour is reset to the
+    system default so Windows shows the normal white title bar.
+    """
+    if sys.platform != "win32":
+        return
+    if theme is None:
+        from app_settings import get_theme
+        theme = get_theme()
+    try:
+        import ctypes
+        DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+        DWMWA_CAPTION_COLOR = 35
+        hwnd = int(widget.winId())
+        if theme != "light":
+            # Enable immersive dark mode
+            value = ctypes.c_int(1)
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
+                ctypes.byref(value), ctypes.sizeof(value),
+            )
+            # Set caption colour to the dark-blue app background (#12122b)
+            # COLORREF format is 0x00BBGGRR: R=0x12, G=0x12, B=0x2b
+            color = ctypes.c_uint32(0x002b1212)
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd, DWMWA_CAPTION_COLOR,
+                ctypes.byref(color), ctypes.sizeof(color),
+            )
+        else:
+            # Disable immersive dark mode
+            value = ctypes.c_int(0)
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
+                ctypes.byref(value), ctypes.sizeof(value),
+            )
+            # Reset caption colour to system default (white title bar)
+            DWMWA_COLOR_DEFAULT = 0xFFFFFFFF
+            color = ctypes.c_uint32(DWMWA_COLOR_DEFAULT)
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd, DWMWA_CAPTION_COLOR,
+                ctypes.byref(color), ctypes.sizeof(color),
+            )
+    except Exception:
+        pass
+
