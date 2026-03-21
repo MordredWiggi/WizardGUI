@@ -485,7 +485,7 @@ class GameView(QtWidgets.QWidget):
 
         self.lbl_round_header = QtWidgets.QLabel(t("round_header", n=0, total=self.game.total_rounds))
         self.lbl_round_header.setStyleSheet(
-            f"color: {TEXT_DIM}; font-size: 20px; font-weight: 700;"
+            f"color: {TEXT_DIM}; font-size: 20px; font-weight: 700; background: transparent;"
         )
         self.lbl_round_header.setAlignment(
             QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter
@@ -535,7 +535,7 @@ class GameView(QtWidgets.QWidget):
             t("bid_total", bid=0, total=self.game.cards_this_round)
         )
         self.lbl_bid_counter.setStyleSheet(
-            f"color: {TEXT_DIM}; font-size: 22px; font-weight: 700;"
+            f"color: {TEXT_DIM}; font-size: 22px; font-weight: 700; background: transparent;"
         )
         self.lbl_bid_counter.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         sidebar_layout.addWidget(self.lbl_bid_counter)

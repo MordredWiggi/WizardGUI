@@ -145,7 +145,7 @@ QSpinBox {{
     border-radius: 6px;
     padding: 5px 22px 5px 5px;
     color: {TEXT_MAIN};
-    font-size: 18px;
+    font-size: 20px;
     min-width: 45px;
     max-width: 60px;
 }}
@@ -357,6 +357,7 @@ QRadioButton {{
     color: {TEXT_MAIN};
     font-size: 13px;
     spacing: 6px;
+    background: transparent;
 }}
 QRadioButton::indicator {{
     width: 16px;

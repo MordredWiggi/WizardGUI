@@ -122,6 +122,9 @@ class SetupView(QtWidgets.QWidget):
         title_lbl = QtWidgets.QLabel("🃏  WIZARD")
         title_lbl.setObjectName("title")
         title_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        title_lbl.setStyleSheet(
+            "font-size: 40px; background: transparent;"
+        )
         title_row.addWidget(title_lbl)
         title_row.addStretch()
 
