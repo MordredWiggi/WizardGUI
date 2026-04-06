@@ -102,6 +102,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "podium_3rd": "🥉 3. Platz",
         "podium_points": "{pts} Punkte",
         "podium_close": "Neues Spiel starten",
+        # Auto-fill Made
+        "auto_fill": "⟳  Stiche auffüllen",
+        "tooltip_auto_fill": "Gemachte Stiche = Angesagte Stiche für alle Spieler",
     },
     "en": {
         "app_title": "🃏 WIZARD",
@@ -181,6 +184,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "podium_3rd": "🥉 3rd Place",
         "podium_points": "{pts} points",
         "podium_close": "Start New Game",
+        # Auto-fill Made
+        "auto_fill": "⟳  Auto-fill Made",
+        "tooltip_auto_fill": "Set made = bid for all players",
     },
     "fr": {
         "app_title": "🃏 WIZARD",
@@ -260,6 +266,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "podium_3rd": "🥉 3ème place",
         "podium_points": "{pts} points",
         "podium_close": "Commencer une nouvelle partie",
+        # Auto-fill Made
+        "auto_fill": "⟳  Remplir automatiquement",
+        "tooltip_auto_fill": "Mettre réalisé = annoncé pour tous les joueurs",
     },
     "hi": {
         "app_title": "🃏 WIZARD",
@@ -339,5 +348,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "podium_3rd": "🥉 तृतीय स्थान",
         "podium_points": "{pts} अंक",
         "podium_close": "नया खेल शुरू करें",
+        # Auto-fill Made
+        "auto_fill": "⟳  स्वतः भरें",
+        "tooltip_auto_fill": "सभी खिलाड़ियों के लिए किए = घोषित",
     },
 }
