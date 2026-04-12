@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Card suit symbol (spade) in gold -->
+    <path
+        android:fillColor="#C9A84C"
+        android:pathData="M54,22 C54,22 30,44 30,58 C30,67 37,72 45,70 C42,76 38,80 32,82 L76,82 C70,80 66,76 63,70 C71,72 78,67 78,58 C78,44 54,22 54,22 Z" />
+</vector>

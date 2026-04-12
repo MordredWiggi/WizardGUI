@@ -1,0 +1,10 @@
+# Copy this file to local.properties and fill in your paths.
+# local.properties is git-ignored and must not be committed.
+
+# Path to the Flutter SDK installation, e.g.:
+#   Windows: C:\\src\\flutter
+#   macOS/Linux: /Users/<you>/flutter
+flutter.sdk=C:\\src\\flutter
+
+# Android SDK path (set automatically by Android Studio, or manually):
+sdk.dir=C:\\Users\\<you>\\AppData\\Local\\Android\\Sdk
