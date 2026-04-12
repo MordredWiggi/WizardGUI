@@ -1,7 +1,17 @@
 .venv
 __pycache__/
 build/
-dist/WizardGUI.exe
+dist/
 *.spec
-sounds/xp_shutdown.wav
+*.pyc
+
+# Desktop build artifacts
+wizard_desktop/sounds/xp_shutdown.wav
+
+# Backend local DB
+wizard_backend/leaderboard.db
+
+# Flutter
+wizard_flutter/.dart_tool/
+wizard_flutter/build/
 

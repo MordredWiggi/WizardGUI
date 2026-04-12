@@ -14,6 +14,7 @@ from pathlib import Path
 _SETTINGS_FILE = Path.home() / ".wizard_gui_settings.json"
 _DEFAULT_LANGUAGE = "de"
 _DEFAULT_THEME = "dark"
+_LEADERBOARD_URL = "http://158.180.32.188:8000"
 
 _settings: dict = {
     "language": _DEFAULT_LANGUAGE,
@@ -62,6 +63,11 @@ def set_theme(theme: str) -> None:
     """Setzt das Theme und speichert die Einstellung."""
     _settings["theme"] = theme
     save_settings()
+
+
+def get_leaderboard_url() -> str:
+    """Gibt die fest eingestellte Leaderboard-Server-URL zurück."""
+    return _LEADERBOARD_URL
 
 
 def t(key: str, **kwargs) -> str:

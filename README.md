@@ -6,6 +6,7 @@ A score tracker for the **Wizard** card game, available in two independent versi
 |---|---|---|---|
 | **Desktop** | Windows / macOS / Linux | Python + PyQt6 | `wizard_desktop/` |
 | **Android** | Android 8.0+ | Flutter / Dart | `wizard_flutter/` |
+| **Leaderboard** | Web (hosted) | Python + FastAPI | `wizard_backend/` |
 
 ---
 
@@ -21,23 +22,30 @@ Wizard/
 │   ├── game_view.py          │
 │   ├── game_control.py       │
 │   ├── save_manager.py       │
+│   ├── leaderboard_client.py │
 │   ├── translations.py       │
 │   ├── app_settings.py       │
 │   ├── style.py              │
 │   ├── dialogs.py            │
 │   └── sounds/              ─┘
 │
-└── wizard_flutter/          ─┐
-    ├── lib/                  │
-    │   ├── main.dart         │
-    │   ├── domain/           │  Android app (Flutter/Dart)
-    │   ├── i18n/             │
-    │   ├── persistence/      │
-    │   ├── state/            │
-    │   ├── theme/            │
-    │   ├── screens/          │
-    │   └── widgets/          │
-    └── android/             ─┘
+├── wizard_flutter/          ─┐
+│   ├── lib/                  │
+│   │   ├── main.dart         │
+│   │   ├── domain/           │
+│   │   ├── i18n/             │  Android app (Flutter/Dart)
+│   │   ├── persistence/      │
+│   │   ├── state/            │
+│   │   ├── theme/            │
+│   │   ├── screens/          │
+│   │   └── widgets/          │
+│   └── android/             ─┘
+│
+└── wizard_backend/          ─┐
+    ├── main.py               │
+    ├── database.py           │  Leaderboard server (FastAPI)
+    ├── templates/            │
+    └── requirements.txt     ─┘
 ```
 
 ---
@@ -60,7 +68,7 @@ python main.py
 | `wizard_desktop/game_control.py` | Game model — scoring, undo, serialisation (`RoundResult`, `Player`, `GameControl`, `RoundEvents`) |
 | `wizard_desktop/save_manager.py` | JSON save / load / plot export |
 | `wizard_desktop/translations.py` | All UI strings in de / en / fr / hi |
-| `wizard_desktop/app_settings.py` | Language and theme persistence (`~/.wizard_gui_settings.json`) |
+| `wizard_desktop/app_settings.py` | Language, theme, leaderboard URL (`~/.wizard_gui_settings.json`) |
 | `wizard_desktop/main_window.py` | Main window, screen transitions, celebration logic |
 | `wizard_desktop/setup_view.py` | Player setup screen |
 | `wizard_desktop/game_view.py` | Gameplay screen — point entry, Matplotlib chart |
@@ -121,6 +129,44 @@ Release APK output: `wizard_flutter/build/app/outputs/flutter-apk/app-release.ap
 ### Minimum Android version
 
 Android 8.0 (API 26). Covers ~98% of active Android devices.
+
+---
+
+## Leaderboard (Backend)
+
+A central leaderboard server collects finished games from all desktop clients. It runs as a FastAPI app with SQLite on an Oracle Cloud VM.
+
+- **Live leaderboard:** http://158.180.32.188:8000
+- **API docs:** http://158.180.32.188:8000/docs
+
+### How it works
+
+1. During player setup, the desktop app checks each name against the server (debounced, 300ms) and shows whether the name already exists.
+2. When a game finishes, the desktop app automatically submits the results.
+3. Games are deduplicated via SHA-256 hash so re-submitting the same game is safe.
+4. On first launch after the update, the app offers a one-time migration of all previously saved games.
+
+### Leaderboard criteria
+
+Separate boards for **Standard** and **Multiplicative** game modes, sortable by:
+
+| Criterion | Description |
+|---|---|
+| Wins | Total games won |
+| Win rate | Wins / games played |
+| Avg score | Average final score |
+| Hit rate | Percentage of rounds where bid = made |
+| Highest score | Best single-game score |
+| Win streak | Longest consecutive win streak |
+
+### Architecture
+
+| File | Responsibility |
+|---|---|
+| `wizard_backend/main.py` | FastAPI app, API endpoints, HTML leaderboard page |
+| `wizard_backend/database.py` | SQLite database layer (players, games, results) |
+| `wizard_backend/templates/leaderboard.html` | Responsive dark-themed web leaderboard |
+| `wizard_desktop/leaderboard_client.py` | HTTP client, game hash, QThread workers |
 
 ---
 
@@ -208,4 +254,5 @@ Bump both in the same commit and update the example above.
 | Dark / light theme | ✅ | ✅ |
 | 4 languages (de/en/fr/hi) | ✅ | ✅ |
 | Plot image export | ✅ | — |
+| Global leaderboard | ✅ | — |
 | Cross-compatible saves | ✅ | ✅ |

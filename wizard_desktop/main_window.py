@@ -9,6 +9,7 @@ Verwaltet:
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -16,7 +17,7 @@ from typing import Optional
 from PyQt6 import QtCore, QtWidgets, QtGui
 
 from game_control import GameControl, RoundEvents
-from save_manager import SaveManager
+from save_manager import SaveManager, SAVE_DIR
 from style import ACCENT, BG_BASE, SUCCESS, DANGER, LEADER, PLAYER_COLORS, apply_titlebar_theme
 
 from setup_view import SetupView
@@ -25,7 +26,9 @@ from dialogs import (
     SaveGameDialog, LoadGameDialog,
     CelebrationOverlay, WarningDialog, PodiumDialog,
 )
-from app_settings import t, get_theme
+from app_settings import t, get_theme, get_leaderboard_url
+
+MIGRATION_MARKER = Path.home() / ".wizard_gui" / ".migration_done"
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -52,8 +55,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # ── Celebration Overlay ────────────────────────────────────────────
         self._overlay = CelebrationOverlay(self)
+        self._submit_worker = None
 
         self.showMaximized()
+
+        # Check for old games that can be migrated (after UI is up)
+        QtCore.QTimer.singleShot(500, self._check_migration)
 
     # ── Fenstergröße → Overlay anpassen ──────────────────────────────────────
 
@@ -163,8 +170,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 emoji, title, subtitle, color = random.choice(possible_messages)
                 self._overlay.show_event(emoji, title, subtitle, color=color)
 
-        # --- Game over: show podium (delayed so overlay can finish first) ---
+        # --- Game over: submit to leaderboard & show podium ---
         if events.game_over:
+            self._submit_to_leaderboard()
             QtCore.QTimer.singleShot(0, self._show_podium)
 
     def _check_tobi_message(self, events: RoundEvents) -> bool:
@@ -259,6 +267,109 @@ class MainWindow(QtWidgets.QMainWindow):
                 self, "Fehler beim Laden",
                 f"Das Spiel konnte nicht geladen werden:\n{exc}",
             )
+
+    # ── Leaderboard: submit game after completion ──────────────────────────────
+
+    def _submit_to_leaderboard(self) -> None:
+        """Submit the current (completed) game to the leaderboard server."""
+        url = get_leaderboard_url()
+        if not url or not self._game or not self._game.is_game_over:
+            return
+
+        from leaderboard_client import (
+            LeaderboardClient, GameSubmitWorker, build_game_submission,
+        )
+
+        game_data = self._game.to_dict()
+        payload = build_game_submission(game_data)
+        client = LeaderboardClient(url)
+        self._submit_worker = GameSubmitWorker(client, payload)
+        self._submit_worker.finished.connect(self._on_submit_result)
+        self._submit_worker.start()
+
+    def _on_submit_result(self, success: bool) -> None:
+        if success:
+            self._show_status(t("leaderboard_submit_ok"))
+        else:
+            self._show_status(t("leaderboard_submit_fail"))
+
+    # ── Leaderboard: migrate old games ───────────────────────────────────────
+
+    def _check_migration(self) -> None:
+        """On first launch with a leaderboard URL, offer to upload old games."""
+        url = get_leaderboard_url()
+        if not url or MIGRATION_MARKER.exists():
+            return
+
+        # Scan for completed games
+        completed: list[tuple[Path, dict]] = []
+        for fp in sorted(SAVE_DIR.glob("*.json")):
+            try:
+                with open(fp, "r", encoding="utf-8") as fh:
+                    payload = json.load(fh)
+                game = payload.get("game", {})
+                players = game.get("players", [])
+                num_players = len(players)
+                if num_players < 2:
+                    continue
+                total_rounds = 60 // num_players
+                if game.get("round_number", 0) == total_rounds:
+                    completed.append((fp, payload))
+            except Exception:
+                continue
+
+        if not completed:
+            MIGRATION_MARKER.parent.mkdir(parents=True, exist_ok=True)
+            MIGRATION_MARKER.touch()
+            return
+
+        reply = QtWidgets.QMessageBox.question(
+            self,
+            t("migration_title"),
+            t("migration_message", n=len(completed)),
+            QtWidgets.QMessageBox.StandardButton.Yes
+            | QtWidgets.QMessageBox.StandardButton.No,
+        )
+
+        if reply != QtWidgets.QMessageBox.StandardButton.Yes:
+            MIGRATION_MARKER.parent.mkdir(parents=True, exist_ok=True)
+            MIGRATION_MARKER.touch()
+            return
+
+        from leaderboard_client import LeaderboardClient, build_game_submission
+
+        client = LeaderboardClient(url)
+        success_count = 0
+
+        progress = QtWidgets.QProgressDialog(
+            t("migration_progress", done=0, total=len(completed)),
+            t("cancel"), 0, len(completed), self,
+        )
+        progress.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
+        progress.show()
+
+        for i, (fp, payload) in enumerate(completed):
+            if progress.wasCanceled():
+                break
+            progress.setLabelText(
+                t("migration_progress", done=i + 1, total=len(completed))
+            )
+            progress.setValue(i)
+            QtWidgets.QApplication.processEvents()
+
+            game_data = payload["game"]
+            played_at = payload.get("meta", {}).get("saved_at", datetime.now().isoformat())
+            submission = build_game_submission(game_data, played_at=played_at)
+            if client.submit_game(submission):
+                success_count += 1
+
+        progress.setValue(len(completed))
+
+        if success_count > 0:
+            self._show_status(t("migration_success", n=success_count))
+
+        MIGRATION_MARKER.parent.mkdir(parents=True, exist_ok=True)
+        MIGRATION_MARKER.touch()
 
     # ── Statusleiste ──────────────────────────────────────────────────────────
 

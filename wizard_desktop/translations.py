@@ -105,6 +105,18 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         # Auto-fill Made
         "auto_fill": "⟳  Stiche auffüllen",
         "tooltip_auto_fill": "Gemachte Stiche = Angesagte Stiche für alle Spieler",
+        # Leaderboard / Migration
+        "migration_title": "Alte Spiele gefunden",
+        "migration_message": "{n} abgeschlossene Spiele gefunden, die noch nicht im Leaderboard sind.\n\nJetzt zum Leaderboard hochladen?",
+        "migration_yes": "Hochladen",
+        "migration_no": "Überspringen",
+        "migration_progress": "Lade Spiele hoch… ({done}/{total})",
+        "migration_success": "{n} Spiele erfolgreich zum Leaderboard hochgeladen!",
+        "migration_error": "Fehler beim Hochladen: {error}",
+        "player_exists_hint": "⚠ Name bereits vergeben",
+        "player_new_hint": "✓ Neuer Spieler",
+        "leaderboard_submit_ok": "Ergebnis an Leaderboard gesendet!",
+        "leaderboard_submit_fail": "Leaderboard nicht erreichbar – Ergebnis lokal gespeichert.",
     },
     "en": {
         "app_title": "🃏 WIZARD",
@@ -187,6 +199,20 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         # Auto-fill Made
         "auto_fill": "⟳  Auto-fill Made",
         "tooltip_auto_fill": "Set made = bid for all players",
+        # Leaderboard / Migration
+        "migration_title": "Old games found",
+        "migration_message": "{n} completed games found that are not yet in the leaderboard.\n\nUpload to leaderboard now?",
+        "migration_yes": "Upload",
+        "migration_no": "Skip",
+        "migration_progress": "Uploading games… ({done}/{total})",
+        "migration_success": "{n} games successfully uploaded to leaderboard!",
+        "migration_error": "Upload error: {error}",
+        "player_exists_hint": "⚠ Name already taken",
+        "player_new_hint": "✓ New player",
+        "leaderboard_submit_ok": "Result sent to leaderboard!",
+        "leaderboard_submit_fail": "Leaderboard unreachable – result saved locally.",
+        "settings_leaderboard": "Leaderboard URL",
+        "settings_leaderboard_placeholder": "https://wizard-leaderboard.fly.dev",
     },
     "fr": {
         "app_title": "🃏 WIZARD",
@@ -269,6 +295,20 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         # Auto-fill Made
         "auto_fill": "⟳  Remplir automatiquement",
         "tooltip_auto_fill": "Mettre réalisé = annoncé pour tous les joueurs",
+        # Leaderboard / Migration
+        "migration_title": "Anciennes parties trouvées",
+        "migration_message": "{n} parties terminées trouvées qui ne sont pas encore dans le classement.\n\nTélécharger maintenant ?",
+        "migration_yes": "Télécharger",
+        "migration_no": "Ignorer",
+        "migration_progress": "Téléchargement des parties… ({done}/{total})",
+        "migration_success": "{n} parties téléchargées avec succès !",
+        "migration_error": "Erreur de téléchargement : {error}",
+        "player_exists_hint": "⚠ Nom déjà pris",
+        "player_new_hint": "✓ Nouveau joueur",
+        "leaderboard_submit_ok": "Résultat envoyé au classement !",
+        "leaderboard_submit_fail": "Classement inaccessible – résultat sauvegardé localement.",
+        "settings_leaderboard": "URL du classement",
+        "settings_leaderboard_placeholder": "https://wizard-leaderboard.fly.dev",
     },
     "hi": {
         "app_title": "🃏 WIZARD",
@@ -351,5 +391,19 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         # Auto-fill Made
         "auto_fill": "⟳  स्वतः भरें",
         "tooltip_auto_fill": "सभी खिलाड़ियों के लिए किए = घोषित",
+        # Leaderboard / Migration
+        "migration_title": "पुराने खेल मिले",
+        "migration_message": "{n} पूर्ण खेल मिले जो अभी तक लीडरबोर्ड में नहीं हैं।\n\nअभी अपलोड करें?",
+        "migration_yes": "अपलोड करें",
+        "migration_no": "छोड़ें",
+        "migration_progress": "खेल अपलोड हो रहे हैं… ({done}/{total})",
+        "migration_success": "{n} खेल सफलतापूर्वक अपलोड हुए!",
+        "migration_error": "अपलोड त्रुटि: {error}",
+        "player_exists_hint": "⚠ नाम पहले से मौजूद है",
+        "player_new_hint": "✓ नया खिलाड़ी",
+        "leaderboard_submit_ok": "परिणाम लीडरबोर्ड पर भेजा गया!",
+        "leaderboard_submit_fail": "लीडरबोर्ड उपलब्ध नहीं – परिणाम स्थानीय रूप से सहेजा गया।",
+        "settings_leaderboard": "लीडरबोर्ड URL",
+        "settings_leaderboard_placeholder": "https://wizard-leaderboard.fly.dev",
     },
 }

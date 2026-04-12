@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wizard Leaderboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            background: #0d0d1a;
+            color: #e8e8f0;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 32px 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #c9a84c;
+            font-size: 2rem;
+            letter-spacing: 3px;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888aaa;
+            font-size: 0.9rem;
+            margin-bottom: 28px;
+            letter-spacing: 1px;
+        }
+
+        /* ── Mode tabs ── */
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 28px;
+            border: 1px solid #3a3a6a;
+            border-radius: 8px;
+            background: #1a1a3a;
+            color: #888aaa;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.15s;
+        }
+
+        .tab:hover { border-color: #c9a84c; color: #e8e8f0; }
+
+        .tab.active {
+            background: #7a6230;
+            border-color: #c9a84c;
+            color: #fff8e0;
+        }
+
+        /* ── Sort bar ── */
+        .sort-bar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 20px;
+        }
+
+        .sort-btn {
+            padding: 6px 14px;
+            border: 1px solid #2a2a4a;
+            border-radius: 6px;
+            background: transparent;
+            color: #888aaa;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.15s;
+        }
+
+        .sort-btn:hover { color: #c9a84c; border-color: #7a6230; }
+
+        .sort-btn.active {
+            background: #20204a;
+            border-color: #c9a84c;
+            color: #c9a84c;
+            font-weight: 600;
+        }
+
+        /* ── Table ── */
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid #2a2a4a;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #1a1a3a;
+            color: #7a6230;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            padding: 12px 14px;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        th:first-child { text-align: center; width: 50px; }
+
+        td {
+            padding: 11px 14px;
+            border-top: 1px solid #1a1a3a;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
+        td:first-child {
+            text-align: center;
+            font-weight: 700;
+            color: #7a6230;
+        }
+
+        tr:hover td { background: #12122b; }
+
+        /* Rank medals */
+        .rank-1 { color: #ffd700; }
+        .rank-2 { color: #aaaacc; }
+        .rank-3 { color: #cd7f32; }
+
+        .player-name {
+            font-weight: 600;
+            color: #e8e8f0;
+        }
+
+        .stat-highlight {
+            color: #c9a84c;
+            font-weight: 600;
+        }
+
+        /* ── Empty state ── */
+        .empty {
+            text-align: center;
+            color: #888aaa;
+            font-style: italic;
+            padding: 60px 20px;
+        }
+
+        /* ── Loading ── */
+        .loading {
+            text-align: center;
+            color: #888aaa;
+            padding: 60px 20px;
+        }
+
+        /* ── Footer ── */
+        .footer {
+            text-align: center;
+            color: #555577;
+            font-size: 0.75rem;
+            margin-top: 32px;
+            letter-spacing: 0.5px;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 600px) {
+            .container { padding: 20px 12px; }
+            h1 { font-size: 1.5rem; }
+            .tab { padding: 8px 18px; font-size: 0.85rem; }
+            .sort-btn { padding: 5px 10px; font-size: 0.75rem; }
+            td, th { padding: 8px 8px; font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>&#127183; WIZARD LEADERBOARD</h1>
+        <p class="subtitle">Global Rankings</p>
+
+        <div class="tabs">
+            <button class="tab active" data-mode="standard">Standard</button>
+            <button class="tab" data-mode="multiplicative">Multiplikativ (&times;)</button>
+        </div>
+
+        <div class="sort-bar">
+            <button class="sort-btn active" data-sort="wins">Siege</button>
+            <button class="sort-btn" data-sort="win_rate">Gewinnquote</button>
+            <button class="sort-btn" data-sort="avg_score">&#216; Punkte</button>
+            <button class="sort-btn" data-sort="hit_rate">Trefferquote</button>
+            <button class="sort-btn" data-sort="highest_score">Highscore</button>
+            <button class="sort-btn" data-sort="win_streak">Siegesserie</button>
+        </div>
+
+        <div id="content" class="loading">Lade Daten&hellip;</div>
+
+        <p class="footer">Wizard Score Tracker &middot; Leaderboard</p>
+    </div>
+
+    <script>
+        let currentMode = "standard";
+        let currentSort = "wins";
+        let leaderboardData = [];
+
+        // ── Tab clicks ──
+        document.querySelectorAll(".tab").forEach(btn => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                currentMode = btn.dataset.mode;
+                fetchData();
+            });
+        });
+
+        // ── Sort clicks ──
+        document.querySelectorAll(".sort-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll(".sort-btn").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                currentSort = btn.dataset.sort;
+                renderTable();
+            });
+        });
+
+        async function fetchData() {
+            const content = document.getElementById("content");
+            content.innerHTML = '<div class="loading">Lade Daten&hellip;</div>';
+
+            try {
+                const resp = await fetch(`/api/leaderboard?mode=${currentMode}`);
+                leaderboardData = await resp.json();
+                renderTable();
+            } catch (e) {
+                content.innerHTML = '<div class="empty">Fehler beim Laden der Daten.</div>';
+            }
+        }
+
+        function renderTable() {
+            const content = document.getElementById("content");
+
+            if (leaderboardData.length === 0) {
+                content.innerHTML = '<div class="empty">Noch keine Spiele in diesem Modus.</div>';
+                return;
+            }
+
+            // Sort
+            const sorted = [...leaderboardData].sort((a, b) => b[currentSort] - a[currentSort]);
+
+            let html = '<div class="table-wrap"><table>';
+            html += `<thead><tr>
+                <th>#</th>
+                <th>Spieler</th>
+                <th>Spiele</th>
+                <th>Siege</th>
+                <th>Quote</th>
+                <th>&#216; Punkte</th>
+                <th>Treffer</th>
+                <th>Highscore</th>
+                <th>Serie</th>
+            </tr></thead><tbody>`;
+
+            sorted.forEach((p, i) => {
+                const rank = i + 1;
+                const rankClass = rank <= 3 ? ` class="rank-${rank}"` : '';
+                const medals = ["", "&#129351;", "&#129352;", "&#129353;"];
+                const medal = medals[rank] || "";
+                const isHighlight = (col) => col === currentSort ? ' class="stat-highlight"' : '';
+
+                html += `<tr>
+                    <td${rankClass}>${medal || rank}</td>
+                    <td class="player-name">${escHtml(p.name)}</td>
+                    <td>${p.games}</td>
+                    <td${isHighlight("wins")}>${p.wins}</td>
+                    <td${isHighlight("win_rate")}>${p.win_rate}%</td>
+                    <td${isHighlight("avg_score")}>${p.avg_score}</td>
+                    <td${isHighlight("hit_rate")}>${p.hit_rate}%</td>
+                    <td${isHighlight("highest_score")}>${p.highest_score}</td>
+                    <td${isHighlight("win_streak")}>${p.win_streak}</td>
+                </tr>`;
+            });
+
+            html += '</tbody></table></div>';
+            content.innerHTML = html;
+        }
+
+        function escHtml(s) {
+            const d = document.createElement("div");
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        // Initial load
+        fetchData();
+    </script>
+</body>
+</html>

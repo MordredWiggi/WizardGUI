@@ -15,10 +15,10 @@ from PyQt6 import QtCore, QtWidgets, QtGui
 
 from style import (
     ACCENT, ACCENT_DIM, BG_BASE, BG_PANEL, BG_CARD,
-    TEXT_MAIN, TEXT_DIM, PLAYER_COLORS,
+    TEXT_MAIN, TEXT_DIM, PLAYER_COLORS, SUCCESS, DANGER,
 )
 from save_manager import SaveManager
-from app_settings import t
+from app_settings import t, get_leaderboard_url
 from game_control import GAME_MODE_STANDARD, GAME_MODE_MULTIPLICATIVE
 
 
@@ -91,6 +91,11 @@ class SetupView(QtWidgets.QWidget):
         super().__init__(parent)
         self._save_manager = save_manager
         self._players: List[dict] = []
+        self._check_worker = None
+        self._debounce_timer = QtCore.QTimer()
+        self._debounce_timer.setSingleShot(True)
+        self._debounce_timer.setInterval(300)
+        self._debounce_timer.timeout.connect(self._do_player_check)
         self._build_ui()
 
     # ── UI-Aufbau ─────────────────────────────────────────────────────────────
@@ -169,6 +174,11 @@ class SetupView(QtWidgets.QWidget):
         self._name_edit.setPlaceholderText(t("player_name_placeholder"))
         self._name_edit.setMinimumHeight(38)
         self._name_edit.returnPressed.connect(self._add_player)
+        self._name_edit.textChanged.connect(self._on_name_text_changed)
+
+        self._name_status = QtWidgets.QLabel()
+        self._name_status.setFixedWidth(160)
+        self._name_status.setStyleSheet("font-size: 11px; background: transparent; border: none;")
 
         self._btn_add = QtWidgets.QPushButton(t("btn_add"))
         self._btn_add.clicked.connect(self._add_player)
@@ -176,6 +186,7 @@ class SetupView(QtWidgets.QWidget):
 
         input_row.addWidget(self._avatar_combo)
         input_row.addWidget(self._name_edit, 1)
+        input_row.addWidget(self._name_status)
         input_row.addWidget(self._btn_add)
         sp_layout.addLayout(input_row)
 
@@ -268,6 +279,49 @@ class SetupView(QtWidgets.QWidget):
         f.setObjectName("panel")
         return f
 
+    # ── Live player name checking ──────────────────────────────────────────────
+
+    def _on_name_text_changed(self, text: str) -> None:
+        """Restart debounce timer on each keystroke."""
+        self._name_status.clear()
+        name = text.strip()
+        if not name or not get_leaderboard_url():
+            return
+        self._debounce_timer.start()
+
+    def _do_player_check(self) -> None:
+        """Fire the background check after debounce."""
+        name = self._name_edit.text().strip()
+        url = get_leaderboard_url()
+        if not name or not url:
+            return
+        from leaderboard_client import LeaderboardClient, PlayerCheckWorker
+
+        client = LeaderboardClient(url)
+        self._check_worker = PlayerCheckWorker(client, name)
+        self._check_worker.result.connect(self._on_player_check_result)
+        self._check_worker.start()
+
+    def _on_player_check_result(self, name: str, exists) -> None:
+        """Update the status indicator with the check result."""
+        # Only update if the name still matches what's in the input
+        if self._name_edit.text().strip() != name:
+            return
+        if exists is None:
+            self._name_status.clear()
+        elif exists:
+            self._name_status.setText(t("player_exists_hint"))
+            self._name_status.setStyleSheet(
+                f"font-size: 11px; color: #ff9900; background: transparent; border: none;"
+            )
+        else:
+            self._name_status.setText(t("player_new_hint"))
+            self._name_status.setStyleSheet(
+                f"font-size: 11px; color: {SUCCESS}; background: transparent; border: none;"
+            )
+
+    # ── Spieler-Verwaltung ────────────────────────────────────────────────────
+
     def _add_player(self) -> None:
         name = self._name_edit.text().strip()
         avatar = self._avatar_combo.currentText()
@@ -283,6 +337,7 @@ class SetupView(QtWidgets.QWidget):
         idx = self._chips_layout.count() - 1
         self._chips_layout.insertWidget(idx, chip)
         self._name_edit.clear()
+        self._name_status.clear()
         self._update_state()
 
     def _remove_player(self, name: str) -> None:
