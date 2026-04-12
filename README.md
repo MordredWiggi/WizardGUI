@@ -4,7 +4,7 @@ A score tracker for the **Wizard** card game, available in two independent versi
 
 | Version | Platform | Language | Location |
 |---|---|---|---|
-| **Desktop** | Windows / macOS / Linux | Python + PyQt6 | repo root |
+| **Desktop** | Windows / macOS / Linux | Python + PyQt6 | `wizard_desktop/` |
 | **Android** | Android 8.0+ | Flutter / Dart | `wizard_flutter/` |
 
 ---
@@ -12,19 +12,20 @@ A score tracker for the **Wizard** card game, available in two independent versi
 ## Repository layout
 
 ```
-WizardGUI/
+Wizard/
 │
-├── main.py                  ─┐
-├── main_window.py            │
-├── setup_view.py             │  Desktop app (Python/PyQt6)
-├── game_view.py              │
-├── game_control.py           │
-├── save_manager.py           │
-├── translations.py           │
-├── app_settings.py           │
-├── style.py                  │
-├── dialogs.py                │
-└── sounds/                  ─┘
+├── wizard_desktop/          ─┐
+│   ├── main.py               │
+│   ├── main_window.py        │
+│   ├── setup_view.py         │  Desktop app (Python/PyQt6)
+│   ├── game_view.py          │
+│   ├── game_control.py       │
+│   ├── save_manager.py       │
+│   ├── translations.py       │
+│   ├── app_settings.py       │
+│   ├── style.py              │
+│   ├── dialogs.py            │
+│   └── sounds/              ─┘
 │
 └── wizard_flutter/          ─┐
     ├── lib/                  │
@@ -46,6 +47,7 @@ WizardGUI/
 ### Setup
 
 ```bash
+cd wizard_desktop
 pip install PyQt6 matplotlib numpy
 python main.py
 ```
@@ -54,16 +56,16 @@ python main.py
 
 | File | Responsibility |
 |---|---|
-| `main.py` | Entry point |
-| `game_control.py` | Game model — scoring, undo, serialisation (`RoundResult`, `Player`, `GameControl`, `RoundEvents`) |
-| `save_manager.py` | JSON save / load / plot export |
-| `translations.py` | All UI strings in de / en / fr / hi |
-| `app_settings.py` | Language and theme persistence (`~/.wizard_gui_settings.json`) |
-| `main_window.py` | Main window, screen transitions, celebration logic |
-| `setup_view.py` | Player setup screen |
-| `game_view.py` | Gameplay screen — point entry, Matplotlib chart |
-| `dialogs.py` | All dialog classes |
-| `style.py` | Central design system (colours, stylesheet) |
+| `wizard_desktop/main.py` | Entry point |
+| `wizard_desktop/game_control.py` | Game model — scoring, undo, serialisation (`RoundResult`, `Player`, `GameControl`, `RoundEvents`) |
+| `wizard_desktop/save_manager.py` | JSON save / load / plot export |
+| `wizard_desktop/translations.py` | All UI strings in de / en / fr / hi |
+| `wizard_desktop/app_settings.py` | Language and theme persistence (`~/.wizard_gui_settings.json`) |
+| `wizard_desktop/main_window.py` | Main window, screen transitions, celebration logic |
+| `wizard_desktop/setup_view.py` | Player setup screen |
+| `wizard_desktop/game_view.py` | Gameplay screen — point entry, Matplotlib chart |
+| `wizard_desktop/dialogs.py` | All dialog classes |
+| `wizard_desktop/style.py` | Central design system (colours, stylesheet) |
 
 ### Save location
 
@@ -173,27 +175,13 @@ wizard_flutter/          ← entire folder, ignore it
 The following files are **irrelevant** to you and should not be modified:
 
 ```
-main.py
-main_window.py
-setup_view.py
-game_view.py
-game_control.py
-save_manager.py
-translations.py
-app_settings.py
-style.py
-dialogs.py
-sounds/
-MainWindow.py
-WizardGUI.py
-WizardGUI.spec
-build.sh
+wizard_desktop/          ← entire folder, ignore it
 ```
 
 ### If you change the save format
 
 Both versions must be updated together whenever the JSON schema changes. The schema version string lives in:
-- Desktop: `save_manager.py` → `SCHEMA_VERSION = "1.1"`
+- Desktop: `wizard_desktop/save_manager.py` → `SCHEMA_VERSION = "1.1"`
 - Android: `wizard_flutter/lib/persistence/save_manager.dart` → `const _schemaVersion = '1.1'`
 
 Bump both in the same commit and update the example above.
