@@ -1,77 +1,131 @@
-# 🃏 Wizard GUI – Punkte-Tracker
+# 🃏 Wizard – Score Tracker
 
-Ein professioneller, objektorientierter Punkte-Tracker für das Kartenspiel **Wizard**.
+A score tracker for the **Wizard** card game, available in two independent versions that share the same save file format.
+
+| Version | Platform | Language | Location |
+|---|---|---|---|
+| **Desktop** | Windows / macOS / Linux | Python + PyQt6 | repo root |
+| **Android** | Android 8.0+ | Flutter / Dart | `wizard_flutter/` |
 
 ---
 
-## Starten
+## Repository layout
+
+```
+WizardGUI/
+│
+├── main.py                  ─┐
+├── main_window.py            │
+├── setup_view.py             │  Desktop app (Python/PyQt6)
+├── game_view.py              │
+├── game_control.py           │
+├── save_manager.py           │
+├── translations.py           │
+├── app_settings.py           │
+├── style.py                  │
+├── dialogs.py                │
+└── sounds/                  ─┘
+│
+└── wizard_flutter/          ─┐
+    ├── lib/                  │
+    │   ├── main.dart         │
+    │   ├── domain/           │  Android app (Flutter/Dart)
+    │   ├── i18n/             │
+    │   ├── persistence/      │
+    │   ├── state/            │
+    │   ├── theme/            │
+    │   ├── screens/          │
+    │   └── widgets/          │
+    └── android/             ─┘
+```
+
+---
+
+## Desktop app (Python / PyQt6)
+
+### Setup
 
 ```bash
-cd wizard_gui
+pip install PyQt6 matplotlib numpy
 python main.py
 ```
 
-**Abhängigkeiten:**
+### Architecture
+
+| File | Responsibility |
+|---|---|
+| `main.py` | Entry point |
+| `game_control.py` | Game model — scoring, undo, serialisation (`RoundResult`, `Player`, `GameControl`, `RoundEvents`) |
+| `save_manager.py` | JSON save / load / plot export |
+| `translations.py` | All UI strings in de / en / fr / hi |
+| `app_settings.py` | Language and theme persistence (`~/.wizard_gui_settings.json`) |
+| `main_window.py` | Main window, screen transitions, celebration logic |
+| `setup_view.py` | Player setup screen |
+| `game_view.py` | Gameplay screen — point entry, Matplotlib chart |
+| `dialogs.py` | All dialog classes |
+| `style.py` | Central design system (colours, stylesheet) |
+
+### Save location
+
+```
+~/.wizard_gui/games/*.json
+```
+
+---
+
+## Android app (Flutter / Dart)
+
+### Setup
+
+1. Install [Flutter](https://docs.flutter.dev/get-started/install/windows/mobile) (SDK 3.x)
+2. Install [Android Studio](https://developer.android.com/studio) to get the Android SDK
+3. Copy `wizard_flutter/android/local.properties.template` to `wizard_flutter/android/local.properties` and fill in your SDK paths
+4. Accept SDK licenses: `flutter doctor --android-licenses`
+
 ```bash
-pip install PyQt6 matplotlib numpy
+cd wizard_flutter
+flutter pub get
+flutter run           # run on connected device / emulator
 ```
+
+### Build
+
+```bash
+flutter build apk --release           # APK for sideloading
+flutter build appbundle               # AAB for Play Store
+```
+
+Release APK output: `wizard_flutter/build/app/outputs/flutter-apk/app-release.apk`
+
+### Architecture
+
+| File / folder | Responsibility |
+|---|---|
+| `lib/main.dart` | Entry point, Provider wiring |
+| `lib/domain/` | Game model — full Dart port of `game_control.py` |
+| `lib/i18n/translations.dart` | All UI strings in de / en / fr / hi |
+| `lib/persistence/app_settings.dart` | Language and theme via `SharedPreferences` |
+| `lib/persistence/save_manager.dart` | JSON save / load / delete, desktop-compatible schema |
+| `lib/state/game_notifier.dart` | `ChangeNotifier` owning `GameControl`, exposes all game actions |
+| `lib/theme/app_theme.dart` | Dark and light `ThemeData`, colour palette |
+| `lib/screens/setup_screen.dart` | Player setup screen |
+| `lib/screens/game_screen.dart` | Gameplay screen — Layer 1 (point entry) + Layer 2 (chart) via `TabBarView` |
+| `lib/screens/settings_screen.dart` | Language and theme settings |
+| `lib/screens/podium_screen.dart` | End-of-game podium |
+| `lib/widgets/player_entry_card.dart` | Per-player card with bid / made spinners |
+| `lib/widgets/score_chart.dart` | Score progression line chart (`fl_chart`) |
+| `lib/widgets/event_overlay.dart` | Animated celebration toast |
+
+### Minimum Android version
+
+Android 8.0 (API 26). Covers ~98% of active Android devices.
 
 ---
 
-## Architektur
+## Shared save format
 
-```
-wizard_gui/
-├── main.py               # Einstiegspunkt
-├── game_control.py       # Datenmodell (Model)
-├── save_manager.py       # JSON-Persistenz
-├── style.py              # Zentrales Design-System
-└── views/
-    ├── main_window.py    # Haupt-Fenster (Controller)
-    ├── setup_view.py     # Spieler-Setup-Bildschirm
-    ├── game_view.py      # Spielbildschirm mit Plot
-    └── dialogs.py        # Alle Dialog-Klassen
-```
+Both versions read and write the same JSON schema (`1.1`), so saves are cross-compatible — a game saved on desktop can be loaded on mobile and vice versa.
 
-### Klassen-Übersicht
-
-| Klasse | Datei | Verantwortung |
-|---|---|---|
-| `RoundResult` | game_control.py | Runden-Eingabe (angesagt / gemacht) + Punkte-Delta |
-| `Player` | game_control.py | Spieler-Zustand (Name, Punkteverlauf, Runden-Historie) |
-| `GameControl` | game_control.py | Zentrales Spielmodell, Undo, Serialisierung |
-| `RoundEvents` | game_control.py | Ereignisse nach einer Runde (für Animationen) |
-| `SaveManager` | save_manager.py | Speichern/Laden als JSON, Plot-Export |
-| `MainWindow` | views/main_window.py | Fenster, State-Übergänge, Celebrations |
-| `SetupView` | views/setup_view.py | Spieler hinzufügen, gespeicherte Spiele laden |
-| `GameView` | views/game_view.py | Spielbildschirm, Punkte-Eingabe, Matplotlib-Plot |
-| `PlayerCard` | views/game_view.py | Widget pro Spieler (Eingabe + Anzeige) |
-| `MplCanvas` | views/game_view.py | Matplotlib in Qt eingebettet |
-| `CelebrationOverlay` | views/dialogs.py | Animiertes Overlay für besondere Momente |
-| `WarningDialog` | views/dialogs.py | Bestätigungs-Dialog |
-| `SaveGameDialog` | views/dialogs.py | Dialog zum Benennen und Speichern |
-| `LoadGameDialog` | views/dialogs.py | Dialog zum Auswählen gespeicherter Spiele |
-
----
-
-## Features
-
-### ✅ Implementiert
-- **Zwei Spielzustände:** Setup-Bildschirm → Spielbildschirm
-- **Spieler-Chips:** Spieler interaktiv hinzufügen/entfernen
-- **Spinboxen** statt freier Texteingabe (verhindert ungültige Eingaben)
-- **Undo:** Letzte Runde rückgängig machen (mit Bestätigung)
-- **Celebrations:** Animiertes Overlay bei:
-  - Neuer Anführer 👑
-  - Meisterschuss ≥ 50 Punkte 🎯
-  - 3× perfekte Runden in Folge 🔥
-- **Plot-Export:** Als PNG, JPEG oder SVG speichern
-- **Spielstand speichern:** JSON mit Metadaten
-- **Spielstand laden:** Liste aller gespeicherten Spiele mit Details
-- **Dark-Theme:** Konsistentes Midnight-Navy/Gold-Design
-- **Anführer-Anzeige:** Hervorhebung in der Spieler-Karte + Plot-Annotation
-
-### Speicherformat (JSON)
 ```json
 {
   "schema_version": "1.1",
@@ -81,9 +135,12 @@ wizard_gui/
   },
   "game": {
     "round_number": 5,
+    "game_mode": "standard",
+    "initial_dealer_index": 2,
     "players": [
       {
         "name": "Alice",
+        "avatar": "🧙‍♀️",
         "rounds": [
           { "said": 2, "achieved": 2 },
           { "said": 1, "achieved": 0 }
@@ -94,13 +151,73 @@ wizard_gui/
 }
 ```
 
-Gespeichert unter: `~/.wizard_gui/games/`
+Desktop save location: `~/.wizard_gui/games/`  
+Android save location: `<app documents>/wizard_gui/games/`
 
 ---
 
-## Erweiterungsideen
-- Statistik-Ansicht (Siegrate, Durchschnitt pro Spieler)
-- Mehrsprachigkeit (DE/EN)
-- Anpassbare Celebration-Schwellwerte
-- Kartenanzahl pro Runde konfigurierbar
-- CSV-Export der Punkte-Tabelle
+## Working on only one version
+
+The two versions are fully independent codebases. They share no source files — only the save file format.
+
+### If you are working on the desktop app only
+
+The following files are **irrelevant** to you and should not be modified:
+
+```
+wizard_flutter/          ← entire folder, ignore it
+```
+
+### If you are working on the Android app only
+
+The following files are **irrelevant** to you and should not be modified:
+
+```
+main.py
+main_window.py
+setup_view.py
+game_view.py
+game_control.py
+save_manager.py
+translations.py
+app_settings.py
+style.py
+dialogs.py
+sounds/
+MainWindow.py
+WizardGUI.py
+WizardGUI.spec
+build.sh
+```
+
+### If you change the save format
+
+Both versions must be updated together whenever the JSON schema changes. The schema version string lives in:
+- Desktop: `save_manager.py` → `SCHEMA_VERSION = "1.1"`
+- Android: `wizard_flutter/lib/persistence/save_manager.dart` → `const _schemaVersion = '1.1'`
+
+Bump both in the same commit and update the example above.
+
+---
+
+## Features
+
+| Feature | Desktop | Android |
+|---|---|---|
+| Player setup with avatars | ✅ | ✅ |
+| Standard scoring | ✅ | ✅ |
+| Multiplicative scoring mode | ✅ | ✅ |
+| Bid / made entry per player | ✅ | ✅ |
+| Bid-warning banner | ✅ | ✅ |
+| Auto-fill made from bid | ✅ | ✅ |
+| Score progression chart | ✅ Matplotlib | ✅ fl_chart |
+| Undo last round | ✅ | ✅ |
+| Save / load games (JSON) | ✅ | ✅ |
+| Delete saved games | — | ✅ |
+| Round event celebrations | ✅ | ✅ |
+| Tobi easter egg | ✅ | ✅ |
+| End-of-game podium | ✅ | ✅ |
+| Dark / light theme | ✅ | ✅ |
+| 4 languages (de/en/fr/hi) | ✅ | ✅ |
+| Plot image export | ✅ | — |
+| Cross-compatible saves | ✅ | ✅ |
