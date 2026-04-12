@@ -25,6 +25,7 @@ from game_view import GameView
 from dialogs import (
     SaveGameDialog, LoadGameDialog,
     CelebrationOverlay, WarningDialog, PodiumDialog,
+    MigrationDialog, MigrationProgressDialog,
 )
 from app_settings import t, get_theme, get_leaderboard_url
 
@@ -323,15 +324,8 @@ class MainWindow(QtWidgets.QMainWindow):
             MIGRATION_MARKER.touch()
             return
 
-        reply = QtWidgets.QMessageBox.question(
-            self,
-            t("migration_title"),
-            t("migration_message", n=len(completed)),
-            QtWidgets.QMessageBox.StandardButton.Yes
-            | QtWidgets.QMessageBox.StandardButton.No,
-        )
-
-        if reply != QtWidgets.QMessageBox.StandardButton.Yes:
+        dlg = MigrationDialog(self, len(completed))
+        if not dlg.exec():
             MIGRATION_MARKER.parent.mkdir(parents=True, exist_ok=True)
             MIGRATION_MARKER.touch()
             return
@@ -341,20 +335,13 @@ class MainWindow(QtWidgets.QMainWindow):
         client = LeaderboardClient(url)
         success_count = 0
 
-        progress = QtWidgets.QProgressDialog(
-            t("migration_progress", done=0, total=len(completed)),
-            t("cancel"), 0, len(completed), self,
-        )
-        progress.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
+        progress = MigrationProgressDialog(self, len(completed))
         progress.show()
 
         for i, (fp, payload) in enumerate(completed):
             if progress.wasCanceled():
                 break
-            progress.setLabelText(
-                t("migration_progress", done=i + 1, total=len(completed))
-            )
-            progress.setValue(i)
+            progress.update_progress(i + 1)
             QtWidgets.QApplication.processEvents()
 
             game_data = payload["game"]
@@ -363,7 +350,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if client.submit_game(submission):
                 success_count += 1
 
-        progress.setValue(len(completed))
+        progress.close()
 
         if success_count > 0:
             self._show_status(t("migration_success", n=success_count))

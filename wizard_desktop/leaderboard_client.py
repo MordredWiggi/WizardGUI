@@ -102,7 +102,7 @@ def _post_json(url: str, payload: dict, timeout: int = 10) -> Optional[dict]:
         return None
 
 
-def _get_json(url: str, timeout: int = 5) -> Optional[dict]:
+def _get_json(url: str, timeout: int = 5):
     req = urllib.request.Request(url, method="GET")
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -129,6 +129,14 @@ class LeaderboardClient:
         url = f"{self.base_url}/api/games"
         result = _post_json(url, payload)
         return result is not None
+
+    def get_leaderboard(self, mode: str = "standard") -> Optional[list]:
+        """Fetch leaderboard data. Returns list of dicts or None on error."""
+        url = f"{self.base_url}/api/leaderboard?mode={urllib.parse.quote(mode)}"
+        data = _get_json(url, timeout=5)
+        if data is None:
+            return None
+        return data
 
 
 # ── QThread workers (keep UI responsive) ─────────────────────────────────────
@@ -162,3 +170,18 @@ class GameSubmitWorker(QtCore.QThread):
     def run(self) -> None:
         success = self._client.submit_game(self._payload)
         self.finished.emit(success)
+
+
+class LeaderboardFetchWorker(QtCore.QThread):
+    """Fetch leaderboard data in the background."""
+
+    result = QtCore.pyqtSignal(object)  # list[dict] or None
+
+    def __init__(self, client: LeaderboardClient, mode: str) -> None:
+        super().__init__()
+        self._client = client
+        self._mode = mode
+
+    def run(self) -> None:
+        data = self._client.get_leaderboard(self._mode)
+        self.result.emit(data)

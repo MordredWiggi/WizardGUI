@@ -234,7 +234,7 @@ class SetupView(QtWidgets.QWidget):
         self._btn_start.clicked.connect(self._on_start)
         mode_layout.addWidget(self._btn_start)
 
-        # ── Gespeicherte Spiele ────────────────────────────────────────────
+        # ── Gespeicherte Spiele / Leaderboard ─────────────────────────────
         saved_panel = self._make_panel()
         main.addWidget(saved_panel)
 
@@ -242,17 +242,33 @@ class SetupView(QtWidgets.QWidget):
         sv_layout.setContentsMargins(24, 20, 24, 20)
         sv_layout.setSpacing(12)
 
-        self._hdr2 = QtWidgets.QLabel(t("saved_games_header"))
-        self._hdr2.setObjectName("section_header")
-        self._hdr2.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Preferred,
-            QtWidgets.QSizePolicy.Policy.Fixed,
-        )
-        sv_layout.addWidget(self._hdr2)
+        # Tab-style toggle: Saved Games | Leaderboard
+        tab_row = QtWidgets.QHBoxLayout()
+        tab_row.setSpacing(4)
+        self._btn_tab_saved = QtWidgets.QPushButton(t("tab_saved_games"))
+        self._btn_tab_lb = QtWidgets.QPushButton(t("tab_leaderboard"))
+        for btn in (self._btn_tab_saved, self._btn_tab_lb):
+            btn.setMinimumHeight(32)
+            btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self._btn_tab_saved.clicked.connect(lambda: self._switch_bottom_tab(0))
+        self._btn_tab_lb.clicked.connect(lambda: self._switch_bottom_tab(1))
+        tab_row.addWidget(self._btn_tab_saved)
+        tab_row.addWidget(self._btn_tab_lb)
+        tab_row.addStretch()
+        sv_layout.addLayout(tab_row)
+
+        # Stacked widget for switching content
+        self._bottom_stack = QtWidgets.QStackedWidget()
+
+        # Page 0: Saved games
+        saved_page = QtWidgets.QWidget()
+        saved_page_layout = QtWidgets.QVBoxLayout(saved_page)
+        saved_page_layout.setContentsMargins(0, 0, 0, 0)
+        saved_page_layout.setSpacing(8)
 
         self._saved_list = QtWidgets.QListWidget()
         self._saved_list.itemDoubleClicked.connect(self._on_load_double)
-        sv_layout.addWidget(self._saved_list, 1)
+        saved_page_layout.addWidget(self._saved_list, 1)
 
         btn_row2 = QtWidgets.QHBoxLayout()
         btn_row2.addStretch()
@@ -263,12 +279,23 @@ class SetupView(QtWidgets.QWidget):
         self._btn_load.clicked.connect(self._on_load)
         btn_row2.addWidget(self._btn_refresh)
         btn_row2.addWidget(self._btn_load)
-        sv_layout.addLayout(btn_row2)
+        saved_page_layout.addLayout(btn_row2)
 
         self._saved_list.currentItemChanged.connect(
             lambda cur, _: self._btn_load.setEnabled(cur is not None)
         )
 
+        self._bottom_stack.addWidget(saved_page)  # index 0
+
+        # Page 1: Leaderboard
+        from leaderboard_widget import LeaderboardWidget
+        self._leaderboard_widget = LeaderboardWidget()
+        self._bottom_stack.addWidget(self._leaderboard_widget)  # index 1
+
+        sv_layout.addWidget(self._bottom_stack, 1)
+
+        self._current_bottom_tab = 0
+        self._apply_tab_style()
         self._refresh_saved()
 
     # ── Hilfsmethoden ─────────────────────────────────────────────────────────
@@ -278,6 +305,45 @@ class SetupView(QtWidgets.QWidget):
         f = QtWidgets.QFrame()
         f.setObjectName("panel")
         return f
+
+    def _switch_bottom_tab(self, index: int) -> None:
+        self._current_bottom_tab = index
+        self._bottom_stack.setCurrentIndex(index)
+        self._apply_tab_style()
+
+    def _apply_tab_style(self) -> None:
+        from app_settings import get_theme
+        dark = get_theme() != "light"
+        for i, btn in enumerate((self._btn_tab_saved, self._btn_tab_lb)):
+            active = (i == self._current_bottom_tab)
+            if dark:
+                if active:
+                    btn.setStyleSheet(
+                        f"QPushButton {{ background: {ACCENT_DIM}; color: #fff8e0; "
+                        f"border: 1px solid {ACCENT}; border-radius: 5px; font-weight: 700; "
+                        f"font-size: 12px; padding: 5px 14px; }}"
+                    )
+                else:
+                    btn.setStyleSheet(
+                        f"QPushButton {{ background: {BG_CARD}; color: {TEXT_DIM}; "
+                        f"border: 1px solid #3a3a6a; border-radius: 5px; "
+                        f"font-size: 12px; padding: 5px 14px; }}"
+                        f"QPushButton:hover {{ border-color: {ACCENT_DIM}; color: {TEXT_MAIN}; }}"
+                    )
+            else:
+                if active:
+                    btn.setStyleSheet(
+                        "QPushButton { background: #9b7a1e; color: #ffffff; "
+                        "border: 1px solid #c9a84c; border-radius: 5px; font-weight: 700; "
+                        "font-size: 12px; padding: 5px 14px; }"
+                    )
+                else:
+                    btn.setStyleSheet(
+                        "QPushButton { background: #f8f8ff; color: #555577; "
+                        "border: 1px solid #aaaacc; border-radius: 5px; "
+                        "font-size: 12px; padding: 5px 14px; }"
+                        "QPushButton:hover { border-color: #9b7a1e; color: #1a1a2e; }"
+                    )
 
     # ── Live player name checking ──────────────────────────────────────────────
 
@@ -310,14 +376,16 @@ class SetupView(QtWidgets.QWidget):
         if exists is None:
             self._name_status.clear()
         elif exists:
+            # Positive: player is known, scores will be linked
             self._name_status.setText(t("player_exists_hint"))
             self._name_status.setStyleSheet(
-                f"font-size: 11px; color: #ff9900; background: transparent; border: none;"
+                f"font-size: 11px; color: {SUCCESS}; background: transparent; border: none;"
             )
         else:
+            # Neutral info: new player will be created
             self._name_status.setText(t("player_new_hint"))
             self._name_status.setStyleSheet(
-                f"font-size: 11px; color: {SUCCESS}; background: transparent; border: none;"
+                f"font-size: 11px; color: {TEXT_DIM}; background: transparent; border: none;"
             )
 
     # ── Spieler-Verwaltung ────────────────────────────────────────────────────
@@ -420,7 +488,6 @@ class SetupView(QtWidgets.QWidget):
         """Aktualisiert alle übersetzbaren UI-Texte nach Sprach-/Themenwechsel."""
         self._sub_lbl.setText(t("subtitle"))
         self._hdr1.setText(t("add_players_header"))
-        self._hdr2.setText(t("saved_games_header"))
         self._hdr_mode.setText(t("game_mode_label"))
         self._radio_standard.setText(t("game_mode_standard"))
         self._radio_multi.setText(t("game_mode_multiplicative"))
@@ -430,6 +497,10 @@ class SetupView(QtWidgets.QWidget):
         self._btn_load.setText(t("btn_load_game"))
         self._btn_start.setText(t("start_game"))
         self._btn_settings.setToolTip(t("tooltip_settings"))
+        self._btn_tab_saved.setText(t("tab_saved_games"))
+        self._btn_tab_lb.setText(t("tab_leaderboard"))
+        self._apply_tab_style()
+        self._leaderboard_widget.retranslate_ui()
         # Update hint based on current player count
         n = len(self._players)
         if n == 0:

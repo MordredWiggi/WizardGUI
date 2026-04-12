@@ -379,6 +379,20 @@ QRadioButton::indicator:checked {{
 QRadioButton::indicator:hover {{
     border: 2px solid {ACCENT};
 }}
+
+/* ── ProgressBar ── */
+QProgressBar {{
+    background-color: {BG_CARD};
+    border: 1px solid #3a3a6a;
+    border-radius: 6px;
+    text-align: center;
+    color: {TEXT_MAIN};
+    font-size: 11px;
+}}
+QProgressBar::chunk {{
+    background-color: {ACCENT};
+    border-radius: 5px;
+}}
 """
 
 # ── Light-Mode Stylesheet ─────────────────────────────────────────────────────
@@ -704,6 +718,20 @@ QRadioButton::indicator:checked {{
 }}
 QRadioButton::indicator:hover {{
     border: 2px solid {ACCENT_L};
+}}
+
+/* ── ProgressBar ── */
+QProgressBar {{
+    background-color: {BG_CARD_L};
+    border: 1px solid #aaaacc;
+    border-radius: 6px;
+    text-align: center;
+    color: {TEXT_MAIN_L};
+    font-size: 11px;
+}}
+QProgressBar::chunk {{
+    background-color: {ACCENT_L};
+    border-radius: 5px;
 }}
 """
 

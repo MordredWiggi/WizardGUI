@@ -50,7 +50,6 @@ def init_db() -> None:
     """)
     db.close()
 
-
 def player_exists(name: str) -> bool:
     """Check whether a player name is already registered."""
     db = _get_db()

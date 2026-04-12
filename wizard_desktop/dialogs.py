@@ -431,6 +431,95 @@ class PodiumDialog(ThemedDialog):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# MigrationDialog
+# ─────────────────────────────────────────────────────────────────────────────
+
+class MigrationDialog(ThemedDialog):
+    """Asks the user whether to upload old games to the leaderboard."""
+
+    def __init__(self, parent: QtWidgets.QWidget, count: int) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(t("migration_title"))
+        self.setMinimumWidth(420)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setSpacing(16)
+        layout.setContentsMargins(28, 24, 28, 20)
+
+        # Title
+        title = QtWidgets.QLabel(f"📊  {t('migration_title')}")
+        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;")
+        layout.addWidget(title)
+        layout.addWidget(_sep())
+
+        # Message
+        msg = QtWidgets.QLabel(t("migration_message", n=count))
+        msg.setWordWrap(True)
+        msg.setStyleSheet(f"font-size: 14px; color: {TEXT_MAIN}; line-height: 1.5; background: transparent;")
+        layout.addWidget(msg)
+
+        layout.addWidget(_sep())
+
+        # Buttons
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_row.addStretch()
+        btn_skip = QtWidgets.QPushButton(t("migration_no"))
+        btn_upload = QtWidgets.QPushButton(t("migration_yes"))
+        btn_upload.setObjectName("primary")
+        btn_skip.clicked.connect(self.reject)
+        btn_upload.clicked.connect(self.accept)
+        btn_row.addWidget(btn_skip)
+        btn_row.addWidget(btn_upload)
+        layout.addLayout(btn_row)
+
+
+class MigrationProgressDialog(ThemedDialog):
+    """Progress dialog for uploading old games to the leaderboard."""
+
+    canceled = QtCore.pyqtSignal()
+
+    def __init__(self, parent: QtWidgets.QWidget, total: int) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(t("migration_title"))
+        self.setMinimumWidth(400)
+        self.setModal(True)
+        self._total = total
+        self._was_canceled = False
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setSpacing(14)
+        layout.setContentsMargins(28, 24, 28, 20)
+
+        self._label = QtWidgets.QLabel(t("migration_progress", done=0, total=total))
+        self._label.setStyleSheet(f"font-size: 14px; color: {TEXT_MAIN}; background: transparent;")
+        layout.addWidget(self._label)
+
+        self._progress = QtWidgets.QProgressBar()
+        self._progress.setRange(0, total)
+        self._progress.setValue(0)
+        self._progress.setMinimumHeight(22)
+        layout.addWidget(self._progress)
+
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_row.addStretch()
+        self._btn_cancel = QtWidgets.QPushButton(t("cancel"))
+        self._btn_cancel.clicked.connect(self._on_cancel)
+        btn_row.addWidget(self._btn_cancel)
+        layout.addLayout(btn_row)
+
+    def update_progress(self, done: int) -> None:
+        self._label.setText(t("migration_progress", done=done, total=self._total))
+        self._progress.setValue(done)
+
+    def _on_cancel(self) -> None:
+        self._was_canceled = True
+        self.canceled.emit()
+
+    def wasCanceled(self) -> bool:
+        return self._was_canceled
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # CelebrationOverlay
 # ─────────────────────────────────────────────────────────────────────────────
 

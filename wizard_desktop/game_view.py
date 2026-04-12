@@ -688,22 +688,88 @@ class GameView(QtWidgets.QWidget):
 
         root.addWidget(sidebar)
 
-        # ── Rechter Plot-Bereich ───────────────────────────────────────────
-        plot_wrapper = QtWidgets.QWidget()
-        plot_layout = QtWidgets.QVBoxLayout(plot_wrapper)
-        plot_layout.setContentsMargins(16, 16, 16, 16)
-        plot_layout.setSpacing(0)
+        # ── Rechter Bereich (Chart / Leaderboard) ─────────────────────────
+        right_wrapper = QtWidgets.QWidget()
+        right_layout = QtWidgets.QVBoxLayout(right_wrapper)
+        right_layout.setContentsMargins(16, 16, 16, 16)
+        right_layout.setSpacing(8)
 
+        # Toggle row: Chart | Leaderboard
+        toggle_row = QtWidgets.QHBoxLayout()
+        toggle_row.setSpacing(4)
+        self._btn_tab_chart = QtWidgets.QPushButton(t("tab_chart"))
+        self._btn_tab_lb = QtWidgets.QPushButton(t("tab_leaderboard"))
+        for btn in (self._btn_tab_chart, self._btn_tab_lb):
+            btn.setMinimumHeight(30)
+            btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self._btn_tab_chart.clicked.connect(lambda: self._switch_right_tab(0))
+        self._btn_tab_lb.clicked.connect(lambda: self._switch_right_tab(1))
+        toggle_row.addWidget(self._btn_tab_chart)
+        toggle_row.addWidget(self._btn_tab_lb)
+        toggle_row.addStretch()
+        right_layout.addLayout(toggle_row)
+
+        # Stacked widget
+        self._right_stack = QtWidgets.QStackedWidget()
+
+        # Page 0: Chart
         self.canvas = MplCanvas(self)
-        plot_layout.addWidget(self.canvas)
+        self._right_stack.addWidget(self.canvas)  # index 0
 
-        root.addWidget(plot_wrapper, 1)
+        # Page 1: Leaderboard
+        from leaderboard_widget import LeaderboardWidget
+        self._leaderboard_widget = LeaderboardWidget()
+        self._right_stack.addWidget(self._leaderboard_widget)  # index 1
+
+        right_layout.addWidget(self._right_stack, 1)
+        self._current_right_tab = 0
+        self._apply_right_tab_style()
+
+        root.addWidget(right_wrapper, 1)
 
         # Initiale Darstellung
         self._connect_bid_signals()
         self._setup_tab_order()
         self._refresh_scores()
         self.canvas.redraw(self.game)
+
+    def _switch_right_tab(self, index: int) -> None:
+        self._current_right_tab = index
+        self._right_stack.setCurrentIndex(index)
+        self._apply_right_tab_style()
+
+    def _apply_right_tab_style(self) -> None:
+        dark = get_theme() != "light"
+        for i, btn in enumerate((self._btn_tab_chart, self._btn_tab_lb)):
+            active = (i == self._current_right_tab)
+            if dark:
+                if active:
+                    btn.setStyleSheet(
+                        f"QPushButton {{ background: {ACCENT_DIM}; color: #fff8e0; "
+                        f"border: 1px solid {ACCENT}; border-radius: 5px; font-weight: 700; "
+                        f"font-size: 12px; padding: 4px 14px; }}"
+                    )
+                else:
+                    btn.setStyleSheet(
+                        f"QPushButton {{ background: {BG_CARD}; color: {TEXT_DIM}; "
+                        f"border: 1px solid #3a3a6a; border-radius: 5px; "
+                        f"font-size: 12px; padding: 4px 14px; }}"
+                        f"QPushButton:hover {{ border-color: {ACCENT_DIM}; color: {TEXT_MAIN}; }}"
+                    )
+            else:
+                if active:
+                    btn.setStyleSheet(
+                        "QPushButton { background: #9b7a1e; color: #ffffff; "
+                        "border: 1px solid #c9a84c; border-radius: 5px; font-weight: 700; "
+                        "font-size: 12px; padding: 4px 14px; }"
+                    )
+                else:
+                    btn.setStyleSheet(
+                        "QPushButton { background: #f8f8ff; color: #555577; "
+                        "border: 1px solid #aaaacc; border-radius: 5px; "
+                        "font-size: 12px; padding: 4px 14px; }"
+                        "QPushButton:hover { border-color: #9b7a1e; color: #1a1a2e; }"
+                    )
 
     @staticmethod
     def _make_action_btn(text: str, tooltip: str = "") -> QtWidgets.QPushButton:
@@ -849,6 +915,10 @@ class GameView(QtWidgets.QWidget):
         self.btn_new.setToolTip(t("tooltip_new"))
         self.btn_settings.setToolTip(t("tooltip_settings"))
         self.lbl_bid_warning.setText(t("bid_warning"))
+        self._btn_tab_chart.setText(t("tab_chart"))
+        self._btn_tab_lb.setText(t("tab_leaderboard"))
+        self._apply_right_tab_style()
+        self._leaderboard_widget.retranslate_ui()
         for card in self._player_cards:
             card.retranslate_ui()
         # _refresh_scores re-renders dealer badges + round header + bid counter
