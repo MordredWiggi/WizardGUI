@@ -5,18 +5,34 @@ import '../domain/round_result.dart';
 import '../domain/round_events.dart';
 import '../persistence/save_manager.dart';
 
-/// Central Provider notifier – owns the active GameControl and exposes
-/// all mutations the UI needs.  Mirrors the role of MainWindow._game in the
-/// Python desktop app.
+/// Central Provider notifier – owns the active GameControl, the active group,
+/// and exposes all mutations the UI needs.
+/// Mirrors the role of MainWindow._game in the Python desktop app.
 class GameNotifier extends ChangeNotifier {
   GameControl? _game;
   final SaveManager _saveManager;
+
+  /// The currently selected group dict (id, name, code, visibility), or null.
+  Map<String, dynamic>? _activeGroup;
 
   GameNotifier({SaveManager? saveManager})
       : _saveManager = saveManager ?? SaveManager();
 
   GameControl? get game => _game;
   bool get hasGame => _game != null;
+  Map<String, dynamic>? get activeGroup => _activeGroup;
+
+  // ── Group management ────────────────────────────────────────────────────────
+
+  void setGroup(Map<String, dynamic>? group) {
+    _activeGroup = group;
+    notifyListeners();
+  }
+
+  void clearGroup() {
+    _activeGroup = null;
+    notifyListeners();
+  }
 
   // ── Game lifecycle ─────────────────────────────────────────────────────────
 

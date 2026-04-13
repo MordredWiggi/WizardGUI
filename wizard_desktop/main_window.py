@@ -25,7 +25,7 @@ from game_view import GameView
 from dialogs import (
     SaveGameDialog, LoadGameDialog,
     CelebrationOverlay, WarningDialog, PodiumDialog,
-    MigrationDialog, MigrationProgressDialog,
+    MigrationDialog, MigrationProgressDialog, MigrationGroupDialog,
 )
 from app_settings import t, get_theme, get_leaderboard_url
 
@@ -41,6 +41,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._save_manager = SaveManager()
         self._game: Optional[GameControl] = None
         self._game_view: Optional[GameView] = None
+        self._active_group: Optional[dict] = None  # currently selected group
 
         # ── Stacked Widget ─────────────────────────────────────────────────
         self._stack = QtWidgets.QStackedWidget()
@@ -82,7 +83,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # ── State-Übergänge ───────────────────────────────────────────────────────
 
-    def _on_start_game(self, player_data: list, game_mode: str) -> None:
+    def _on_start_game(self, player_data: list, game_mode: str, group: object) -> None:
+        self._active_group = group  # may be None for load-game paths
         self._game = GameControl(player_data, game_mode=game_mode)
         self._show_game_view()
 
@@ -94,6 +96,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self._game_view.deleteLater()
 
         self._game_view = GameView(self._game)
+        self._game_view.set_group(self._active_group)
         self._game_view.request_new_game.connect(self._on_new_game)
         self._game_view.request_save.connect(self._on_save_game)
         self._game_view.request_save_plot.connect(self._on_save_plot)
@@ -282,7 +285,8 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
         game_data = self._game.to_dict()
-        payload = build_game_submission(game_data)
+        group_code = self._active_group["code"] if self._active_group else None
+        payload = build_game_submission(game_data, group_code=group_code)
         client = LeaderboardClient(url)
         self._submit_worker = GameSubmitWorker(client, payload)
         self._submit_worker.finished.connect(self._on_submit_result)
@@ -333,6 +337,18 @@ class MainWindow(QtWidgets.QMainWindow):
         from leaderboard_client import LeaderboardClient, build_game_submission
 
         client = LeaderboardClient(url)
+
+        # Ask user to assign groups to each game
+        saved_meta = [
+            {"name": payload.get("meta", {}).get("name", fp.name), "filepath": str(fp)}
+            for fp, payload in completed
+        ]
+        group_dlg = MigrationGroupDialog(self, saved_meta, client)
+        if not group_dlg.exec():
+            MIGRATION_MARKER.parent.mkdir(parents=True, exist_ok=True)
+            MIGRATION_MARKER.touch()
+            return
+
         success_count = 0
 
         progress = MigrationProgressDialog(self, len(completed))
@@ -344,9 +360,12 @@ class MainWindow(QtWidgets.QMainWindow):
             progress.update_progress(i + 1)
             QtWidgets.QApplication.processEvents()
 
+            assigned_group = group_dlg.group_assignments.get(str(fp))
+            group_code = assigned_group["code"] if assigned_group else None
+
             game_data = payload["game"]
             played_at = payload.get("meta", {}).get("saved_at", datetime.now().isoformat())
-            submission = build_game_submission(game_data, played_at=played_at)
+            submission = build_game_submission(game_data, played_at=played_at, group_code=group_code)
             if client.submit_game(submission):
                 success_count += 1
 

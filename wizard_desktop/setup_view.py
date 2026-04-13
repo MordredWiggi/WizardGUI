@@ -3,13 +3,14 @@ setup_view.py – Spieler-Setup-Bildschirm
 
 Zeigt:
   • Titelbereich mit Einstellungs-Button
+  • Gruppen-Auswahl / Erstellung (vor Spieler-Eingabe)
   • Eingabefeld für Spielernamen
-  • Liste gespeicherter Spiele zum Laden
+  • Liste gespeicherter Spiele, globales Gruppen-Leaderboard, Gruppen-Leaderboard
   • „Spiel starten"-Button
 """
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from PyQt6 import QtCore, QtWidgets, QtGui
 
@@ -78,13 +79,13 @@ class SetupView(QtWidgets.QWidget):
 
     Signals
     -------
-    start_game(player_names: list[str])
+    start_game(player_names: list[str], game_mode: str, group: dict|None)
     load_game(filepath: Path)
     settings_changed()
     """
 
-    start_game = QtCore.pyqtSignal(list, str)
-    load_game = QtCore.pyqtSignal(object)   # Path
+    start_game = QtCore.pyqtSignal(list, str, object)  # players, mode, group dict or None
+    load_game = QtCore.pyqtSignal(object)              # Path
     settings_changed = QtCore.pyqtSignal()
 
     def __init__(self, save_manager: SaveManager, parent: Optional[QtWidgets.QWidget] = None):
@@ -96,7 +97,20 @@ class SetupView(QtWidgets.QWidget):
         self._debounce_timer.setSingleShot(True)
         self._debounce_timer.setInterval(300)
         self._debounce_timer.timeout.connect(self._do_player_check)
+
+        # Group state: the currently confirmed group (dict) or None
+        self._selected_group: Optional[Dict] = None
+
         self._build_ui()
+
+    # ── Leaderboard client helper ──────────────────────────────────────────────
+
+    def _get_client(self):
+        url = get_leaderboard_url()
+        if not url:
+            return None
+        from leaderboard_client import LeaderboardClient
+        return LeaderboardClient(url)
 
     # ── UI-Aufbau ─────────────────────────────────────────────────────────────
 
@@ -120,16 +134,13 @@ class SetupView(QtWidgets.QWidget):
         main.setSpacing(32)
 
         # ── Titel ──────────────────────────────────────────────────────────
-        # Header row with title and settings button
         title_row = QtWidgets.QHBoxLayout()
         title_row.addStretch()
 
         title_lbl = QtWidgets.QLabel("🃏  WIZARD")
         title_lbl.setObjectName("title")
         title_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        title_lbl.setStyleSheet(
-            "font-size: 40px; background: transparent;"
-        )
+        title_lbl.setStyleSheet("font-size: 40px; background: transparent;")
         title_row.addWidget(title_lbl)
         title_row.addStretch()
 
@@ -151,7 +162,49 @@ class SetupView(QtWidgets.QWidget):
         self._sub_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         main.addWidget(self._sub_lbl)
 
-        # ── Spieler-Eingabe ────────────────────────────────────────────────
+        # ── Gruppen-Auswahl (STEP 1) ───────────────────────────────────────
+        group_panel = self._make_panel()
+        main.addWidget(group_panel)
+
+        gp_layout = QtWidgets.QVBoxLayout(group_panel)
+        gp_layout.setContentsMargins(24, 20, 24, 20)
+        gp_layout.setSpacing(12)
+
+        self._hdr_group = QtWidgets.QLabel(t("group_header"))
+        self._hdr_group.setObjectName("section_header")
+        gp_layout.addWidget(self._hdr_group)
+
+        # Current group status display
+        self._group_status_lbl = QtWidgets.QLabel(t("group_required"))
+        self._group_status_lbl.setStyleSheet(
+            f"font-size: 13px; color: {TEXT_DIM}; background: transparent; font-style: italic;"
+        )
+        self._group_status_lbl.setWordWrap(True)
+        gp_layout.addWidget(self._group_status_lbl)
+
+        # Buttons: Join existing / Create new
+        group_btn_row = QtWidgets.QHBoxLayout()
+        self._btn_join_group = QtWidgets.QPushButton(t("group_select_label"))
+        self._btn_join_group.setMinimumHeight(36)
+        self._btn_join_group.clicked.connect(self._on_join_group)
+
+        self._btn_create_group = QtWidgets.QPushButton(t("group_create_btn"))
+        self._btn_create_group.setMinimumHeight(36)
+        self._btn_create_group.clicked.connect(self._on_create_group)
+
+        self._btn_clear_group = QtWidgets.QPushButton("✕")
+        self._btn_clear_group.setToolTip("Clear group selection")
+        self._btn_clear_group.setFixedSize(36, 36)
+        self._btn_clear_group.setVisible(False)
+        self._btn_clear_group.clicked.connect(self._clear_group)
+
+        group_btn_row.addWidget(self._btn_join_group)
+        group_btn_row.addWidget(self._btn_create_group)
+        group_btn_row.addStretch()
+        group_btn_row.addWidget(self._btn_clear_group)
+        gp_layout.addLayout(group_btn_row)
+
+        # ── Spieler-Eingabe (STEP 2) ───────────────────────────────────────
         setup_panel = self._make_panel()
         main.addWidget(setup_panel)
 
@@ -202,7 +255,7 @@ class SetupView(QtWidgets.QWidget):
         # Hinweis
         self._hint_lbl = QtWidgets.QLabel(t("hint_min_players"))
         self._hint_lbl.setObjectName("input_label")
-        self._hint_lbl.setStyleSheet(f"font-style: italic;")
+        self._hint_lbl.setStyleSheet("font-style: italic;")
         sp_layout.addWidget(self._hint_lbl)
 
         # ── Game Mode ─────────────────────────────────────────────────────
@@ -234,7 +287,7 @@ class SetupView(QtWidgets.QWidget):
         self._btn_start.clicked.connect(self._on_start)
         mode_layout.addWidget(self._btn_start)
 
-        # ── Gespeicherte Spiele / Leaderboard ─────────────────────────────
+        # ── Bottom: Saved Games | Groups LB | Group LB ─────────────────────
         saved_panel = self._make_panel()
         main.addWidget(saved_panel)
 
@@ -242,18 +295,21 @@ class SetupView(QtWidgets.QWidget):
         sv_layout.setContentsMargins(24, 20, 24, 20)
         sv_layout.setSpacing(12)
 
-        # Tab-style toggle: Saved Games | Leaderboard
+        # 3-tab row: Saved Games | Groups | My Group
         tab_row = QtWidgets.QHBoxLayout()
         tab_row.setSpacing(4)
         self._btn_tab_saved = QtWidgets.QPushButton(t("tab_saved_games"))
-        self._btn_tab_lb = QtWidgets.QPushButton(t("tab_leaderboard"))
-        for btn in (self._btn_tab_saved, self._btn_tab_lb):
+        self._btn_tab_groups = QtWidgets.QPushButton(t("tab_groups_lb"))
+        self._btn_tab_group = QtWidgets.QPushButton(t("tab_group_lb"))
+        for btn in (self._btn_tab_saved, self._btn_tab_groups, self._btn_tab_group):
             btn.setMinimumHeight(32)
             btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self._btn_tab_saved.clicked.connect(lambda: self._switch_bottom_tab(0))
-        self._btn_tab_lb.clicked.connect(lambda: self._switch_bottom_tab(1))
+        self._btn_tab_groups.clicked.connect(lambda: self._switch_bottom_tab(1))
+        self._btn_tab_group.clicked.connect(lambda: self._switch_bottom_tab(2))
         tab_row.addWidget(self._btn_tab_saved)
-        tab_row.addWidget(self._btn_tab_lb)
+        tab_row.addWidget(self._btn_tab_groups)
+        tab_row.addWidget(self._btn_tab_group)
         tab_row.addStretch()
         sv_layout.addLayout(tab_row)
 
@@ -287,16 +343,72 @@ class SetupView(QtWidgets.QWidget):
 
         self._bottom_stack.addWidget(saved_page)  # index 0
 
-        # Page 1: Leaderboard
-        from leaderboard_widget import LeaderboardWidget
-        self._leaderboard_widget = LeaderboardWidget()
-        self._bottom_stack.addWidget(self._leaderboard_widget)  # index 1
+        # Page 1: Global groups leaderboard
+        from leaderboard_widget import GroupsLeaderboardWidget
+        self._groups_lb_widget = GroupsLeaderboardWidget()
+        self._bottom_stack.addWidget(self._groups_lb_widget)  # index 1
+
+        # Page 2: Selected group's player leaderboard
+        from leaderboard_widget import GroupPlayerLeaderboardWidget
+        self._group_lb_widget = GroupPlayerLeaderboardWidget()
+        self._bottom_stack.addWidget(self._group_lb_widget)  # index 2
 
         sv_layout.addWidget(self._bottom_stack, 1)
 
         self._current_bottom_tab = 0
         self._apply_tab_style()
         self._refresh_saved()
+
+    # ── Group management ───────────────────────────────────────────────────────
+
+    def _on_join_group(self) -> None:
+        client = self._get_client()
+        if client is None:
+            QtWidgets.QMessageBox.information(
+                self, t("warning_title"),
+                "Please configure a leaderboard URL in Settings first."
+            )
+            return
+        from dialogs import GroupSelectDialog
+        dlg = GroupSelectDialog(self, client)
+        if dlg.exec() and dlg.selected_group:
+            self._set_group(dlg.selected_group)
+
+    def _on_create_group(self) -> None:
+        client = self._get_client()
+        if client is None:
+            QtWidgets.QMessageBox.information(
+                self, t("warning_title"),
+                "Please configure a leaderboard URL in Settings first."
+            )
+            return
+        from dialogs import GroupCreateDialog
+        dlg = GroupCreateDialog(self, client)
+        if dlg.exec() and dlg.created_group:
+            self._set_group(dlg.created_group)
+
+    def _set_group(self, group: Dict) -> None:
+        self._selected_group = group
+        self._group_status_lbl.setText(
+            t("group_selected", name=group["name"], code=group["code"])
+        )
+        self._group_status_lbl.setStyleSheet(
+            f"font-size: 13px; color: {SUCCESS}; background: transparent; font-weight: 600;"
+        )
+        self._btn_clear_group.setVisible(True)
+        # Update the group LB tab with the new group's code
+        self._group_lb_widget.set_group(group["code"])
+        self._update_state()
+
+    def _clear_group(self) -> None:
+        self._selected_group = None
+        self._group_status_lbl.setText(t("group_required"))
+        self._group_status_lbl.setStyleSheet(
+            f"font-size: 13px; color: {TEXT_DIM}; background: transparent; font-style: italic;"
+        )
+        self._btn_clear_group.setVisible(False)
+        self._group_lb_widget.set_group(None)
+        self._update_state()
 
     # ── Hilfsmethoden ─────────────────────────────────────────────────────────
 
@@ -314,7 +426,8 @@ class SetupView(QtWidgets.QWidget):
     def _apply_tab_style(self) -> None:
         from app_settings import get_theme
         dark = get_theme() != "light"
-        for i, btn in enumerate((self._btn_tab_saved, self._btn_tab_lb)):
+        tabs = [self._btn_tab_saved, self._btn_tab_groups, self._btn_tab_group]
+        for i, btn in enumerate(tabs):
             active = (i == self._current_bottom_tab)
             if dark:
                 if active:
@@ -348,7 +461,6 @@ class SetupView(QtWidgets.QWidget):
     # ── Live player name checking ──────────────────────────────────────────────
 
     def _on_name_text_changed(self, text: str) -> None:
-        """Restart debounce timer on each keystroke."""
         self._name_status.clear()
         name = text.strip()
         if not name or not get_leaderboard_url():
@@ -356,7 +468,6 @@ class SetupView(QtWidgets.QWidget):
         self._debounce_timer.start()
 
     def _do_player_check(self) -> None:
-        """Fire the background check after debounce."""
         name = self._name_edit.text().strip()
         url = get_leaderboard_url()
         if not name or not url:
@@ -369,20 +480,16 @@ class SetupView(QtWidgets.QWidget):
         self._check_worker.start()
 
     def _on_player_check_result(self, name: str, exists) -> None:
-        """Update the status indicator with the check result."""
-        # Only update if the name still matches what's in the input
         if self._name_edit.text().strip() != name:
             return
         if exists is None:
             self._name_status.clear()
         elif exists:
-            # Positive: player is known, scores will be linked
             self._name_status.setText(t("player_exists_hint"))
             self._name_status.setStyleSheet(
                 f"font-size: 11px; color: {SUCCESS}; background: transparent; border: none;"
             )
         else:
-            # Neutral info: new player will be created
             self._name_status.setText(t("player_new_hint"))
             self._name_status.setStyleSheet(
                 f"font-size: 11px; color: {TEXT_DIM}; background: transparent; border: none;"
@@ -401,7 +508,6 @@ class SetupView(QtWidgets.QWidget):
         self._players.append({"name": name, "avatar": avatar})
         chip = PlayerChip(name, color, self._chips_container, display=f"{avatar}  {name}")
         chip.removed.connect(self._remove_player)
-        # Insert before the stretch
         idx = self._chips_layout.count() - 1
         self._chips_layout.insertWidget(idx, chip)
         self._name_edit.clear()
@@ -410,7 +516,6 @@ class SetupView(QtWidgets.QWidget):
 
     def _remove_player(self, name: str) -> None:
         self._players = [p for p in self._players if p["name"] != name]
-        # Remove the chip widget
         for i in range(self._chips_layout.count()):
             item = self._chips_layout.itemAt(i)
             if item and isinstance(item.widget(), PlayerChip):
@@ -419,7 +524,7 @@ class SetupView(QtWidgets.QWidget):
                     self._chips_layout.removeWidget(widget)
                     widget.deleteLater()
                     break
-        # Re-colour remaining chips to keep consistent colours
+        # Re-colour remaining chips
         for i, item_i in enumerate(
             [
                 self._chips_layout.itemAt(j).widget()
@@ -442,7 +547,9 @@ class SetupView(QtWidgets.QWidget):
 
     def _update_state(self) -> None:
         n = len(self._players)
-        self._btn_start.setEnabled(n >= 2)
+        # Require at least 2 players AND a group selected
+        can_start = n >= 2 and self._selected_group is not None
+        self._btn_start.setEnabled(can_start)
         if n == 0:
             self._hint_lbl.setText(t("hint_min_players"))
         else:
@@ -475,7 +582,6 @@ class SetupView(QtWidgets.QWidget):
     # ── Settings ──────────────────────────────────────────────────────────────
 
     def _on_settings(self) -> None:
-        """Öffnet den Einstellungen-Dialog."""
         from dialogs import SettingsDialog
         dlg = SettingsDialog(self)
         dlg.exec()
@@ -485,8 +591,8 @@ class SetupView(QtWidgets.QWidget):
     # ── Übersetzung aktualisieren ──────────────────────────────────────────────
 
     def retranslate_ui(self) -> None:
-        """Aktualisiert alle übersetzbaren UI-Texte nach Sprach-/Themenwechsel."""
         self._sub_lbl.setText(t("subtitle"))
+        self._hdr_group.setText(t("group_header"))
         self._hdr1.setText(t("add_players_header"))
         self._hdr_mode.setText(t("game_mode_label"))
         self._radio_standard.setText(t("game_mode_standard"))
@@ -498,24 +604,34 @@ class SetupView(QtWidgets.QWidget):
         self._btn_start.setText(t("start_game"))
         self._btn_settings.setToolTip(t("tooltip_settings"))
         self._btn_tab_saved.setText(t("tab_saved_games"))
-        self._btn_tab_lb.setText(t("tab_leaderboard"))
+        self._btn_tab_groups.setText(t("tab_groups_lb"))
+        self._btn_tab_group.setText(t("tab_group_lb"))
+        self._btn_join_group.setText(t("group_select_label"))
+        self._btn_create_group.setText(t("group_create_btn"))
+        if self._selected_group:
+            self._group_status_lbl.setText(
+                t("group_selected",
+                  name=self._selected_group["name"],
+                  code=self._selected_group["code"])
+            )
+        else:
+            self._group_status_lbl.setText(t("group_required"))
         self._apply_tab_style()
-        self._leaderboard_widget.retranslate_ui()
-        # Update hint based on current player count
+        self._groups_lb_widget.retranslate_ui()
+        self._group_lb_widget.retranslate_ui()
         n = len(self._players)
         if n == 0:
             self._hint_lbl.setText(t("hint_min_players"))
         else:
             self._hint_lbl.setText(t("hint_players_selected", n=n))
-        # Refresh saved games list to update "Round" label
         self._refresh_saved()
 
     # ── Slots ─────────────────────────────────────────────────────────────────
 
     def _on_start(self) -> None:
-        if len(self._players) >= 2:
+        if len(self._players) >= 2 and self._selected_group is not None:
             game_mode = GAME_MODE_MULTIPLICATIVE if self._radio_multi.isChecked() else GAME_MODE_STANDARD
-            self.start_game.emit(list(self._players), game_mode)
+            self.start_game.emit(list(self._players), game_mode, self._selected_group)
 
     def _on_load(self) -> None:
         current = self._saved_list.currentItem()
@@ -529,3 +645,9 @@ class SetupView(QtWidgets.QWidget):
         if game_meta:
             self.load_game.emit(game_meta["filepath"])
 
+    # ── Public API ─────────────────────────────────────────────────────────────
+
+    @property
+    def selected_group(self) -> Optional[Dict]:
+        """Returns the currently selected group dict, or None."""
+        return self._selected_group

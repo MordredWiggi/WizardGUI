@@ -1,12 +1,15 @@
 """
 dialogs.py – Alle Dialog-Klassen des Wizard-GUI
 
-• WarningDialog        – einfaches OK/Abbrechen
-• SaveGameDialog       – Spiel benennen und speichern
-• LoadGameDialog       – gespeicherte Spiele laden
-• SavePlotDialog       – Plot als Bild speichern
-• CelebrationOverlay   – animiertes Overlay für besondere Spielmomente
-• SettingsDialog       – Einstellungen (Theme, Sprache, Regeln)
+• WarningDialog              – einfaches OK/Abbrechen
+• SaveGameDialog             – Spiel benennen und speichern
+• LoadGameDialog             – gespeicherte Spiele laden
+• SavePlotDialog             – Plot als Bild speichern
+• CelebrationOverlay         – animiertes Overlay für besondere Spielmomente
+• SettingsDialog             – Einstellungen (Theme, Sprache, Regeln)
+• GroupSelectDialog          – Join an existing group (searchable + code validation)
+• GroupCreateDialog          – Create a new group (name + visibility)
+• MigrationGroupDialog       – Assign groups to imported legacy games
 """
 from __future__ import annotations
 
@@ -522,6 +525,445 @@ class MigrationProgressDialog(ThemedDialog):
 # ─────────────────────────────────────────────────────────────────────────────
 # CelebrationOverlay
 # ─────────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GroupSelectDialog  – join an existing group with code validation
+# ─────────────────────────────────────────────────────────────────────────────
+
+class GroupSelectDialog(ThemedDialog):
+    """
+    Shows a searchable list of public groups.
+    The user must enter the 4-digit code to confirm joining.
+    Emits accepted() with self.selected_group set to the validated group dict.
+    """
+
+    def __init__(self, parent: QtWidgets.QWidget, client) -> None:
+        super().__init__(parent)
+        self._client = client
+        self.selected_group: Optional[Dict] = None
+        self._validated_group: Optional[Dict] = None
+        self._check_worker = None
+        self._list_worker = None
+
+        self.setWindowTitle(t("group_select_label"))
+        self.setMinimumSize(500, 460)
+        self.setModal(True)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setSpacing(12)
+        layout.setContentsMargins(24, 20, 24, 18)
+
+        title = QtWidgets.QLabel(f"👥  {t('group_select_label')}")
+        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;")
+        layout.addWidget(title)
+        layout.addWidget(_sep())
+
+        # ── Search row ───────────────────────────────────────────────────────
+        search_row = QtWidgets.QHBoxLayout()
+        self._search_edit = QtWidgets.QLineEdit()
+        self._search_edit.setPlaceholderText(t("group_search_placeholder"))
+        self._search_edit.setMinimumHeight(34)
+        self._search_edit.textChanged.connect(self._on_search_changed)
+        search_row.addWidget(self._search_edit)
+        layout.addLayout(search_row)
+
+        # ── Group list ───────────────────────────────────────────────────────
+        self._group_list = QtWidgets.QListWidget()
+        self._group_list.setMinimumHeight(140)
+        self._group_list.currentItemChanged.connect(self._on_group_selected)
+        layout.addWidget(self._group_list)
+
+        self._no_groups_lbl = QtWidgets.QLabel(t("no_groups"))
+        self._no_groups_lbl.setStyleSheet(f"color: {TEXT_DIM}; font-style: italic; font-size: 13px; background: transparent;")
+        self._no_groups_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self._no_groups_lbl.hide()
+        layout.addWidget(self._no_groups_lbl)
+
+        layout.addWidget(_sep())
+
+        # ── Code validation ──────────────────────────────────────────────────
+        code_lbl = QtWidgets.QLabel(t("group_code_label"))
+        code_lbl.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {TEXT_DIM}; background: transparent;")
+        layout.addWidget(code_lbl)
+
+        code_row = QtWidgets.QHBoxLayout()
+        self._code_edit = QtWidgets.QLineEdit()
+        self._code_edit.setPlaceholderText(t("group_code_placeholder"))
+        self._code_edit.setMaxLength(4)
+        self._code_edit.setMinimumHeight(34)
+        self._code_edit.setMaximumWidth(120)
+        self._code_edit.textChanged.connect(self._on_code_changed)
+        btn_validate = QtWidgets.QPushButton(t("group_code_validate"))
+        btn_validate.setMinimumHeight(34)
+        btn_validate.clicked.connect(self._validate_code)
+        code_row.addWidget(self._code_edit)
+        code_row.addWidget(btn_validate)
+        code_row.addStretch()
+        layout.addLayout(code_row)
+
+        self._code_status = QtWidgets.QLabel()
+        self._code_status.setStyleSheet(f"font-size: 12px; background: transparent;")
+        layout.addWidget(self._code_status)
+
+        layout.addWidget(_sep())
+
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_row.addStretch()
+        btn_cancel = QtWidgets.QPushButton(t("cancel"))
+        self._btn_join = QtWidgets.QPushButton(t("load"))
+        self._btn_join.setObjectName("primary")
+        self._btn_join.setEnabled(False)
+        btn_cancel.clicked.connect(self.reject)
+        self._btn_join.clicked.connect(self._on_join)
+        btn_row.addWidget(btn_cancel)
+        btn_row.addWidget(self._btn_join)
+        layout.addLayout(btn_row)
+
+        self._debounce = QtCore.QTimer()
+        self._debounce.setSingleShot(True)
+        self._debounce.setInterval(350)
+        self._debounce.timeout.connect(self._do_search)
+
+        self._do_search()
+
+    def _on_search_changed(self, _: str) -> None:
+        self._debounce.start()
+
+    def _do_search(self) -> None:
+        if not self._client:
+            return
+        from leaderboard_client import GroupsListWorker
+        self._list_worker = GroupsListWorker(self._client, self._search_edit.text().strip())
+        self._list_worker.result.connect(self._on_groups_received)
+        self._list_worker.start()
+
+    def _on_groups_received(self, groups: object) -> None:
+        self._group_list.clear()
+        if not groups:
+            self._no_groups_lbl.show()
+            self._group_list.hide()
+            return
+        self._no_groups_lbl.hide()
+        self._group_list.show()
+        for g in groups:
+            item = QtWidgets.QListWidgetItem(f"👥  {g['name']}  (#{g['code']})")
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, g)
+            self._group_list.addItem(item)
+
+    def _on_group_selected(self, current, _) -> None:
+        if current:
+            g = current.data(QtCore.Qt.ItemDataRole.UserRole)
+            if g:
+                self._code_edit.setText(g["code"])
+
+    def _on_code_changed(self, text: str) -> None:
+        # Reset validation if user edits code
+        self._validated_group = None
+        self._btn_join.setEnabled(False)
+        self._code_status.clear()
+
+    def _validate_code(self) -> None:
+        code = self._code_edit.text().strip()
+        if len(code) != 4 or not code.isdigit():
+            self._code_status.setText(t("group_code_invalid"))
+            self._code_status.setStyleSheet(f"font-size: 12px; color: {DANGER}; background: transparent;")
+            return
+        if not self._client:
+            return
+        from leaderboard_client import GroupCodeCheckWorker
+        self._check_worker = GroupCodeCheckWorker(self._client, code)
+        self._check_worker.result.connect(self._on_code_checked)
+        self._check_worker.start()
+
+    def _on_code_checked(self, group: object) -> None:
+        if group is None:
+            self._code_status.setText(t("group_code_invalid"))
+            self._code_status.setStyleSheet(f"font-size: 12px; color: {DANGER}; background: transparent;")
+            self._validated_group = None
+            self._btn_join.setEnabled(False)
+        else:
+            self._validated_group = group
+            self._code_status.setText(t("group_code_correct", name=group["name"]))
+            self._code_status.setStyleSheet(f"font-size: 12px; color: {SUCCESS}; background: transparent;")
+            self._btn_join.setEnabled(True)
+
+    def _on_join(self) -> None:
+        if self._validated_group:
+            self.selected_group = self._validated_group
+            self.accept()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GroupCreateDialog  – create a new group
+# ─────────────────────────────────────────────────────────────────────────────
+
+class GroupCreateDialog(ThemedDialog):
+    """
+    Dialog to create a new group with a name, a 4-digit code, and visibility.
+    Emits accepted() with self.created_group set to the new group dict.
+    """
+
+    def __init__(self, parent: QtWidgets.QWidget, client) -> None:
+        super().__init__(parent)
+        self._client = client
+        self.created_group: Optional[Dict] = None
+        self._create_worker = None
+
+        self.setWindowTitle(t("group_create_label"))
+        self.setMinimumWidth(420)
+        self.setModal(True)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setSpacing(12)
+        layout.setContentsMargins(24, 20, 24, 18)
+
+        title = QtWidgets.QLabel(f"✚  {t('group_create_label')}")
+        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;")
+        layout.addWidget(title)
+        layout.addWidget(_sep())
+
+        # Name
+        name_lbl = QtWidgets.QLabel(t("group_name_placeholder"))
+        name_lbl.setStyleSheet(f"font-size: 13px; color: {TEXT_DIM}; background: transparent;")
+        layout.addWidget(name_lbl)
+        self._name_edit = QtWidgets.QLineEdit()
+        self._name_edit.setPlaceholderText(t("group_name_placeholder"))
+        self._name_edit.setMinimumHeight(34)
+        layout.addWidget(self._name_edit)
+
+        # Code
+        code_lbl = QtWidgets.QLabel(t("group_code_label"))
+        code_lbl.setStyleSheet(f"font-size: 13px; color: {TEXT_DIM}; background: transparent;")
+        layout.addWidget(code_lbl)
+        self._code_edit = QtWidgets.QLineEdit()
+        self._code_edit.setPlaceholderText(t("group_code_placeholder"))
+        self._code_edit.setMaxLength(4)
+        self._code_edit.setMinimumHeight(34)
+        self._code_edit.setMaximumWidth(120)
+        layout.addWidget(self._code_edit)
+
+        # Visibility
+        vis_lbl = QtWidgets.QLabel()
+        vis_lbl.setStyleSheet(f"font-size: 13px; color: {TEXT_DIM}; background: transparent;")
+        layout.addWidget(vis_lbl)
+
+        self._radio_public = QtWidgets.QRadioButton(t("group_visibility_public"))
+        self._radio_hidden = QtWidgets.QRadioButton(t("group_visibility_hidden"))
+        self._radio_public.setChecked(True)
+        layout.addWidget(self._radio_public)
+        layout.addWidget(self._radio_hidden)
+
+        self._status_lbl = QtWidgets.QLabel()
+        self._status_lbl.setStyleSheet(f"font-size: 12px; background: transparent;")
+        self._status_lbl.setWordWrap(True)
+        layout.addWidget(self._status_lbl)
+
+        layout.addWidget(_sep())
+
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_row.addStretch()
+        btn_cancel = QtWidgets.QPushButton(t("cancel"))
+        self._btn_create = QtWidgets.QPushButton(t("group_create_btn"))
+        self._btn_create.setObjectName("primary")
+        self._btn_create.setMinimumHeight(36)
+        btn_cancel.clicked.connect(self.reject)
+        self._btn_create.clicked.connect(self._on_create)
+        btn_row.addWidget(btn_cancel)
+        btn_row.addWidget(self._btn_create)
+        layout.addLayout(btn_row)
+
+    def _on_create(self) -> None:
+        name = self._name_edit.text().strip()
+        code = self._code_edit.text().strip()
+        if not name:
+            self._status_lbl.setText(t("group_name_placeholder") + " – required")
+            self._status_lbl.setStyleSheet(f"font-size: 12px; color: {DANGER}; background: transparent;")
+            return
+        if len(code) != 4 or not code.isdigit():
+            self._status_lbl.setText(t("group_code_invalid"))
+            self._status_lbl.setStyleSheet(f"font-size: 12px; color: {DANGER}; background: transparent;")
+            return
+        visibility = "hidden" if self._radio_hidden.isChecked() else "public"
+        if not self._client:
+            return
+        from leaderboard_client import GroupCreateWorker
+        self._btn_create.setEnabled(False)
+        self._create_worker = GroupCreateWorker(self._client, name, code, visibility)
+        self._create_worker.result.connect(self._on_created)
+        self._create_worker.start()
+
+    def _on_created(self, group: object) -> None:
+        self._btn_create.setEnabled(True)
+        if group is None:
+            code = self._code_edit.text().strip()
+            self._status_lbl.setText(t("group_code_taken", code=code))
+            self._status_lbl.setStyleSheet(f"font-size: 12px; color: {DANGER}; background: transparent;")
+        else:
+            self.created_group = group
+            self._status_lbl.setText(t("group_created_ok", name=group["name"], code=group["code"]))
+            self._status_lbl.setStyleSheet(f"font-size: 12px; color: {SUCCESS}; background: transparent;")
+            QtCore.QTimer.singleShot(800, self.accept)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MigrationGroupDialog  – assign groups to imported legacy games
+# ─────────────────────────────────────────────────────────────────────────────
+
+class MigrationGroupDialog(ThemedDialog):
+    """
+    Shown before legacy migration: lets the user select/create a group and
+    then assign each imported game to a group (can all go to the same group).
+
+    self.group_assignments: dict[filepath_str, dict] = { fp: group_dict, ... }
+    """
+
+    def __init__(
+        self,
+        parent: QtWidgets.QWidget,
+        saved_games: List[Dict],
+        client,
+    ) -> None:
+        super().__init__(parent)
+        self._client = client
+        self._saved_games = saved_games
+        self.group_assignments: Dict[str, Dict] = {}
+
+        self.setWindowTitle(t("migration_group_header"))
+        self.setMinimumSize(560, 520)
+        self.setModal(True)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setSpacing(10)
+        layout.setContentsMargins(22, 18, 22, 16)
+
+        title = QtWidgets.QLabel(f"📊  {t('migration_group_header')}")
+        title.setStyleSheet(f"font-size: 17px; font-weight: 700; color: {ACCENT}; background: transparent;")
+        layout.addWidget(title)
+
+        info = QtWidgets.QLabel(t("migration_assign_group"))
+        info.setStyleSheet(f"font-size: 13px; color: {TEXT_DIM}; background: transparent;")
+        info.setWordWrap(True)
+        layout.addWidget(info)
+        layout.addWidget(_sep())
+
+        # ── Quick-assign section ─────────────────────────────────────────────
+        quick_row = QtWidgets.QHBoxLayout()
+        quick_lbl = QtWidgets.QLabel(t("migration_assign_group") + " (all):")
+        quick_lbl.setStyleSheet(f"font-size: 12px; color: {TEXT_DIM}; background: transparent;")
+        quick_row.addWidget(quick_lbl)
+        quick_row.addStretch()
+        btn_join_all = QtWidgets.QPushButton(t("group_select_label"))
+        btn_join_all.setMinimumHeight(30)
+        btn_join_all.clicked.connect(lambda: self._pick_group_for_all(create=False))
+        btn_create_all = QtWidgets.QPushButton(t("group_create_btn"))
+        btn_create_all.setMinimumHeight(30)
+        btn_create_all.clicked.connect(lambda: self._pick_group_for_all(create=True))
+        quick_row.addWidget(btn_join_all)
+        quick_row.addWidget(btn_create_all)
+        layout.addLayout(quick_row)
+
+        layout.addWidget(_sep())
+
+        # ── Per-game list ────────────────────────────────────────────────────
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        container = QtWidgets.QWidget()
+        self._games_layout = QtWidgets.QVBoxLayout(container)
+        self._games_layout.setSpacing(8)
+        self._games_layout.setContentsMargins(4, 4, 4, 4)
+        scroll.setWidget(container)
+        layout.addWidget(scroll, 1)
+
+        self._game_rows: List[Dict] = []  # {game, label_widget, group_dict}
+        for game in saved_games:
+            row_frame = QtWidgets.QFrame()
+            row_frame.setObjectName("panel")
+            row_layout = QtWidgets.QHBoxLayout(row_frame)
+            row_layout.setContentsMargins(10, 6, 10, 6)
+
+            name_lbl = QtWidgets.QLabel(game.get("name", "?"))
+            name_lbl.setStyleSheet(f"font-size: 13px; font-weight: 600; background: transparent;")
+            group_lbl = QtWidgets.QLabel(t("migration_no_group"))
+            group_lbl.setStyleSheet(f"font-size: 12px; color: {TEXT_DIM}; background: transparent;")
+
+            btn_pick = QtWidgets.QPushButton(t("group_select_label"))
+            btn_pick.setMinimumHeight(28)
+            btn_create = QtWidgets.QPushButton(t("group_create_btn"))
+            btn_create.setMinimumHeight(28)
+
+            row_layout.addWidget(name_lbl, 1)
+            row_layout.addWidget(group_lbl)
+            row_layout.addWidget(btn_pick)
+            row_layout.addWidget(btn_create)
+
+            self._games_layout.addWidget(row_frame)
+
+            entry = {"game": game, "label": group_lbl, "group": None}
+            self._game_rows.append(entry)
+
+            btn_pick.clicked.connect(lambda _, e=entry: self._pick_group_for_game(e, create=False))
+            btn_create.clicked.connect(lambda _, e=entry: self._pick_group_for_game(e, create=True))
+
+        self._games_layout.addStretch()
+
+        layout.addWidget(_sep())
+
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_row.addStretch()
+        btn_cancel = QtWidgets.QPushButton(t("cancel"))
+        self._btn_ok = QtWidgets.QPushButton(t("migration_yes"))
+        self._btn_ok.setObjectName("primary")
+        btn_cancel.clicked.connect(self.reject)
+        self._btn_ok.clicked.connect(self._on_ok)
+        btn_row.addWidget(btn_cancel)
+        btn_row.addWidget(self._btn_ok)
+        layout.addLayout(btn_row)
+
+    def _pick_group_for_all(self, create: bool) -> None:
+        if create:
+            dlg = GroupCreateDialog(self, self._client)
+            if dlg.exec() and dlg.created_group:
+                g = dlg.created_group
+                for entry in self._game_rows:
+                    self._assign_group(entry, g)
+        else:
+            dlg = GroupSelectDialog(self, self._client)
+            if dlg.exec() and dlg.selected_group:
+                g = dlg.selected_group
+                for entry in self._game_rows:
+                    self._assign_group(entry, g)
+
+    def _pick_group_for_game(self, entry: Dict, create: bool) -> None:
+        if create:
+            dlg = GroupCreateDialog(self, self._client)
+            if dlg.exec() and dlg.created_group:
+                self._assign_group(entry, dlg.created_group)
+        else:
+            dlg = GroupSelectDialog(self, self._client)
+            if dlg.exec() and dlg.selected_group:
+                self._assign_group(entry, dlg.selected_group)
+
+    def _assign_group(self, entry: Dict, group: Dict) -> None:
+        entry["group"] = group
+        entry["label"].setText(t("group_selected", name=group["name"], code=group["code"]))
+        entry["label"].setStyleSheet(f"font-size: 12px; color: {SUCCESS}; background: transparent;")
+
+    def _on_ok(self) -> None:
+        # Require all games to have a group assignment
+        unassigned = [e for e in self._game_rows if e["group"] is None]
+        if unassigned:
+            QtWidgets.QMessageBox.warning(
+                self,
+                t("warning_title"),
+                t("migration_no_group") + f" ({len(unassigned)} games)",
+            )
+            return
+        for entry in self._game_rows:
+            fp = str(entry["game"].get("filepath", ""))
+            self.group_assignments[fp] = entry["group"]
+        self.accept()
+
 
 class CelebrationOverlay(QtWidgets.QWidget):
     """

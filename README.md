@@ -114,13 +114,14 @@ Release APK output: `wizard_flutter/build/app/outputs/flutter-apk/app-release.ap
 | `lib/main.dart` | Entry point, Provider wiring |
 | `lib/domain/` | Game model — full Dart port of `game_control.py` |
 | `lib/i18n/translations.dart` | All UI strings in de / en / fr / hi |
-| `lib/persistence/app_settings.dart` | Language and theme via `SharedPreferences` |
+| `lib/persistence/app_settings.dart` | Language, theme, and leaderboard URL via `SharedPreferences` |
 | `lib/persistence/save_manager.dart` | JSON save / load / delete, desktop-compatible schema |
-| `lib/state/game_notifier.dart` | `ChangeNotifier` owning `GameControl`, exposes all game actions |
+| `lib/state/game_notifier.dart` | `ChangeNotifier` owning `GameControl` + active group, exposes all game actions |
 | `lib/theme/app_theme.dart` | Dark and light `ThemeData`, colour palette |
-| `lib/screens/setup_screen.dart` | Player setup screen |
-| `lib/screens/game_screen.dart` | Gameplay screen — Layer 1 (point entry) + Layer 2 (chart) via `TabBarView` |
-| `lib/screens/settings_screen.dart` | Language and theme settings |
+| `lib/services/leaderboard_service.dart` | HTTP client for groups, leaderboards, and game submission |
+| `lib/screens/setup_screen.dart` | Player setup — group selection/creation, player name entry |
+| `lib/screens/game_screen.dart` | Gameplay — bids, chart, groups LB, my group LB via 4-tab `TabBarView` |
+| `lib/screens/settings_screen.dart` | Language, theme, and leaderboard URL settings |
 | `lib/screens/podium_screen.dart` | End-of-game podium |
 | `lib/widgets/player_entry_card.dart` | Per-player card with bid / made spinners |
 | `lib/widgets/score_chart.dart` | Score progression line chart (`fl_chart`) |
@@ -134,19 +135,26 @@ Android 8.0 (API 26). Covers ~98% of active Android devices.
 
 ## Leaderboard (Backend)
 
-A central leaderboard server collects finished games from all desktop clients. It runs as a FastAPI app with SQLite on an Oracle Cloud VM.
+A central leaderboard server collects finished games from all clients. It runs as a FastAPI app with SQLite on an Oracle Cloud VM.
 
 - **Live leaderboard:** http://158.180.32.188:8000
 - **API docs:** http://158.180.32.188:8000/docs
 
 ### How it works
 
-1. During player setup, the desktop app checks each name against the server (debounced, 300ms) and shows whether the name already exists.
-2. When a game finishes, the desktop app automatically submits the results.
+1. Before starting a game, players select or create a **group** (name + 4-digit code).
+2. When a game finishes, results are automatically submitted to the server under the active group.
 3. Games are deduplicated via SHA-256 hash so re-submitting the same game is safe.
-4. On first launch after the update, the app offers a one-time migration of all previously saved games.
+4. On first launch after the update, the desktop app offers a one-time migration of all previously saved games.
 
-### Leaderboard criteria
+### Groups
+
+- Players create **groups** with a name and a unique 4-digit code.
+- Groups can be **public** (visible in the global ranking) or **hidden** (accessible by code only).
+- Each group has its own **player leaderboard** per game mode.
+- A separate **global groups leaderboard** ranks all public groups by games played, average score, and hit rate.
+
+### Player leaderboard criteria
 
 Separate boards for **Standard** and **Multiplicative** game modes, sortable by:
 
@@ -163,10 +171,11 @@ Separate boards for **Standard** and **Multiplicative** game modes, sortable by:
 
 | File | Responsibility |
 |---|---|
-| `wizard_backend/main.py` | FastAPI app, API endpoints, HTML leaderboard page |
-| `wizard_backend/database.py` | SQLite database layer (players, games, results) |
+| `wizard_backend/main.py` | FastAPI app, all API endpoints, HTML leaderboard page |
+| `wizard_backend/database.py` | SQLite layer — groups, games, player results, leaderboards |
 | `wizard_backend/templates/leaderboard.html` | Responsive dark-themed web leaderboard |
-| `wizard_desktop/leaderboard_client.py` | HTTP client, game hash, QThread workers |
+| `wizard_desktop/leaderboard_client.py` | Desktop HTTP client, game hash, QThread workers |
+| `wizard_flutter/lib/services/leaderboard_service.dart` | Flutter HTTP client, game hash, submission builder |
 
 ---
 
@@ -254,5 +263,9 @@ Bump both in the same commit and update the example above.
 | Dark / light theme | ✅ | ✅ |
 | 4 languages (de/en/fr/hi) | ✅ | ✅ |
 | Plot image export | ✅ | — |
-| Global leaderboard | ✅ | — |
+| Group selection / creation | ✅ | ✅ |
+| Global groups leaderboard | ✅ | ✅ |
+| Group player leaderboard | ✅ | ✅ |
+| Game submission to backend | ✅ | ✅ |
+| Legacy game migration | ✅ | — |
 | Cross-compatible saves | ✅ | ✅ |

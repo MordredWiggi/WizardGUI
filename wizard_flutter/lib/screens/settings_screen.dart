@@ -3,8 +3,28 @@ import 'package:provider/provider.dart';
 import '../persistence/app_settings.dart';
 import '../i18n/translations.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  late TextEditingController _urlCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    final url = context.read<AppSettings>().leaderboardUrl;
+    _urlCtrl = TextEditingController(text: url);
+  }
+
+  @override
+  void dispose() {
+    _urlCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +70,38 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ).toList(),
             ),
+          ),
+
+          const SizedBox(height: 28),
+
+          // ── Leaderboard URL ────────────────────────────────────────────
+          Text(t('leaderboard_url_label'),
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _urlCtrl,
+            decoration: InputDecoration(
+              hintText: t('leaderboard_url_placeholder'),
+              border: const OutlineInputBorder(),
+              isDense: true,
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.check, size: 20),
+                tooltip: t('apply'),
+                onPressed: () {
+                  settings.setLeaderboardUrl(_urlCtrl.text);
+                  FocusScope.of(context).unfocus();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(t('ok'))),
+                  );
+                },
+              ),
+            ),
+            keyboardType: TextInputType.url,
+            autocorrect: false,
+            onSubmitted: (v) {
+              settings.setLeaderboardUrl(v);
+              FocusScope.of(context).unfocus();
+            },
           ),
         ],
       ),
