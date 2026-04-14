@@ -574,13 +574,16 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
                   itemCount: _groups.length,
                   itemBuilder: (_, i) {
                     final g = _groups[i];
+                    final n = (g['player_count'] as num?)?.toInt() ?? 0;
                     return ListTile(
                       dense: true,
                       leading: const Icon(Icons.group_outlined, size: 20),
                       title: Text(g['name'] as String),
-                      subtitle: Text('#${g['code']}',
+                      subtitle: Text(
+                          t('group_players_count', {'n': n.toString()}),
                           style: theme.textTheme.bodySmall),
-                      onTap: () => _codeController.text = g['code'] as String,
+                      // Selection is cosmetic: the code is a shared secret
+                      // and must be typed manually — never auto-filled.
                     );
                   },
                 ),

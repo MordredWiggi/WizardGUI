@@ -23,6 +23,12 @@ Future<void> main() async {
   );
 }
 
+/// App-wide messenger key so background tasks (e.g. leaderboard submission
+/// that finishes after we've navigated to the podium) can still surface a
+/// SnackBar without holding a specific screen's context.
+final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
+
 class WizardApp extends StatelessWidget {
   const WizardApp({super.key});
 
@@ -35,6 +41,7 @@ class WizardApp extends StatelessWidget {
       theme: lightTheme,
       darkTheme: darkTheme,
       themeMode: settings.themeMode,
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
       home: const SetupScreen(),
     );
   }

@@ -324,14 +324,17 @@ class MainWindow(QtWidgets.QMainWindow):
                 continue
 
         if not completed:
+            # Nothing to migrate — mark as done so we don't keep re-scanning.
             MIGRATION_MARKER.parent.mkdir(parents=True, exist_ok=True)
             MIGRATION_MARKER.touch()
             return
 
+        # Only mark migration as done when the user actually goes through with
+        # it end-to-end. Skipping the prompt, closing the window, or canceling
+        # mid-upload should leave the marker absent so the dialog re-appears
+        # next launch.
         dlg = MigrationDialog(self, len(completed))
         if not dlg.exec():
-            MIGRATION_MARKER.parent.mkdir(parents=True, exist_ok=True)
-            MIGRATION_MARKER.touch()
             return
 
         from leaderboard_client import LeaderboardClient, build_game_submission
@@ -345,17 +348,17 @@ class MainWindow(QtWidgets.QMainWindow):
         ]
         group_dlg = MigrationGroupDialog(self, saved_meta, client)
         if not group_dlg.exec():
-            MIGRATION_MARKER.parent.mkdir(parents=True, exist_ok=True)
-            MIGRATION_MARKER.touch()
             return
 
         success_count = 0
+        was_canceled = False
 
         progress = MigrationProgressDialog(self, len(completed))
         progress.show()
 
         for i, (fp, payload) in enumerate(completed):
             if progress.wasCanceled():
+                was_canceled = True
                 break
             progress.update_progress(i + 1)
             QtWidgets.QApplication.processEvents()
@@ -373,6 +376,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if success_count > 0:
             self._show_status(t("migration_success", n=success_count))
+
+        if was_canceled:
+            return
 
         MIGRATION_MARKER.parent.mkdir(parents=True, exist_ok=True)
         MIGRATION_MARKER.touch()

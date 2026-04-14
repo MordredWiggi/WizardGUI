@@ -12,6 +12,7 @@ import '../theme/app_theme.dart';
 import '../widgets/player_entry_card.dart';
 import '../widgets/score_chart.dart';
 import '../widgets/event_overlay.dart';
+import '../main.dart' show rootScaffoldMessengerKey;
 import 'setup_screen.dart';
 import 'podium_screen.dart';
 
@@ -161,6 +162,12 @@ class _GameScreenState extends State<GameScreen>
   }
 
   void _scheduleGameOver(BuildContext context) {
+    // Kick off leaderboard submission in parallel with the podium delay —
+    // mirrors the desktop flow where the QThread worker runs alongside the
+    // UI transition. Result is surfaced via a global SnackBar so it still
+    // appears after we've navigated to the podium screen.
+    _submitToLeaderboard(context);
+
     Future.delayed(const Duration(milliseconds: 3200), () {
       if (!mounted) return;
       final game = context.read<GameNotifier>().game;
@@ -171,6 +178,34 @@ class _GameScreenState extends State<GameScreen>
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => PodiumScreen(podium: entries)),
       );
+    });
+  }
+
+  void _submitToLeaderboard(BuildContext context) {
+    final notifier = context.read<GameNotifier>();
+    final settings = context.read<AppSettings>();
+    final game = notifier.game;
+    if (game == null || !game.isGameOver) return;
+
+    final url = settings.leaderboardUrl;
+    if (url.isEmpty) return;
+
+    final groupCode = notifier.activeGroup?['code'] as String?;
+    final payload = buildGameSubmission(
+      game.toJson(),
+      groupCode: groupCode,
+    );
+    final t = settings.t;
+
+    LeaderboardService(url).submitGame(payload).then((success) {
+      final messenger = rootScaffoldMessengerKey.currentState;
+      if (messenger == null) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text(success
+            ? t('leaderboard_submit_ok')
+            : t('leaderboard_submit_fail')),
+        duration: const Duration(seconds: 3),
+      ));
     });
   }
 

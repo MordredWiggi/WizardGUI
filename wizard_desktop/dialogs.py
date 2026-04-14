@@ -646,15 +646,18 @@ class GroupSelectDialog(ThemedDialog):
         self._no_groups_lbl.hide()
         self._group_list.show()
         for g in groups:
-            item = QtWidgets.QListWidgetItem(f"👥  {g['name']}  (#{g['code']})")
+            n = g.get("player_count", 0)
+            item = QtWidgets.QListWidgetItem(
+                f"👥  {g['name']}  ({t('group_players_count', n=n)})"
+            )
             item.setData(QtCore.Qt.ItemDataRole.UserRole, g)
             self._group_list.addItem(item)
 
     def _on_group_selected(self, current, _) -> None:
-        if current:
-            g = current.data(QtCore.Qt.ItemDataRole.UserRole)
-            if g:
-                self._code_edit.setText(g["code"])
+        # The secret 4-digit code is never auto-filled from the selection —
+        # the whole point of the code is to gate access. Selection is purely
+        # cosmetic here; the user must type the code to join.
+        return
 
     def _on_code_changed(self, text: str) -> None:
         # Reset validation if user edits code

@@ -138,8 +138,13 @@ def create_group(body: GroupCreate) -> dict:
 
 @app.get("/api/groups")
 def list_groups(search: str = Query("")) -> list[dict]:
-    """List all public groups, optionally filtered by name."""
-    return db.list_public_groups(search=search)
+    """List all groups (public + hidden), optionally filtered by name.
+
+    The 4-digit ``code`` is deliberately omitted — it is the shared secret
+    required to join, and must stay private. Clients display ``player_count``
+    instead.
+    """
+    return db.list_groups(search=search)
 
 
 @app.get("/api/groups/{code}")

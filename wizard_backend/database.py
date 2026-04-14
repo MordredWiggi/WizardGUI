@@ -119,18 +119,32 @@ def get_group_by_code(code: str) -> Optional[dict]:
     return dict(row)
 
 
-def list_public_groups(search: str = "") -> list[dict]:
-    """Return all public groups, optionally filtered by name substring."""
+def list_groups(search: str = "") -> list[dict]:
+    """Return all groups (public + hidden), optionally filtered by name.
+
+    The returned dicts intentionally omit the 4-digit ``code`` — it is a shared
+    secret for joining and must never leak in public API responses.
+    Each entry includes ``player_count`` (distinct players who played in the
+    group) so clients can display group sizes instead of the code.
+    """
     db = _get_db()
+    base_sql = """
+        SELECT gr.id,
+               gr.name,
+               gr.visibility,
+               COUNT(DISTINCT r.player_id) AS player_count
+        FROM groups gr
+        LEFT JOIN games   g ON g.group_id = gr.id
+        LEFT JOIN results r ON r.game_id  = g.id
+    """
     if search:
         rows = db.execute(
-            "SELECT id, name, code, visibility FROM groups "
-            "WHERE visibility = 'public' AND name LIKE ? COLLATE NOCASE",
+            base_sql + " WHERE gr.name LIKE ? COLLATE NOCASE GROUP BY gr.id ORDER BY gr.name",
             (f"%{search}%",),
         ).fetchall()
     else:
         rows = db.execute(
-            "SELECT id, name, code, visibility FROM groups WHERE visibility = 'public'"
+            base_sql + " GROUP BY gr.id ORDER BY gr.name"
         ).fetchall()
     db.close()
     return [dict(r) for r in rows]
@@ -321,8 +335,8 @@ def get_groups_leaderboard() -> list[dict]:
         SELECT
             gr.id,
             gr.name,
-            gr.code,
             COUNT(DISTINCT g.id)                                            AS total_games,
+            COUNT(DISTINCT r.player_id)                                     AS player_count,
             ROUND(AVG(r.final_score), 1)                                    AS avg_score,
             ROUND(
                 CAST(SUM(r.correct_bids) AS REAL)
@@ -340,8 +354,8 @@ def get_groups_leaderboard() -> list[dict]:
         {
             "id": r["id"],
             "name": r["name"],
-            "code": r["code"],
             "total_games": r["total_games"] or 0,
+            "player_count": r["player_count"] or 0,
             "avg_score": r["avg_score"] or 0.0,
             "avg_hit_rate": r["avg_hit_rate"] or 0.0,
         }

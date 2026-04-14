@@ -158,7 +158,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "group_code_taken": "Code {code} bereits vergeben – anderen versuchen",
         "group_required": "Bitte Gruppe auswählen oder erstellen.",
         "group_selected": "Gruppe: {name} (Code: {code})",
-        "no_groups": "Keine öffentlichen Gruppen gefunden.",
+        "no_groups": "Keine Gruppen gefunden.",
+        "group_players_count": "{n} Spieler",
         # Neue Tabs
         "tab_groups_lb": "Gruppen",
         "tab_group_lb": "Meine Gruppe",
@@ -313,7 +314,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "group_code_taken": "Code {code} already in use – try another",
         "group_required": "Please select or create a group before starting.",
         "group_selected": "Group: {name} (Code: {code})",
-        "no_groups": "No public groups found.",
+        "no_groups": "No groups found.",
+        "group_players_count": "{n} players",
         # New tabs
         "tab_groups_lb": "Groups",
         "tab_group_lb": "My Group",
@@ -468,7 +470,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "group_code_taken": "Code {code} déjà utilisé – essayez-en un autre",
         "group_required": "Veuillez sélectionner ou créer un groupe avant de commencer.",
         "group_selected": "Groupe : {name} (Code : {code})",
-        "no_groups": "Aucun groupe public trouvé.",
+        "no_groups": "Aucun groupe trouvé.",
+        "group_players_count": "{n} joueurs",
         # Nouveaux onglets
         "tab_groups_lb": "Groupes",
         "tab_group_lb": "Mon groupe",
@@ -623,7 +626,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "group_code_taken": "कोड {code} पहले से उपयोग में – दूसरा आज़माएं",
         "group_required": "शुरू करने से पहले समूह चुनें या बनाएं।",
         "group_selected": "समूह: {name} (कोड: {code})",
-        "no_groups": "कोई सार्वजनिक समूह नहीं मिला।",
+        "no_groups": "कोई समूह नहीं मिला।",
+        "group_players_count": "{n} खिलाड़ी",
         # नए टैब
         "tab_groups_lb": "समूह",
         "tab_group_lb": "मेरा समूह",
