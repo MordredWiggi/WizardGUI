@@ -28,15 +28,25 @@ class LeaderboardService {
       final q = search.isNotEmpty ? '?search=${Uri.encodeComponent(search)}' : '';
       final resp = await _get('/api/groups$q');
       if (resp.statusCode == 200) {
-        return (jsonDecode(resp.body) as List).cast<Map<String, dynamic>>();
+        final decoded = jsonDecode(resp.body);
+        if (decoded is List) {
+          return decoded.cast<Map<String, dynamic>>();
+        }
+        return <Map<String, dynamic>>[];
       }
       return null;
-    } catch (_) {
+    } catch (e) {
+      // ignore: avoid_print
+      print('listGroups failed: $e');
       return null;
     }
   }
 
-  Future<Map<String, dynamic>?> createGroup({
+  /// Create a group.  Returns:
+  ///   • the new group on 201,
+  ///   • CreateGroupResult.codeTaken on 409,
+  ///   • CreateGroupResult.networkError for any connection/parse failure.
+  Future<CreateGroupResult> createGroup({
     required String name,
     required String code,
     String visibility = 'public',
@@ -47,10 +57,17 @@ class LeaderboardService {
         'code': code,
         'visibility': visibility,
       });
-      if (resp.statusCode == 201) return jsonDecode(resp.body) as Map<String, dynamic>;
-      return null; // 409 = code taken
-    } catch (_) {
-      return null;
+      if (resp.statusCode == 201) {
+        return CreateGroupResult.ok(
+            jsonDecode(resp.body) as Map<String, dynamic>);
+      }
+      if (resp.statusCode == 409) {
+        return CreateGroupResult.codeTaken();
+      }
+      return CreateGroupResult.networkError(
+          'HTTP ${resp.statusCode}: ${resp.body}');
+    } catch (e) {
+      return CreateGroupResult.networkError(e.toString());
     }
   }
 
@@ -141,6 +158,26 @@ class _Response {
   final int statusCode;
   final String body;
   _Response(this.statusCode, this.body);
+}
+
+/// Result of a createGroup call — distinguishes a real 409 (code taken) from
+/// a network/server failure so the UI can show an accurate message.
+class CreateGroupResult {
+  final Map<String, dynamic>? group;
+  final bool taken;
+  final String? errorMessage;
+
+  const CreateGroupResult._({this.group, this.taken = false, this.errorMessage});
+
+  factory CreateGroupResult.ok(Map<String, dynamic> group) =>
+      CreateGroupResult._(group: group);
+  factory CreateGroupResult.codeTaken() =>
+      const CreateGroupResult._(taken: true);
+  factory CreateGroupResult.networkError(String msg) =>
+      CreateGroupResult._(errorMessage: msg);
+
+  bool get isOk => group != null;
+  bool get isNetworkError => errorMessage != null;
 }
 
 // ── Game submission builder ─────────────────────────────────────────────────

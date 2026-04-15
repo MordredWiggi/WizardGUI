@@ -498,6 +498,7 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
   final _codeController = TextEditingController();
   List<Map<String, dynamic>> _groups = [];
   bool _loading = false;
+  bool _connectionFailed = false;
   String? _codeStatus; // null | 'ok' | 'error'
   Map<String, dynamic>? _validatedGroup;
 
@@ -517,7 +518,13 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
   Future<void> _doSearch(String q) async {
     setState(() => _loading = true);
     final result = await widget.service.listGroups(search: q);
-    if (mounted) setState(() { _groups = result ?? []; _loading = false; });
+    if (mounted) {
+      setState(() {
+        _groups = result ?? [];
+        _connectionFailed = result == null;
+        _loading = false;
+      });
+    }
   }
 
   Future<void> _validateCode() async {
@@ -560,6 +567,12 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
             // Groups list
             if (_loading)
               const LinearProgressIndicator()
+            else if (_connectionFailed)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(t('group_connection_error'),
+                    style: theme.textTheme.bodySmall?.copyWith(color: kDanger)),
+              )
             else if (_groups.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -679,20 +692,25 @@ class _GroupCreateDialogState extends State<_GroupCreateDialog> {
       return;
     }
     setState(() => _creating = true);
-    final group = await widget.service.createGroup(
+    final result = await widget.service.createGroup(
         name: name, code: code, visibility: _visibility);
     if (!mounted) return;
     setState(() => _creating = false);
-    if (group != null) {
+    if (result.isOk) {
       setState(() {
         _statusMsg = t('group_created_ok', {'name': name, 'code': code});
         _isError = false;
       });
       await Future.delayed(const Duration(milliseconds: 800));
-      if (mounted) Navigator.pop(context, group);
-    } else {
+      if (mounted) Navigator.pop(context, result.group);
+    } else if (result.taken) {
       setState(() {
         _statusMsg = t('group_code_taken', {'code': code});
+        _isError = true;
+      });
+    } else {
+      setState(() {
+        _statusMsg = t('group_connection_error');
         _isError = true;
       });
     }

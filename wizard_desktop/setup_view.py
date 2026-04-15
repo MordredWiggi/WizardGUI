@@ -162,13 +162,18 @@ class SetupView(QtWidgets.QWidget):
         self._sub_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         main.addWidget(self._sub_lbl)
 
-        # ── Gruppen-Auswahl (STEP 1) ───────────────────────────────────────
-        group_panel = self._make_panel()
-        main.addWidget(group_panel)
+        # ── Kombiniertes Setup-Panel (Gruppe + Spieler + Modus) ───────────
+        combined_panel = self._make_panel()
+        main.addWidget(combined_panel)
 
-        gp_layout = QtWidgets.QVBoxLayout(group_panel)
-        gp_layout.setContentsMargins(24, 20, 24, 20)
-        gp_layout.setSpacing(12)
+        combined_layout = QtWidgets.QVBoxLayout(combined_panel)
+        combined_layout.setContentsMargins(24, 20, 24, 20)
+        combined_layout.setSpacing(18)
+
+        # ── Group subsection ───────────────────────────────────────────────
+        gp_layout = QtWidgets.QVBoxLayout()
+        gp_layout.setSpacing(10)
+        combined_layout.addLayout(gp_layout)
 
         self._hdr_group = QtWidgets.QLabel(t("group_header"))
         self._hdr_group.setObjectName("section_header")
@@ -195,6 +200,9 @@ class SetupView(QtWidgets.QWidget):
         self._btn_clear_group = QtWidgets.QPushButton("✕")
         self._btn_clear_group.setToolTip("Clear group selection")
         self._btn_clear_group.setFixedSize(36, 36)
+        self._btn_clear_group.setStyleSheet(
+            "QPushButton { padding: 0; font-size: 16px; font-weight: 700; }"
+        )
         self._btn_clear_group.setVisible(False)
         self._btn_clear_group.clicked.connect(self._clear_group)
 
@@ -204,13 +212,16 @@ class SetupView(QtWidgets.QWidget):
         group_btn_row.addWidget(self._btn_clear_group)
         gp_layout.addLayout(group_btn_row)
 
-        # ── Spieler-Eingabe (STEP 2) ───────────────────────────────────────
-        setup_panel = self._make_panel()
-        main.addWidget(setup_panel)
+        # Divider between subsections
+        sub_sep1 = QtWidgets.QFrame()
+        sub_sep1.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        sub_sep1.setStyleSheet("background: #3a3a6a; border: none; max-height: 1px;")
+        combined_layout.addWidget(sub_sep1)
 
-        sp_layout = QtWidgets.QVBoxLayout(setup_panel)
-        sp_layout.setContentsMargins(24, 20, 24, 20)
-        sp_layout.setSpacing(14)
+        # ── Spieler-Eingabe ────────────────────────────────────────────────
+        sp_layout = QtWidgets.QVBoxLayout()
+        sp_layout.setSpacing(12)
+        combined_layout.addLayout(sp_layout)
 
         self._hdr1 = QtWidgets.QLabel(t("add_players_header"))
         self._hdr1.setObjectName("section_header")
@@ -258,13 +269,16 @@ class SetupView(QtWidgets.QWidget):
         self._hint_lbl.setStyleSheet("font-style: italic;")
         sp_layout.addWidget(self._hint_lbl)
 
-        # ── Game Mode ─────────────────────────────────────────────────────
-        mode_panel = self._make_panel()
-        main.addWidget(mode_panel)
+        # Divider between subsections
+        sub_sep2 = QtWidgets.QFrame()
+        sub_sep2.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        sub_sep2.setStyleSheet("background: #3a3a6a; border: none; max-height: 1px;")
+        combined_layout.addWidget(sub_sep2)
 
-        mode_layout = QtWidgets.QVBoxLayout(mode_panel)
-        mode_layout.setContentsMargins(24, 20, 24, 20)
+        # ── Game Mode ─────────────────────────────────────────────────────
+        mode_layout = QtWidgets.QVBoxLayout()
         mode_layout.setSpacing(10)
+        combined_layout.addLayout(mode_layout)
 
         self._hdr_mode = QtWidgets.QLabel(t("game_mode_label"))
         self._hdr_mode.setObjectName("section_header")
@@ -295,21 +309,21 @@ class SetupView(QtWidgets.QWidget):
         sv_layout.setContentsMargins(24, 20, 24, 20)
         sv_layout.setSpacing(12)
 
-        # 3-tab row: Saved Games | Groups | My Group
+        # Tabs: Saved Games | Leaderboard | Groups
         tab_row = QtWidgets.QHBoxLayout()
         tab_row.setSpacing(4)
         self._btn_tab_saved = QtWidgets.QPushButton(t("tab_saved_games"))
+        self._btn_tab_lb = QtWidgets.QPushButton(t("tab_leaderboard"))
         self._btn_tab_groups = QtWidgets.QPushButton(t("tab_groups_lb"))
-        self._btn_tab_group = QtWidgets.QPushButton(t("tab_group_lb"))
-        for btn in (self._btn_tab_saved, self._btn_tab_groups, self._btn_tab_group):
+        for btn in (self._btn_tab_saved, self._btn_tab_lb, self._btn_tab_groups):
             btn.setMinimumHeight(32)
             btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self._btn_tab_saved.clicked.connect(lambda: self._switch_bottom_tab(0))
-        self._btn_tab_groups.clicked.connect(lambda: self._switch_bottom_tab(1))
-        self._btn_tab_group.clicked.connect(lambda: self._switch_bottom_tab(2))
+        self._btn_tab_lb.clicked.connect(lambda: self._switch_bottom_tab(1))
+        self._btn_tab_groups.clicked.connect(lambda: self._switch_bottom_tab(2))
         tab_row.addWidget(self._btn_tab_saved)
+        tab_row.addWidget(self._btn_tab_lb)
         tab_row.addWidget(self._btn_tab_groups)
-        tab_row.addWidget(self._btn_tab_group)
         tab_row.addStretch()
         sv_layout.addLayout(tab_row)
 
@@ -343,15 +357,15 @@ class SetupView(QtWidgets.QWidget):
 
         self._bottom_stack.addWidget(saved_page)  # index 0
 
-        # Page 1: Global groups leaderboard
+        # Page 1: Player leaderboard with Global/Group scope toggle
+        from leaderboard_widget import LeaderboardWidget
+        self._lb_widget = LeaderboardWidget()
+        self._bottom_stack.addWidget(self._lb_widget)  # index 1
+
+        # Page 2: Global groups ranking
         from leaderboard_widget import GroupsLeaderboardWidget
         self._groups_lb_widget = GroupsLeaderboardWidget()
-        self._bottom_stack.addWidget(self._groups_lb_widget)  # index 1
-
-        # Page 2: Selected group's player leaderboard
-        from leaderboard_widget import GroupPlayerLeaderboardWidget
-        self._group_lb_widget = GroupPlayerLeaderboardWidget()
-        self._bottom_stack.addWidget(self._group_lb_widget)  # index 2
+        self._bottom_stack.addWidget(self._groups_lb_widget)  # index 2
 
         sv_layout.addWidget(self._bottom_stack, 1)
 
@@ -396,8 +410,8 @@ class SetupView(QtWidgets.QWidget):
             f"font-size: 13px; color: {SUCCESS}; background: transparent; font-weight: 600;"
         )
         self._btn_clear_group.setVisible(True)
-        # Update the group LB tab with the new group's code
-        self._group_lb_widget.set_group(group["code"])
+        # Enable the Group scope inside the unified leaderboard widget
+        self._lb_widget.set_group(group["code"])
         self._update_state()
 
     def _clear_group(self) -> None:
@@ -407,7 +421,7 @@ class SetupView(QtWidgets.QWidget):
             f"font-size: 13px; color: {TEXT_DIM}; background: transparent; font-style: italic;"
         )
         self._btn_clear_group.setVisible(False)
-        self._group_lb_widget.set_group(None)
+        self._lb_widget.set_group(None)
         self._update_state()
 
     # ── Hilfsmethoden ─────────────────────────────────────────────────────────
@@ -426,7 +440,7 @@ class SetupView(QtWidgets.QWidget):
     def _apply_tab_style(self) -> None:
         from app_settings import get_theme
         dark = get_theme() != "light"
-        tabs = [self._btn_tab_saved, self._btn_tab_groups, self._btn_tab_group]
+        tabs = [self._btn_tab_saved, self._btn_tab_lb, self._btn_tab_groups]
         for i, btn in enumerate(tabs):
             active = (i == self._current_bottom_tab)
             if dark:
@@ -604,8 +618,8 @@ class SetupView(QtWidgets.QWidget):
         self._btn_start.setText(t("start_game"))
         self._btn_settings.setToolTip(t("tooltip_settings"))
         self._btn_tab_saved.setText(t("tab_saved_games"))
+        self._btn_tab_lb.setText(t("tab_leaderboard"))
         self._btn_tab_groups.setText(t("tab_groups_lb"))
-        self._btn_tab_group.setText(t("tab_group_lb"))
         self._btn_join_group.setText(t("group_select_label"))
         self._btn_create_group.setText(t("group_create_btn"))
         if self._selected_group:
@@ -617,8 +631,8 @@ class SetupView(QtWidgets.QWidget):
         else:
             self._group_status_lbl.setText(t("group_required"))
         self._apply_tab_style()
+        self._lb_widget.retranslate_ui()
         self._groups_lb_widget.retranslate_ui()
-        self._group_lb_widget.retranslate_ui()
         n = len(self._players)
         if n == 0:
             self._hint_lbl.setText(t("hint_min_players"))

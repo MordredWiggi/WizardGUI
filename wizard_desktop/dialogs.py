@@ -605,6 +605,14 @@ class GroupSelectDialog(ThemedDialog):
         self._code_status.setStyleSheet(f"font-size: 12px; background: transparent;")
         layout.addWidget(self._code_status)
 
+        # Remember-code checkbox
+        self._chk_remember = QtWidgets.QCheckBox(t("group_remember_code"))
+        self._chk_remember.setStyleSheet(
+            f"color: {TEXT_DIM}; font-size: 12px; background: transparent;"
+        )
+        self._chk_remember.setChecked(True)
+        layout.addWidget(self._chk_remember)
+
         layout.addWidget(_sep())
 
         btn_row = QtWidgets.QHBoxLayout()
@@ -654,10 +662,19 @@ class GroupSelectDialog(ThemedDialog):
             self._group_list.addItem(item)
 
     def _on_group_selected(self, current, _) -> None:
-        # The secret 4-digit code is never auto-filled from the selection —
-        # the whole point of the code is to gate access. Selection is purely
-        # cosmetic here; the user must type the code to join.
-        return
+        # Auto-fill the code from the local cache if the user previously
+        # opted in to remembering this group. Otherwise the user must type
+        # it, since the code gates access.
+        if current is None:
+            return
+        group = current.data(QtCore.Qt.ItemDataRole.UserRole)
+        if not group:
+            return
+        from group_cache import lookup_code_by_name
+        cached = lookup_code_by_name(group.get("name", ""))
+        if cached:
+            self._code_edit.setText(cached)
+            self._validate_code()
 
     def _on_code_changed(self, text: str) -> None:
         # Reset validation if user edits code
@@ -693,6 +710,9 @@ class GroupSelectDialog(ThemedDialog):
     def _on_join(self) -> None:
         if self._validated_group:
             self.selected_group = self._validated_group
+            if self._chk_remember.isChecked():
+                from group_cache import remember_group
+                remember_group(self._validated_group)
             self.accept()
 
 
@@ -761,6 +781,14 @@ class GroupCreateDialog(ThemedDialog):
         self._status_lbl.setWordWrap(True)
         layout.addWidget(self._status_lbl)
 
+        # Remember-code checkbox
+        self._chk_remember = QtWidgets.QCheckBox(t("group_remember_code"))
+        self._chk_remember.setStyleSheet(
+            f"color: {TEXT_DIM}; font-size: 12px; background: transparent;"
+        )
+        self._chk_remember.setChecked(True)
+        layout.addWidget(self._chk_remember)
+
         layout.addWidget(_sep())
 
         btn_row = QtWidgets.QHBoxLayout()
@@ -803,6 +831,9 @@ class GroupCreateDialog(ThemedDialog):
             self._status_lbl.setStyleSheet(f"font-size: 12px; color: {DANGER}; background: transparent;")
         else:
             self.created_group = group
+            if self._chk_remember.isChecked():
+                from group_cache import remember_group
+                remember_group(group)
             self._status_lbl.setText(t("group_created_ok", name=group["name"], code=group["code"]))
             self._status_lbl.setStyleSheet(f"font-size: 12px; color: {SUCCESS}; background: transparent;")
             QtCore.QTimer.singleShot(800, self.accept)
