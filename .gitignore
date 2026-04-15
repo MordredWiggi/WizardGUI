@@ -1,7 +1,6 @@
 .venv
 __pycache__/
 build/
-dist/
 *.spec
 *.pyc
 
@@ -17,4 +16,5 @@ wizard_backend/deploy.config.json
 # Flutter
 wizard_flutter/.dart_tool/
 wizard_flutter/build/
+
 
