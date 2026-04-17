@@ -14,6 +14,8 @@ class SavedGameMeta {
   final List<String> players;
   final int rounds;
   final String filePath;
+  final bool pendingSync;
+  final String? groupCode;
 
   const SavedGameMeta({
     required this.name,
@@ -21,6 +23,25 @@ class SavedGameMeta {
     required this.players,
     required this.rounds,
     required this.filePath,
+    this.pendingSync = false,
+    this.groupCode,
+  });
+}
+
+/// A pending-sync game as returned by [SaveManager.listPendingSyncGames].
+class PendingSyncGame {
+  final String filePath;
+  final String name;
+  final String savedAt;
+  final String? groupCode;
+  final Map<String, dynamic> game;
+
+  const PendingSyncGame({
+    required this.filePath,
+    required this.name,
+    required this.savedAt,
+    required this.groupCode,
+    required this.game,
   });
 }
 
@@ -37,9 +58,15 @@ class SaveManager {
   // ---------------------------------------------------------------- save
 
   /// Persist game_data JSON; returns saved file path.
+  ///
+  /// Set [pendingSync] to true for games completed without a network so they
+  /// can be picked up on the next launch and uploaded. [groupCode] is the
+  /// target group (if any) for that later upload.
   Future<String> saveGame(
     Map<String, dynamic> gameData, {
     String? gameName,
+    bool pendingSync = false,
+    String? groupCode,
   }) async {
     final now = DateTime.now();
     String name = gameName ?? _defaultName(now, gameData);
@@ -55,6 +82,8 @@ class SaveManager {
       'meta': {
         'name': name,
         'saved_at': now.toIso8601String(),
+        'pending_sync': pendingSync,
+        'group_code': groupCode,
       },
       'game': gameData,
     };

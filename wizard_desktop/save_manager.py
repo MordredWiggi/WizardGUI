@@ -26,8 +26,15 @@ class SaveManager:
         self,
         game_data: dict,
         game_name: Optional[str] = None,
+        pending_sync: bool = False,
+        group_code: Optional[str] = None,
     ) -> Path:
-        """Persist game_data as JSON; returns the file path."""
+        """Persist game_data as JSON; returns the file path.
+
+        ``pending_sync`` marks games completed offline that still need to be
+        uploaded to the leaderboard. ``group_code`` (optional) is the target
+        group for later sync.
+        """
         if not game_name:
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             players = "_".join(p["name"] for p in game_data.get("players", []))
@@ -42,6 +49,8 @@ class SaveManager:
             "meta": {
                 "name": game_name,
                 "saved_at": datetime.now().isoformat(),
+                "pending_sync": bool(pending_sync),
+                "group_code": group_code,
             },
             "game": game_data,
         }
@@ -77,11 +86,62 @@ class SaveManager:
                         "saved_at": meta.get("saved_at", ""),
                         "players": players,
                         "rounds": rounds,
+                        "pending_sync": bool(meta.get("pending_sync", False)),
+                        "group_code": meta.get("group_code"),
                     }
                 )
             except (json.JSONDecodeError, KeyError):
                 pass
         return games
+
+    # ----------------------------------------------------------- pending sync
+
+    def list_pending_sync_games(self) -> List[Dict]:
+        """Return metadata + game for games that need to be uploaded."""
+        pending: List[Dict] = []
+        for fp in sorted(self.save_dir.glob("*.json")):
+            try:
+                with open(fp, "r", encoding="utf-8") as fh:
+                    payload = json.load(fh)
+                meta = payload.get("meta", {})
+                if not meta.get("pending_sync"):
+                    continue
+                pending.append(
+                    {
+                        "filepath": fp,
+                        "name": meta.get("name", fp.stem),
+                        "saved_at": meta.get("saved_at", ""),
+                        "group_code": meta.get("group_code"),
+                        "game": payload.get("game", {}),
+                    }
+                )
+            except (json.JSONDecodeError, KeyError):
+                pass
+        return pending
+
+    def mark_synced(self, filepath: Path) -> None:
+        """Clear the pending_sync flag on a saved game file."""
+        try:
+            with open(filepath, "r", encoding="utf-8") as fh:
+                payload = json.load(fh)
+            meta = payload.setdefault("meta", {})
+            meta["pending_sync"] = False
+            with open(filepath, "w", encoding="utf-8") as fh:
+                json.dump(payload, fh, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    def update_pending_group_code(self, filepath: Path, group_code: Optional[str]) -> None:
+        """Update the stored group_code on a pending game (useful if assigned later)."""
+        try:
+            with open(filepath, "r", encoding="utf-8") as fh:
+                payload = json.load(fh)
+            meta = payload.setdefault("meta", {})
+            meta["group_code"] = group_code
+            with open(filepath, "w", encoding="utf-8") as fh:
+                json.dump(payload, fh, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
 
     # --------------------------------------------------------------- plot
 

@@ -328,6 +328,10 @@ class MplCanvas(FigureCanvasQTAgg):
                 self._hover_annot.set_text(
                     f"{name}\n{t('round')}: {x}\n{t('points')}: {y}"
                 )
+                # Keep the annotation inside the axes – flip the offset
+                # whenever the point is near the right or top edge, so the
+                # tooltip never gets clipped off the figure.
+                self._place_hover_annot(x, y)
                 self._hover_annot.set_visible(True)
                 changed = True
                 break
@@ -338,6 +342,23 @@ class MplCanvas(FigureCanvasQTAgg):
 
         if changed:
             self.draw_idle()
+
+    def _place_hover_annot(self, x: float, y: float) -> None:
+        """Pick an offset for the hover annotation so it stays on-canvas."""
+        if self._hover_annot is None:
+            return
+        try:
+            x_min, x_max = self.axes.get_xlim()
+            y_min, y_max = self.axes.get_ylim()
+        except Exception:
+            self._hover_annot.set_position((15, 15))
+            return
+        x_span = (x_max - x_min) or 1.0
+        y_span = (y_max - y_min) or 1.0
+        # Near right edge → flip horizontally; near top → flip vertically.
+        dx = -80 if (x_max - x) / x_span < 0.22 else 15
+        dy = -30 if (y_max - y) / y_span < 0.18 else 15
+        self._hover_annot.set_position((dx, dy))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -426,15 +447,19 @@ class PlayerCard(QtWidgets.QFrame):
         input_row.addLayout(col_bid)
         input_row.addSpacing(12)
 
-        # Auto-fill button: sets made = bid for this player
+        # Auto-fill button: sets made = bid for this player.
+        # Large, prominent "=" glyph so it reads as "equal to the bid".
         self._btn_auto_fill = QtWidgets.QPushButton("=")
         self._btn_auto_fill.setToolTip(t("tooltip_auto_fill"))
-        self._btn_auto_fill.setFixedSize(28, 28)
+        self._btn_auto_fill.setFixedSize(54, 54)
         self._btn_auto_fill.setFocusPolicy(QtCore.Qt.FocusPolicy.TabFocus)
+        self._btn_auto_fill.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self._btn_auto_fill.setStyleSheet(
-            f"QPushButton {{ color: {TEXT_DIM}; background: transparent; border: 1px solid {color}55; "
-            f"border-radius: 4px; font-size: 14px; font-weight: 700; }}"
-            f"QPushButton:hover {{ background: {color}22; border-color: {color}; }}"
+            f"QPushButton {{ color: {color}; background: transparent; "
+            f"border: 2px solid {color}88; border-radius: 14px; "
+            f"font-size: 34px; font-weight: 900; padding: 0 0 4px 0; }}"
+            f"QPushButton:hover {{ background: {color}33; border-color: {color}; color: white; }}"
+            f"QPushButton:pressed {{ background: {color}55; }}"
         )
         self._btn_auto_fill.clicked.connect(self._fill_made_from_bid)
         input_row.addWidget(self._btn_auto_fill, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)

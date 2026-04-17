@@ -16,9 +16,31 @@ _DEFAULT_LANGUAGE = "de"
 _DEFAULT_THEME = "dark"
 _LEADERBOARD_URL = "http://158.180.32.188:8000"
 
+# Event-message defaults -----------------------------------------------------
+_DEFAULT_MESSAGE_DURATION_MS = 2200
+_MIN_MESSAGE_DURATION_MS = 500
+_MAX_MESSAGE_DURATION_MS = 10000
+
+# Keys used by CelebrationOverlay / event dispatcher.  Each key maps to a
+# translation entry in translations.py (same key name); users can override
+# the displayed text from the Settings dialog.
+EVENT_KEYS = (
+    "huge_loss",
+    "bow_stretched",
+    "revenge_lever",
+    "tobi_message",
+    "fire",
+    "new_leader",
+    "big_scorer",
+)
+
 _settings: dict = {
     "language": _DEFAULT_LANGUAGE,
     "theme": _DEFAULT_THEME,
+    "message_display_duration_ms": _DEFAULT_MESSAGE_DURATION_MS,
+    # user-supplied overrides for event strings.  Empty string / missing key
+    # means "use the translated default".
+    "custom_event_messages": {k: "" for k in EVENT_KEYS},
 }
 
 
@@ -32,6 +54,14 @@ def load_settings() -> None:
                 _settings.update(loaded)
         except Exception:
             pass  # Fallback auf Standardwerte
+    # Always ensure all known event keys exist (for forward-compat when new
+    # events get added in later versions).
+    cem = _settings.setdefault("custom_event_messages", {})
+    if not isinstance(cem, dict):
+        cem = {}
+        _settings["custom_event_messages"] = cem
+    for k in EVENT_KEYS:
+        cem.setdefault(k, "")
 
 
 def save_settings() -> None:
@@ -68,6 +98,73 @@ def set_theme(theme: str) -> None:
 def get_leaderboard_url() -> str:
     """Gibt die fest eingestellte Leaderboard-Server-URL zurück."""
     return _LEADERBOARD_URL
+
+
+# ── Message display duration ────────────────────────────────────────────────
+
+def get_message_display_duration_ms() -> int:
+    """Return the current event-overlay display duration in milliseconds."""
+    try:
+        v = int(_settings.get("message_display_duration_ms", _DEFAULT_MESSAGE_DURATION_MS))
+    except (TypeError, ValueError):
+        v = _DEFAULT_MESSAGE_DURATION_MS
+    return max(_MIN_MESSAGE_DURATION_MS, min(_MAX_MESSAGE_DURATION_MS, v))
+
+
+def set_message_display_duration_ms(ms: int) -> None:
+    _settings["message_display_duration_ms"] = max(
+        _MIN_MESSAGE_DURATION_MS, min(_MAX_MESSAGE_DURATION_MS, int(ms))
+    )
+    save_settings()
+
+
+# ── Custom event messages ───────────────────────────────────────────────────
+
+def get_custom_event_messages() -> dict:
+    """Return a copy of the custom-event-message overrides (key → string)."""
+    cem = _settings.get("custom_event_messages") or {}
+    if not isinstance(cem, dict):
+        return {k: "" for k in EVENT_KEYS}
+    return {k: str(cem.get(k, "") or "") for k in EVENT_KEYS}
+
+
+def set_custom_event_message(key: str, value: str) -> None:
+    """Override the message for a given event key. Empty string clears."""
+    if key not in EVENT_KEYS:
+        return
+    cem = _settings.setdefault("custom_event_messages", {})
+    if not isinstance(cem, dict):
+        cem = {}
+        _settings["custom_event_messages"] = cem
+    cem[key] = str(value or "")
+    save_settings()
+
+
+def set_custom_event_messages(mapping: dict) -> None:
+    """Bulk-update all custom-event-message overrides."""
+    cem = _settings.setdefault("custom_event_messages", {})
+    if not isinstance(cem, dict):
+        cem = {}
+        _settings["custom_event_messages"] = cem
+    for k in EVENT_KEYS:
+        if k in mapping:
+            cem[k] = str(mapping.get(k) or "")
+    save_settings()
+
+
+def resolve_event_message(key: str, **kwargs) -> str:
+    """Return the user override (formatted with kwargs) if set, otherwise the
+    translated default for ``key``.
+    """
+    if key not in EVENT_KEYS:
+        return t(key, **kwargs)
+    override = get_custom_event_messages().get(key, "")
+    if override:
+        try:
+            return override.format(**kwargs)
+        except (KeyError, IndexError):
+            return override
+    return t(key, **kwargs)
 
 
 def t(key: str, **kwargs) -> str:

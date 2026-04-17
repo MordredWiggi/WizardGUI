@@ -278,6 +278,62 @@ class SettingsDialog(ThemedDialog):
 
         layout.addWidget(_sep())
 
+        # ── Meldungen & Animationen ───────────────────────────────────────
+        msg_header = QtWidgets.QLabel(t("settings_messages_header"))
+        msg_header.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_DIM}; background: transparent;")
+        layout.addWidget(msg_header)
+
+        dur_row = QtWidgets.QHBoxLayout()
+        dur_lbl = QtWidgets.QLabel(t("settings_message_duration"))
+        dur_lbl.setStyleSheet("font-size: 12px; background: transparent;")
+        self._dur_spin = QtWidgets.QSpinBox()
+        self._dur_spin.setRange(500, 10000)
+        self._dur_spin.setSingleStep(100)
+        self._dur_spin.setSuffix(" ms")
+        self._dur_spin.setValue(_as.get_message_display_duration_ms())
+        dur_row.addWidget(dur_lbl)
+        dur_row.addWidget(self._dur_spin)
+        dur_row.addStretch()
+        layout.addLayout(dur_row)
+
+        # Custom event messages
+        ce_header = QtWidgets.QLabel(t("settings_custom_messages"))
+        ce_header.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {TEXT_DIM}; background: transparent;")
+        layout.addWidget(ce_header)
+        ce_hint = QtWidgets.QLabel(t("settings_custom_message_hint"))
+        ce_hint.setStyleSheet(f"font-size: 11px; color: {TEXT_DIM}; background: transparent;")
+        ce_hint.setWordWrap(True)
+        layout.addWidget(ce_hint)
+
+        self._event_edits: dict[str, QtWidgets.QLineEdit] = {}
+        overrides = _as.get_custom_event_messages()
+        form = QtWidgets.QFormLayout()
+        form.setSpacing(4)
+        form.setContentsMargins(0, 0, 0, 0)
+        for key in _as.EVENT_KEYS:
+            # The default text shown as placeholder — resolve from the raw
+            # translations dict so placeholders like {name} stay visible.
+            from translations import TRANSLATIONS
+            default_text = TRANSLATIONS.get(_as.get_language(), {}).get(
+                key, TRANSLATIONS.get("en", {}).get(key, key)
+            )
+            edit = QtWidgets.QLineEdit()
+            edit.setPlaceholderText(default_text)
+            edit.setText(overrides.get(key, ""))
+            self._event_edits[key] = edit
+            lbl = QtWidgets.QLabel(default_text)
+            lbl.setStyleSheet("font-size: 11px; background: transparent;")
+            lbl.setWordWrap(True)
+            form.addRow(lbl, edit)
+        layout.addLayout(form)
+
+        btn_reset = QtWidgets.QPushButton(t("settings_reset_messages"))
+        btn_reset.setMaximumWidth(140)
+        btn_reset.clicked.connect(self._reset_custom_messages)
+        layout.addWidget(btn_reset, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+
+        layout.addWidget(_sep())
+
         # ── Regeln ─────────────────────────────────────────────────────────
         btn_rules = QtWidgets.QPushButton(t("settings_rules_btn"))
         btn_rules.setMinimumHeight(38)
@@ -295,6 +351,10 @@ class SettingsDialog(ThemedDialog):
         btn_apply.clicked.connect(self._apply_and_close)
         btn_row.addWidget(btn_apply)
         layout.addLayout(btn_row)
+
+    def _reset_custom_messages(self) -> None:
+        for edit in self._event_edits.values():
+            edit.clear()
 
     # ── private ───────────────────────────────────────────────────────────────
 
@@ -330,6 +390,12 @@ class SettingsDialog(ThemedDialog):
             app = QApplication.instance()
             if app:
                 app.setStyleSheet(STYLESHEET)
+
+        # Anzeigedauer & eigene Event-Texte
+        self._as.set_message_display_duration_ms(self._dur_spin.value())
+        self._as.set_custom_event_messages(
+            {k: e.text().strip() for k, e in self._event_edits.items()}
+        )
 
         self.accept()
 
@@ -999,10 +1065,129 @@ class MigrationGroupDialog(ThemedDialog):
         self.accept()
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# PendingSyncAssignDialog  – assign groups to offline-queued games on launch
+# ─────────────────────────────────────────────────────────────────────────────
+
+class PendingSyncAssignDialog(ThemedDialog):
+    """
+    Shown at launch if there are offline-queued games with no group attached.
+    Unlike MigrationGroupDialog this permits "skip" – games left unassigned are
+    uploaded to the global leaderboard only.
+
+    self.group_assignments: dict[filepath_str, dict|None]
+    """
+
+    def __init__(
+        self,
+        parent: QtWidgets.QWidget,
+        saved_games: List[Dict],
+        client,
+    ) -> None:
+        super().__init__(parent)
+        self._client = client
+        self._saved_games = saved_games
+        self.group_assignments: Dict[str, Optional[Dict]] = {}
+
+        self.setWindowTitle(t("pending_sync_assign_title"))
+        self.setMinimumSize(560, 480)
+        self.setModal(True)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setSpacing(10)
+        layout.setContentsMargins(22, 18, 22, 16)
+
+        title = QtWidgets.QLabel(f"📡  {t('pending_sync_assign_title')}")
+        title.setStyleSheet(f"font-size: 17px; font-weight: 700; color: {ACCENT}; background: transparent;")
+        layout.addWidget(title)
+
+        info = QtWidgets.QLabel(t("pending_sync_assign_hint"))
+        info.setStyleSheet(f"font-size: 13px; color: {TEXT_DIM}; background: transparent;")
+        info.setWordWrap(True)
+        layout.addWidget(info)
+        layout.addWidget(_sep())
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        container = QtWidgets.QWidget()
+        rows = QtWidgets.QVBoxLayout(container)
+        rows.setSpacing(8)
+        rows.setContentsMargins(4, 4, 4, 4)
+        scroll.setWidget(container)
+        layout.addWidget(scroll, 1)
+
+        self._game_rows: List[Dict] = []
+        for game in saved_games:
+            row_frame = QtWidgets.QFrame()
+            row_frame.setObjectName("panel")
+            row_layout = QtWidgets.QHBoxLayout(row_frame)
+            row_layout.setContentsMargins(10, 6, 10, 6)
+
+            name_lbl = QtWidgets.QLabel(game.get("name", "?"))
+            name_lbl.setStyleSheet("font-size: 13px; font-weight: 600; background: transparent;")
+            group_lbl = QtWidgets.QLabel(t("migration_no_group"))
+            group_lbl.setStyleSheet(f"font-size: 12px; color: {TEXT_DIM}; background: transparent;")
+
+            btn_pick = QtWidgets.QPushButton(t("group_select_label"))
+            btn_pick.setMinimumHeight(28)
+            btn_create = QtWidgets.QPushButton(t("group_create_btn"))
+            btn_create.setMinimumHeight(28)
+
+            row_layout.addWidget(name_lbl, 1)
+            row_layout.addWidget(group_lbl)
+            row_layout.addWidget(btn_pick)
+            row_layout.addWidget(btn_create)
+
+            rows.addWidget(row_frame)
+
+            entry = {"game": game, "label": group_lbl, "group": None}
+            self._game_rows.append(entry)
+            btn_pick.clicked.connect(lambda _, e=entry: self._pick_group(e, create=False))
+            btn_create.clicked.connect(lambda _, e=entry: self._pick_group(e, create=True))
+
+        rows.addStretch()
+        layout.addWidget(_sep())
+
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_row.addStretch()
+        btn_skip = QtWidgets.QPushButton(t("pending_sync_skip"))
+        btn_ok = QtWidgets.QPushButton(t("ok"))
+        btn_ok.setObjectName("primary")
+        btn_skip.clicked.connect(self.reject)
+        btn_ok.clicked.connect(self._on_ok)
+        btn_row.addWidget(btn_skip)
+        btn_row.addWidget(btn_ok)
+        layout.addLayout(btn_row)
+
+    def _pick_group(self, entry: Dict, create: bool) -> None:
+        if create:
+            dlg = GroupCreateDialog(self, self._client)
+            if dlg.exec() and dlg.created_group:
+                self._assign(entry, dlg.created_group)
+        else:
+            dlg = GroupSelectDialog(self, self._client)
+            if dlg.exec() and dlg.selected_group:
+                self._assign(entry, dlg.selected_group)
+
+    def _assign(self, entry: Dict, group: Dict) -> None:
+        entry["group"] = group
+        entry["label"].setText(t("group_selected", name=group["name"], code=group["code"]))
+        entry["label"].setStyleSheet(f"font-size: 12px; color: {SUCCESS}; background: transparent;")
+
+    def _on_ok(self) -> None:
+        for entry in self._game_rows:
+            fp = str(entry["game"].get("filepath", ""))
+            self.group_assignments[fp] = entry.get("group")
+        self.accept()
+
+
 class CelebrationOverlay(QtWidgets.QWidget):
     """
-    Transparentes Overlay-Widget, das über dem übergeordneten Fenster erscheint
-    und nach einigen Sekunden wieder ausblendet.
+    Overlay-Widget das über dem übergeordneten Fenster erscheint und nach
+    einigen Sekunden wieder ausblendet. Hintergrund ist opak (kein
+    Transparent-Durchschimmern der Spielansicht), das Fade geschieht über
+    QGraphicsOpacityEffect damit die Textfarbe nicht verwaschen wirkt.
     """
 
     def __init__(self, parent: QtWidgets.QWidget) -> None:
@@ -1010,39 +1195,47 @@ class CelebrationOverlay(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_NoSystemBackground)
 
-        self._opacity = 0.0
-        self._timer_fade_in: Optional[QtCore.QTimer] = None
         self._timer_hold: Optional[QtCore.QTimer] = None
-        self._timer_fade_out: Optional[QtCore.QTimer] = None
 
-        # Haupt-Label
-        self._label = QtWidgets.QLabel(self)
-        self._label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self._label.setWordWrap(True)
-        self._label.setStyleSheet(
-            f"""
-            QLabel {{
-                color: white;
-                font-size: 32px;
-                font-weight: 800;
-                letter-spacing: 1px;
-                background: transparent;
-            }}
-            """
-        )
-
-        # Hintergrund-Rahmen
-        self._bg = QtWidgets.QFrame(self)
-        self._bg.setStyleSheet(
+        # Kombinierter Container für Hintergrund + Label mit geteiltem
+        # Opacity-Effekt – so bleibt der Text immer fully contrasted.
+        self._panel = QtWidgets.QFrame(self)
+        self._panel.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self._panel.setStyleSheet(
             f"""
             QFrame {{
-                background-color: rgba(20, 18, 50, 210);
+                background-color: #141232;
                 border: 2px solid {ACCENT};
                 border-radius: 18px;
             }}
             """
         )
-        self._bg.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        panel_layout = QtWidgets.QVBoxLayout(self._panel)
+        panel_layout.setContentsMargins(18, 18, 18, 18)
+
+        self._label = QtWidgets.QLabel(self._panel)
+        self._label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self._label.setWordWrap(True)
+        self._label.setStyleSheet(
+            """
+            QLabel {
+                color: white;
+                font-size: 32px;
+                font-weight: 800;
+                letter-spacing: 1px;
+                background: transparent;
+            }
+            """
+        )
+        panel_layout.addWidget(self._label)
+
+        self._opacity_effect = QtWidgets.QGraphicsOpacityEffect(self._panel)
+        self._opacity_effect.setOpacity(0.0)
+        self._panel.setGraphicsEffect(self._opacity_effect)
+
+        # Kept for backwards compatibility with external code that reached
+        # for ``.setStyleSheet`` directly on the frame.
+        self._bg = self._panel
 
         self.hide()
 
@@ -1054,9 +1247,20 @@ class CelebrationOverlay(QtWidgets.QWidget):
         headline: str,
         subline: str = "",
         color: str = ACCENT,
-        hold_ms: int = 2200,
+        hold_ms: Optional[int] = None,
     ) -> None:
-        """Einblenden mit Text, dann nach hold_ms ms ausblenden."""
+        """Einblenden mit Text, dann nach hold_ms ms ausblenden.
+
+        Wird ``hold_ms`` weggelassen, greift der konfigurierte Wert aus den
+        App-Einstellungen (``message_display_duration_ms``).
+        """
+        if hold_ms is None:
+            try:
+                from app_settings import get_message_display_duration_ms
+                hold_ms = get_message_display_duration_ms()
+            except Exception:
+                hold_ms = 2200
+
         text = f"{emoji}\n{headline}"
         if subline:
             text += f"\n{subline}"
@@ -1074,23 +1278,23 @@ class CelebrationOverlay(QtWidgets.QWidget):
         )
 
         self._resize_to_parent()
-        self.setWindowOpacity(0.0)
+        self._opacity_effect.setOpacity(0.0)
         self.show()
         self.raise_()
 
-        self._fade(target=1.0, step=0.08, interval=20, callback=lambda: self._start_hold(hold_ms))
+        self._fade(target=1.0, step=0.08, interval=20,
+                   callback=lambda: self._start_hold(hold_ms))
 
     # ── private helpers ───────────────────────────────────────────────────────
 
     def _resize_to_parent(self) -> None:
         if self.parent():
             self.setGeometry(self.parent().rect())
-            # centre the background box
-            w, h = 480, 200
+            # centre the background panel
+            w, h = 520, 220
             x = (self.width() - w) // 2
             y = (self.height() - h) // 2
-            self._bg.setGeometry(x, y, w, h)
-            self._label.setGeometry(x, y, w, h)
+            self._panel.setGeometry(x, y, w, h)
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         self._resize_to_parent()
@@ -1106,18 +1310,17 @@ class CelebrationOverlay(QtWidgets.QWidget):
         self._fade(target=0.0, step=-0.06, interval=25, callback=self.hide)
 
     def _fade(self, target: float, step: float, interval: int, callback) -> None:
-        """Animate opacity from current value towards target."""
-        self._opacity = self.windowOpacity()
-
-        t = QtCore.QTimer(self)
-        t.setInterval(interval)
+        """Animate panel opacity from current value towards target."""
+        tmr = QtCore.QTimer(self)
+        tmr.setInterval(interval)
 
         def _tick() -> None:
-            self._opacity = max(0.0, min(1.0, self._opacity + step))
-            self.setWindowOpacity(self._opacity)
-            if (step > 0 and self._opacity >= target) or (step < 0 and self._opacity <= target):
-                t.stop()
+            cur = self._opacity_effect.opacity()
+            nxt = max(0.0, min(1.0, cur + step))
+            self._opacity_effect.setOpacity(nxt)
+            if (step > 0 and nxt >= target) or (step < 0 and nxt <= target):
+                tmr.stop()
                 callback()
 
-        t.timeout.connect(_tick)
-        t.start()
+        tmr.timeout.connect(_tick)
+        tmr.start()
