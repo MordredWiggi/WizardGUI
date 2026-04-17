@@ -4,5 +4,7 @@
   "SshUser":   "ubuntu",
   "SshHost":   "158.180.32.188",
   "RemoteDir": "~/wizard-leaderboard",
-  "Port":      8000
+  "Port":      8000,
+  "Domain":    "play-wizard.de",
+  "Email":     "jansupercell@web.de"
 }
