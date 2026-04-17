@@ -33,6 +33,11 @@ jobs:
         working-directory: wizard_desktop
         run: python generate_icon.py || echo "Icon creation failed, proceeding without it."
 
+      - name: Disable Windows Defender
+        if: runner.os == 'Windows'
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+        shell: powershell
+
       - name: Build with PyInstaller (Windows)
         if: runner.os == 'Windows'
         working-directory: wizard_desktop
