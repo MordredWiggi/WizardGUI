@@ -5,18 +5,34 @@ import '../domain/round_result.dart';
 import '../domain/round_events.dart';
 import '../persistence/save_manager.dart';
 
-/// Central Provider notifier – owns the active GameControl and exposes
-/// all mutations the UI needs.  Mirrors the role of MainWindow._game in the
-/// Python desktop app.
+/// Central Provider notifier – owns the active GameControl, the active group,
+/// and exposes all mutations the UI needs.
+/// Mirrors the role of MainWindow._game in the Python desktop app.
 class GameNotifier extends ChangeNotifier {
   GameControl? _game;
   final SaveManager _saveManager;
+
+  /// The currently selected group dict (id, name, code, visibility), or null.
+  Map<String, dynamic>? _activeGroup;
 
   GameNotifier({SaveManager? saveManager})
       : _saveManager = saveManager ?? SaveManager();
 
   GameControl? get game => _game;
   bool get hasGame => _game != null;
+  Map<String, dynamic>? get activeGroup => _activeGroup;
+
+  // ── Group management ────────────────────────────────────────────────────────
+
+  void setGroup(Map<String, dynamic>? group) {
+    _activeGroup = group;
+    notifyListeners();
+  }
+
+  void clearGroup() {
+    _activeGroup = null;
+    notifyListeners();
+  }
 
   // ── Game lifecycle ─────────────────────────────────────────────────────────
 
@@ -65,6 +81,17 @@ class GameNotifier extends ChangeNotifier {
     return _saveManager.saveGame(_game!.toJson(), gameName: name);
   }
 
+  /// Persist the current finished game with pending_sync=true so it can be
+  /// uploaded on a later launch (mirrors desktop SaveManager.save_game).
+  Future<String> savePendingGame({String? groupCode}) async {
+    assert(_game != null);
+    return _saveManager.saveGame(
+      _game!.toJson(),
+      pendingSync: true,
+      groupCode: groupCode,
+    );
+  }
+
   Future<void> loadFromFile(String filePath) async {
     final data = await _saveManager.loadGame(filePath);
     _game = GameControl.fromJson(data);
@@ -73,6 +100,15 @@ class GameNotifier extends ChangeNotifier {
 
   Future<List<SavedGameMeta>> listSavedGames() =>
       _saveManager.listSavedGames();
+
+  Future<List<PendingSyncGame>> listPendingSyncGames() =>
+      _saveManager.listPendingSyncGames();
+
+  Future<void> markSynced(String filePath) =>
+      _saveManager.markSynced(filePath);
+
+  Future<void> updatePendingGroupCode(String filePath, String? groupCode) =>
+      _saveManager.updatePendingGroupCode(filePath, groupCode);
 
   Future<void> deleteSavedGame(String filePath) =>
       _saveManager.deleteGame(filePath);

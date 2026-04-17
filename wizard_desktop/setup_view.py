@@ -3,13 +3,14 @@ setup_view.py – Spieler-Setup-Bildschirm
 
 Zeigt:
   • Titelbereich mit Einstellungs-Button
+  • Gruppen-Auswahl / Erstellung (vor Spieler-Eingabe)
   • Eingabefeld für Spielernamen
-  • Liste gespeicherter Spiele zum Laden
+  • Liste gespeicherter Spiele, globales Gruppen-Leaderboard, Gruppen-Leaderboard
   • „Spiel starten"-Button
 """
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from PyQt6 import QtCore, QtWidgets, QtGui
 
@@ -78,13 +79,13 @@ class SetupView(QtWidgets.QWidget):
 
     Signals
     -------
-    start_game(player_names: list[str])
+    start_game(player_names: list[str], game_mode: str, group: dict|None)
     load_game(filepath: Path)
     settings_changed()
     """
 
-    start_game = QtCore.pyqtSignal(list, str)
-    load_game = QtCore.pyqtSignal(object)   # Path
+    start_game = QtCore.pyqtSignal(list, str, object)  # players, mode, group dict or None
+    load_game = QtCore.pyqtSignal(object)              # Path
     settings_changed = QtCore.pyqtSignal()
 
     def __init__(self, save_manager: SaveManager, parent: Optional[QtWidgets.QWidget] = None):
@@ -96,7 +97,22 @@ class SetupView(QtWidgets.QWidget):
         self._debounce_timer.setSingleShot(True)
         self._debounce_timer.setInterval(300)
         self._debounce_timer.timeout.connect(self._do_player_check)
+
+        # Group state: the currently confirmed group (dict) or None
+        self._selected_group: Optional[Dict] = None
+        # Offline mode: user explicitly chose to play without a group
+        self._offline_mode: bool = False
+
         self._build_ui()
+
+    # ── Leaderboard client helper ──────────────────────────────────────────────
+
+    def _get_client(self):
+        url = get_leaderboard_url()
+        if not url:
+            return None
+        from leaderboard_client import LeaderboardClient
+        return LeaderboardClient(url)
 
     # ── UI-Aufbau ─────────────────────────────────────────────────────────────
 
@@ -120,16 +136,13 @@ class SetupView(QtWidgets.QWidget):
         main.setSpacing(32)
 
         # ── Titel ──────────────────────────────────────────────────────────
-        # Header row with title and settings button
         title_row = QtWidgets.QHBoxLayout()
         title_row.addStretch()
 
         title_lbl = QtWidgets.QLabel("🃏  WIZARD")
         title_lbl.setObjectName("title")
         title_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        title_lbl.setStyleSheet(
-            "font-size: 40px; background: transparent;"
-        )
+        title_lbl.setStyleSheet("font-size: 40px; background: transparent;")
         title_row.addWidget(title_lbl)
         title_row.addStretch()
 
@@ -151,13 +164,74 @@ class SetupView(QtWidgets.QWidget):
         self._sub_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         main.addWidget(self._sub_lbl)
 
-        # ── Spieler-Eingabe ────────────────────────────────────────────────
-        setup_panel = self._make_panel()
-        main.addWidget(setup_panel)
+        # ── Kombiniertes Setup-Panel (Gruppe + Spieler + Modus) ───────────
+        combined_panel = self._make_panel()
+        main.addWidget(combined_panel)
 
-        sp_layout = QtWidgets.QVBoxLayout(setup_panel)
-        sp_layout.setContentsMargins(24, 20, 24, 20)
-        sp_layout.setSpacing(14)
+        combined_layout = QtWidgets.QVBoxLayout(combined_panel)
+        combined_layout.setContentsMargins(24, 20, 24, 20)
+        combined_layout.setSpacing(18)
+
+        # ── Group subsection ───────────────────────────────────────────────
+        gp_layout = QtWidgets.QVBoxLayout()
+        gp_layout.setSpacing(10)
+        combined_layout.addLayout(gp_layout)
+
+        self._hdr_group = QtWidgets.QLabel(t("group_header"))
+        self._hdr_group.setObjectName("section_header")
+        gp_layout.addWidget(self._hdr_group)
+
+        # Current group status display – starts as "no group selected"
+        self._group_status_lbl = QtWidgets.QLabel(t("group_not_selected"))
+        self._group_status_lbl.setStyleSheet(
+            f"font-size: 13px; color: {TEXT_DIM}; background: transparent; font-style: italic;"
+        )
+        self._group_status_lbl.setWordWrap(True)
+        gp_layout.addWidget(self._group_status_lbl)
+
+        # Buttons: Join existing / Create new
+        group_btn_row = QtWidgets.QHBoxLayout()
+        self._btn_join_group = QtWidgets.QPushButton(t("group_select_label"))
+        self._btn_join_group.setMinimumHeight(36)
+        self._btn_join_group.clicked.connect(self._on_join_group)
+
+        self._btn_create_group = QtWidgets.QPushButton(t("group_create_btn"))
+        self._btn_create_group.setMinimumHeight(36)
+        self._btn_create_group.clicked.connect(self._on_create_group)
+
+        self._btn_clear_group = QtWidgets.QPushButton("✕")
+        self._btn_clear_group.setToolTip("Clear group selection")
+        self._btn_clear_group.setFixedSize(36, 36)
+        self._btn_clear_group.setStyleSheet(
+            "QPushButton { padding: 0; font-size: 16px; font-weight: 700; }"
+        )
+        self._btn_clear_group.setVisible(False)
+        self._btn_clear_group.clicked.connect(self._clear_group)
+
+        group_btn_row.addWidget(self._btn_join_group)
+        group_btn_row.addWidget(self._btn_create_group)
+        group_btn_row.addStretch()
+        group_btn_row.addWidget(self._btn_clear_group)
+        gp_layout.addLayout(group_btn_row)
+
+        # Offline play toggle row
+        self._btn_play_offline = QtWidgets.QPushButton(t("play_offline_btn"))
+        self._btn_play_offline.setMinimumHeight(32)
+        self._btn_play_offline.setCheckable(True)
+        self._btn_play_offline.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self._btn_play_offline.toggled.connect(self._on_offline_toggled)
+        gp_layout.addWidget(self._btn_play_offline)
+
+        # Divider between subsections
+        sub_sep1 = QtWidgets.QFrame()
+        sub_sep1.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        sub_sep1.setStyleSheet("background: #3a3a6a; border: none; max-height: 1px;")
+        combined_layout.addWidget(sub_sep1)
+
+        # ── Spieler-Eingabe ────────────────────────────────────────────────
+        sp_layout = QtWidgets.QVBoxLayout()
+        sp_layout.setSpacing(12)
+        combined_layout.addLayout(sp_layout)
 
         self._hdr1 = QtWidgets.QLabel(t("add_players_header"))
         self._hdr1.setObjectName("section_header")
@@ -202,16 +276,19 @@ class SetupView(QtWidgets.QWidget):
         # Hinweis
         self._hint_lbl = QtWidgets.QLabel(t("hint_min_players"))
         self._hint_lbl.setObjectName("input_label")
-        self._hint_lbl.setStyleSheet(f"font-style: italic;")
+        self._hint_lbl.setStyleSheet("font-style: italic;")
         sp_layout.addWidget(self._hint_lbl)
 
-        # ── Game Mode ─────────────────────────────────────────────────────
-        mode_panel = self._make_panel()
-        main.addWidget(mode_panel)
+        # Divider between subsections
+        sub_sep2 = QtWidgets.QFrame()
+        sub_sep2.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        sub_sep2.setStyleSheet("background: #3a3a6a; border: none; max-height: 1px;")
+        combined_layout.addWidget(sub_sep2)
 
-        mode_layout = QtWidgets.QVBoxLayout(mode_panel)
-        mode_layout.setContentsMargins(24, 20, 24, 20)
+        # ── Game Mode ─────────────────────────────────────────────────────
+        mode_layout = QtWidgets.QVBoxLayout()
         mode_layout.setSpacing(10)
+        combined_layout.addLayout(mode_layout)
 
         self._hdr_mode = QtWidgets.QLabel(t("game_mode_label"))
         self._hdr_mode.setObjectName("section_header")
@@ -234,7 +311,7 @@ class SetupView(QtWidgets.QWidget):
         self._btn_start.clicked.connect(self._on_start)
         mode_layout.addWidget(self._btn_start)
 
-        # ── Gespeicherte Spiele / Leaderboard ─────────────────────────────
+        # ── Bottom: Saved Games | Groups LB | Group LB ─────────────────────
         saved_panel = self._make_panel()
         main.addWidget(saved_panel)
 
@@ -242,18 +319,21 @@ class SetupView(QtWidgets.QWidget):
         sv_layout.setContentsMargins(24, 20, 24, 20)
         sv_layout.setSpacing(12)
 
-        # Tab-style toggle: Saved Games | Leaderboard
+        # Tabs: Saved Games | Leaderboard | Groups
         tab_row = QtWidgets.QHBoxLayout()
         tab_row.setSpacing(4)
         self._btn_tab_saved = QtWidgets.QPushButton(t("tab_saved_games"))
         self._btn_tab_lb = QtWidgets.QPushButton(t("tab_leaderboard"))
-        for btn in (self._btn_tab_saved, self._btn_tab_lb):
+        self._btn_tab_groups = QtWidgets.QPushButton(t("tab_groups_lb"))
+        for btn in (self._btn_tab_saved, self._btn_tab_lb, self._btn_tab_groups):
             btn.setMinimumHeight(32)
             btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self._btn_tab_saved.clicked.connect(lambda: self._switch_bottom_tab(0))
         self._btn_tab_lb.clicked.connect(lambda: self._switch_bottom_tab(1))
+        self._btn_tab_groups.clicked.connect(lambda: self._switch_bottom_tab(2))
         tab_row.addWidget(self._btn_tab_saved)
         tab_row.addWidget(self._btn_tab_lb)
+        tab_row.addWidget(self._btn_tab_groups)
         tab_row.addStretch()
         sv_layout.addLayout(tab_row)
 
@@ -287,16 +367,118 @@ class SetupView(QtWidgets.QWidget):
 
         self._bottom_stack.addWidget(saved_page)  # index 0
 
-        # Page 1: Leaderboard
+        # Page 1: Player leaderboard with Global/Group scope toggle
         from leaderboard_widget import LeaderboardWidget
-        self._leaderboard_widget = LeaderboardWidget()
-        self._bottom_stack.addWidget(self._leaderboard_widget)  # index 1
+        self._lb_widget = LeaderboardWidget()
+        self._bottom_stack.addWidget(self._lb_widget)  # index 1
+
+        # Page 2: Global groups ranking
+        from leaderboard_widget import GroupsLeaderboardWidget
+        self._groups_lb_widget = GroupsLeaderboardWidget()
+        self._bottom_stack.addWidget(self._groups_lb_widget)  # index 2
 
         sv_layout.addWidget(self._bottom_stack, 1)
 
         self._current_bottom_tab = 0
         self._apply_tab_style()
         self._refresh_saved()
+
+    # ── Group management ───────────────────────────────────────────────────────
+
+    def _on_join_group(self) -> None:
+        client = self._get_client()
+        if client is None:
+            QtWidgets.QMessageBox.information(
+                self, t("warning_title"),
+                "Please configure a leaderboard URL in Settings first."
+            )
+            return
+        from dialogs import GroupSelectDialog
+        dlg = GroupSelectDialog(self, client)
+        if dlg.exec() and dlg.selected_group:
+            self._set_group(dlg.selected_group)
+
+    def _on_create_group(self) -> None:
+        client = self._get_client()
+        if client is None:
+            QtWidgets.QMessageBox.information(
+                self, t("warning_title"),
+                "Please configure a leaderboard URL in Settings first."
+            )
+            return
+        from dialogs import GroupCreateDialog
+        dlg = GroupCreateDialog(self, client)
+        if dlg.exec() and dlg.created_group:
+            self._set_group(dlg.created_group)
+
+    def _set_group(self, group: Dict) -> None:
+        self._selected_group = group
+        # Selecting a group overrides offline mode
+        if self._offline_mode:
+            self._offline_mode = False
+            self._btn_play_offline.blockSignals(True)
+            self._btn_play_offline.setChecked(False)
+            self._btn_play_offline.blockSignals(False)
+        self._group_status_lbl.setText(
+            t("group_selected", name=group["name"], code=group["code"])
+        )
+        self._group_status_lbl.setStyleSheet(
+            f"font-size: 13px; color: {SUCCESS}; background: transparent; font-weight: 600;"
+        )
+        self._btn_clear_group.setVisible(True)
+        # Enable the Group scope inside the unified leaderboard widget
+        self._lb_widget.set_group(group["code"])
+        self._update_state()
+
+    def _clear_group(self) -> None:
+        self._selected_group = None
+        self._offline_mode = False
+        # Reset the name-presence indicator (was not cleared before – bug fix)
+        self._name_status.clear()
+        self._name_status.setStyleSheet(
+            "font-size: 11px; background: transparent; border: none;"
+        )
+        self._btn_play_offline.blockSignals(True)
+        self._btn_play_offline.setChecked(False)
+        self._btn_play_offline.blockSignals(False)
+        self._group_status_lbl.setText(t("group_not_selected"))
+        self._group_status_lbl.setStyleSheet(
+            f"font-size: 13px; color: {TEXT_DIM}; background: transparent; font-style: italic;"
+        )
+        self._btn_clear_group.setVisible(False)
+        self._lb_widget.set_group(None)
+        self._update_state()
+
+    def _on_offline_toggled(self, checked: bool) -> None:
+        """User toggled the Play-Offline button."""
+        self._offline_mode = checked
+        if checked and self._selected_group is not None:
+            # Clearing the group takes us into offline mode – keep toggle on.
+            self._selected_group = None
+            self._btn_clear_group.setVisible(False)
+            self._lb_widget.set_group(None)
+        if checked:
+            self._group_status_lbl.setText(t("offline_mode_active"))
+            self._group_status_lbl.setStyleSheet(
+                f"font-size: 13px; color: {ACCENT}; background: transparent; font-weight: 600;"
+            )
+        else:
+            # Restore whichever label fits the current state
+            if self._selected_group is not None:
+                self._group_status_lbl.setText(
+                    t("group_selected",
+                      name=self._selected_group["name"],
+                      code=self._selected_group["code"])
+                )
+                self._group_status_lbl.setStyleSheet(
+                    f"font-size: 13px; color: {SUCCESS}; background: transparent; font-weight: 600;"
+                )
+            else:
+                self._group_status_lbl.setText(t("group_not_selected"))
+                self._group_status_lbl.setStyleSheet(
+                    f"font-size: 13px; color: {TEXT_DIM}; background: transparent; font-style: italic;"
+                )
+        self._update_state()
 
     # ── Hilfsmethoden ─────────────────────────────────────────────────────────
 
@@ -314,7 +496,8 @@ class SetupView(QtWidgets.QWidget):
     def _apply_tab_style(self) -> None:
         from app_settings import get_theme
         dark = get_theme() != "light"
-        for i, btn in enumerate((self._btn_tab_saved, self._btn_tab_lb)):
+        tabs = [self._btn_tab_saved, self._btn_tab_lb, self._btn_tab_groups]
+        for i, btn in enumerate(tabs):
             active = (i == self._current_bottom_tab)
             if dark:
                 if active:
@@ -348,7 +531,6 @@ class SetupView(QtWidgets.QWidget):
     # ── Live player name checking ──────────────────────────────────────────────
 
     def _on_name_text_changed(self, text: str) -> None:
-        """Restart debounce timer on each keystroke."""
         self._name_status.clear()
         name = text.strip()
         if not name or not get_leaderboard_url():
@@ -356,7 +538,6 @@ class SetupView(QtWidgets.QWidget):
         self._debounce_timer.start()
 
     def _do_player_check(self) -> None:
-        """Fire the background check after debounce."""
         name = self._name_edit.text().strip()
         url = get_leaderboard_url()
         if not name or not url:
@@ -369,20 +550,16 @@ class SetupView(QtWidgets.QWidget):
         self._check_worker.start()
 
     def _on_player_check_result(self, name: str, exists) -> None:
-        """Update the status indicator with the check result."""
-        # Only update if the name still matches what's in the input
         if self._name_edit.text().strip() != name:
             return
         if exists is None:
             self._name_status.clear()
         elif exists:
-            # Positive: player is known, scores will be linked
             self._name_status.setText(t("player_exists_hint"))
             self._name_status.setStyleSheet(
                 f"font-size: 11px; color: {SUCCESS}; background: transparent; border: none;"
             )
         else:
-            # Neutral info: new player will be created
             self._name_status.setText(t("player_new_hint"))
             self._name_status.setStyleSheet(
                 f"font-size: 11px; color: {TEXT_DIM}; background: transparent; border: none;"
@@ -401,7 +578,6 @@ class SetupView(QtWidgets.QWidget):
         self._players.append({"name": name, "avatar": avatar})
         chip = PlayerChip(name, color, self._chips_container, display=f"{avatar}  {name}")
         chip.removed.connect(self._remove_player)
-        # Insert before the stretch
         idx = self._chips_layout.count() - 1
         self._chips_layout.insertWidget(idx, chip)
         self._name_edit.clear()
@@ -410,7 +586,6 @@ class SetupView(QtWidgets.QWidget):
 
     def _remove_player(self, name: str) -> None:
         self._players = [p for p in self._players if p["name"] != name]
-        # Remove the chip widget
         for i in range(self._chips_layout.count()):
             item = self._chips_layout.itemAt(i)
             if item and isinstance(item.widget(), PlayerChip):
@@ -419,7 +594,7 @@ class SetupView(QtWidgets.QWidget):
                     self._chips_layout.removeWidget(widget)
                     widget.deleteLater()
                     break
-        # Re-colour remaining chips to keep consistent colours
+        # Re-colour remaining chips
         for i, item_i in enumerate(
             [
                 self._chips_layout.itemAt(j).widget()
@@ -442,7 +617,9 @@ class SetupView(QtWidgets.QWidget):
 
     def _update_state(self) -> None:
         n = len(self._players)
-        self._btn_start.setEnabled(n >= 2)
+        # Require at least 2 players AND either a group selected OR offline mode
+        can_start = n >= 2 and (self._selected_group is not None or self._offline_mode)
+        self._btn_start.setEnabled(can_start)
         if n == 0:
             self._hint_lbl.setText(t("hint_min_players"))
         else:
@@ -475,7 +652,6 @@ class SetupView(QtWidgets.QWidget):
     # ── Settings ──────────────────────────────────────────────────────────────
 
     def _on_settings(self) -> None:
-        """Öffnet den Einstellungen-Dialog."""
         from dialogs import SettingsDialog
         dlg = SettingsDialog(self)
         dlg.exec()
@@ -485,8 +661,8 @@ class SetupView(QtWidgets.QWidget):
     # ── Übersetzung aktualisieren ──────────────────────────────────────────────
 
     def retranslate_ui(self) -> None:
-        """Aktualisiert alle übersetzbaren UI-Texte nach Sprach-/Themenwechsel."""
         self._sub_lbl.setText(t("subtitle"))
+        self._hdr_group.setText(t("group_header"))
         self._hdr1.setText(t("add_players_header"))
         self._hdr_mode.setText(t("game_mode_label"))
         self._radio_standard.setText(t("game_mode_standard"))
@@ -499,23 +675,40 @@ class SetupView(QtWidgets.QWidget):
         self._btn_settings.setToolTip(t("tooltip_settings"))
         self._btn_tab_saved.setText(t("tab_saved_games"))
         self._btn_tab_lb.setText(t("tab_leaderboard"))
+        self._btn_tab_groups.setText(t("tab_groups_lb"))
+        self._btn_join_group.setText(t("group_select_label"))
+        self._btn_create_group.setText(t("group_create_btn"))
+        self._btn_play_offline.setText(t("play_offline_btn"))
+        if self._selected_group:
+            self._group_status_lbl.setText(
+                t("group_selected",
+                  name=self._selected_group["name"],
+                  code=self._selected_group["code"])
+            )
+        elif self._offline_mode:
+            self._group_status_lbl.setText(t("offline_mode_active"))
+        else:
+            self._group_status_lbl.setText(t("group_not_selected"))
         self._apply_tab_style()
-        self._leaderboard_widget.retranslate_ui()
-        # Update hint based on current player count
+        self._lb_widget.retranslate_ui()
+        self._groups_lb_widget.retranslate_ui()
         n = len(self._players)
         if n == 0:
             self._hint_lbl.setText(t("hint_min_players"))
         else:
             self._hint_lbl.setText(t("hint_players_selected", n=n))
-        # Refresh saved games list to update "Round" label
         self._refresh_saved()
 
     # ── Slots ─────────────────────────────────────────────────────────────────
 
     def _on_start(self) -> None:
-        if len(self._players) >= 2:
-            game_mode = GAME_MODE_MULTIPLICATIVE if self._radio_multi.isChecked() else GAME_MODE_STANDARD
-            self.start_game.emit(list(self._players), game_mode)
+        if len(self._players) < 2:
+            return
+        if self._selected_group is None and not self._offline_mode:
+            return
+        game_mode = GAME_MODE_MULTIPLICATIVE if self._radio_multi.isChecked() else GAME_MODE_STANDARD
+        # Offline mode emits None for the group
+        self.start_game.emit(list(self._players), game_mode, self._selected_group)
 
     def _on_load(self) -> None:
         current = self._saved_list.currentItem()
@@ -529,3 +722,9 @@ class SetupView(QtWidgets.QWidget):
         if game_meta:
             self.load_game.emit(game_meta["filepath"])
 
+    # ── Public API ─────────────────────────────────────────────────────────────
+
+    @property
+    def selected_group(self) -> Optional[Dict]:
+        """Returns the currently selected group dict, or None."""
+        return self._selected_group

@@ -4,10 +4,12 @@ import 'package:intl/intl.dart';
 
 import '../persistence/app_settings.dart';
 import '../persistence/save_manager.dart';
+import '../services/leaderboard_service.dart';
 import '../state/game_notifier.dart';
 import '../theme/app_theme.dart';
 import 'game_screen.dart';
 import 'settings_screen.dart';
+import 'pending_sync_dialog.dart';
 
 const List<String> _kAvatars = [
   '🧙‍♂️', '🧙‍♀️', '🧚‍♂️', '🧚‍♀️',
@@ -27,15 +29,46 @@ class _SetupScreenState extends State<SetupScreen> {
   final _nameFocus = FocusNode();
   int _avatarIndex = 0;
   final List<Map<String, dynamic>> _players = [];
-  String _gameMode = 'standard'; // 'standard' | 'multiplicative'
+  String _gameMode = 'standard';
 
   List<SavedGameMeta> _savedGames = [];
   bool _loadingSaved = false;
+
+  // ── Group state ──────────────────────────────────────────────────────────
+  Map<String, dynamic>? _selectedGroup;
+  // User explicitly opted into playing without a group
+  bool _offlineMode = false;
 
   @override
   void initState() {
     super.initState();
     _refreshSaved();
+    // On first build, check for offline-queued games and offer to sync.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingSync());
+  }
+
+  Future<void> _checkPendingSync() async {
+    if (!mounted) return;
+    final notifier = context.read<GameNotifier>();
+    final settings = context.read<AppSettings>();
+    final pending = await notifier.listPendingSyncGames();
+    if (!mounted || pending.isEmpty) return;
+
+    final url = settings.leaderboardUrl;
+    if (url.isEmpty) return;
+
+    final service = LeaderboardService(url);
+    // Probe connectivity before prompting – if the server is unreachable we
+    // just leave the games flagged and try again next launch.
+    final probe = await service.listGroups(search: '');
+    if (!mounted || probe == null) return;
+
+    await showPendingSyncDialog(
+      context: context,
+      pending: pending,
+      service: service,
+    );
+    if (mounted) _refreshSaved();
   }
 
   @override
@@ -45,12 +78,87 @@ class _SetupScreenState extends State<SetupScreen> {
     super.dispose();
   }
 
+  LeaderboardService? _getService() {
+    final url = context.read<AppSettings>().leaderboardUrl;
+    if (url.isEmpty) return null;
+    return LeaderboardService(url);
+  }
+
   Future<void> _refreshSaved() async {
     setState(() => _loadingSaved = true);
     final notifier = context.read<GameNotifier>();
     final games = await notifier.listSavedGames();
     if (mounted) setState(() { _savedGames = games; _loadingSaved = false; });
   }
+
+  // ── Group actions ──────────────────────────────────────────────────────────
+
+  Future<void> _joinGroup() async {
+    final svc = _getService();
+    if (svc == null) {
+      _showNoUrlSnackbar();
+      return;
+    }
+    final group = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => _GroupSelectDialog(service: svc),
+    );
+    if (group != null && mounted) {
+      setState(() {
+        _selectedGroup = group;
+        _offlineMode = false;
+      });
+      context.read<GameNotifier>().setGroup(group);
+    }
+  }
+
+  Future<void> _createGroup() async {
+    final svc = _getService();
+    if (svc == null) {
+      _showNoUrlSnackbar();
+      return;
+    }
+    final group = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => _GroupCreateDialog(service: svc),
+    );
+    if (group != null && mounted) {
+      setState(() {
+        _selectedGroup = group;
+        _offlineMode = false;
+      });
+      context.read<GameNotifier>().setGroup(group);
+    }
+  }
+
+  void _clearGroup() {
+    // Bug fix: fully reset all group-related state so the UI reflects the
+    // "no group" state immediately (no stale status text or offline flag).
+    setState(() {
+      _selectedGroup = null;
+      _offlineMode = false;
+    });
+    context.read<GameNotifier>().clearGroup();
+  }
+
+  void _toggleOffline() {
+    setState(() {
+      _offlineMode = !_offlineMode;
+      if (_offlineMode) {
+        _selectedGroup = null;
+        context.read<GameNotifier>().clearGroup();
+      }
+    });
+  }
+
+  void _showNoUrlSnackbar() {
+    final t = context.read<AppSettings>().t;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(t('leaderboard_url_label') + ' – not configured in Settings')),
+    );
+  }
+
+  // ── Player actions ─────────────────────────────────────────────────────────
 
   void _addPlayer() {
     final name = _nameController.text.trim();
@@ -70,6 +178,7 @@ class _SetupScreenState extends State<SetupScreen> {
 
   void _startGame() {
     if (_players.length < 2) return;
+    if (_selectedGroup == null && !_offlineMode) return;
     context.read<GameNotifier>().startGame(List.from(_players), _gameMode);
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const GameScreen()),
@@ -86,8 +195,13 @@ class _SetupScreenState extends State<SetupScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final settings = context.read<AppSettings>();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Load failed: $e')),
+          SnackBar(
+            content: Text(
+                settings.t('load_failed', {'error': e.toString()})),
+            duration: settings.messageDuration,
+          ),
         );
       }
     }
@@ -95,18 +209,19 @@ class _SetupScreenState extends State<SetupScreen> {
 
   Future<void> _deleteGame(SavedGameMeta meta) async {
     final settings = context.read<AppSettings>();
+    final t = settings.t;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(settings.t('warning_title')),
-        content: Text(settings.t('delete_game_confirm')),
+        title: Text(t('warning_title')),
+        content: Text(t('delete_game_confirm')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text(settings.t('cancel'))),
+              child: Text(t('cancel'))),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text(settings.t('delete_game'))),
+              child: Text(t('delete_game'))),
         ],
       ),
     );
@@ -121,6 +236,8 @@ class _SetupScreenState extends State<SetupScreen> {
     final settings = context.watch<AppSettings>();
     final t = settings.t;
     final theme = Theme.of(context);
+    final canStart =
+        _players.length >= 2 && (_selectedGroup != null || _offlineMode);
 
     return Scaffold(
       appBar: AppBar(
@@ -146,13 +263,113 @@ class _SetupScreenState extends State<SetupScreen> {
             // ── Subtitle ──────────────────────────────────────────────────
             Text(t('subtitle'),
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6),
-                        letterSpacing: 1.5)),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    letterSpacing: 1.5)),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
 
-            // ── Add players panel ─────────────────────────────────────────
+            // ── Step 1: Group ─────────────────────────────────────────────
+            _SectionCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SectionHeader(t('group_header')),
+                  const SizedBox(height: 10),
+
+                  // Current group status
+                  if (_selectedGroup != null) ...[
+                    Row(children: [
+                      const Icon(Icons.group, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          t('group_selected', {
+                            'name': _selectedGroup!['name'] as String,
+                            'code': _selectedGroup!['code'] as String,
+                          }),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                              color: kSuccess, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: _clearGroup,
+                        tooltip: 'Clear',
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ]),
+                    const SizedBox(height: 8),
+                  ] else if (_offlineMode) ...[
+                    Row(children: [
+                      Icon(Icons.wifi_off,
+                          size: 18, color: theme.colorScheme.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          t('offline_mode_active'),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ]),
+                    const SizedBox(height: 8),
+                  ] else ...[
+                    Text(t('group_not_selected'),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            fontStyle: FontStyle.italic,
+                            color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                    const SizedBox(height: 10),
+                  ],
+
+                  // Action buttons
+                  Row(children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _joinGroup,
+                        icon: const Icon(Icons.login, size: 18),
+                        label: Text(t('group_select_label')),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _createGroup,
+                        icon: const Icon(Icons.add, size: 18),
+                        label: Text(t('group_create_btn')),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 8),
+                  // Offline toggle – lets user start a game without a group
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _toggleOffline,
+                      icon: Icon(
+                        _offlineMode ? Icons.check_circle : Icons.wifi_off,
+                        size: 18,
+                      ),
+                      label: Text(t('play_offline_btn')),
+                      style: _offlineMode
+                          ? OutlinedButton.styleFrom(
+                              backgroundColor: theme.colorScheme.primary
+                                  .withOpacity(0.12),
+                              side: BorderSide(
+                                  color: theme.colorScheme.primary, width: 1.5),
+                            )
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── Step 2: Add players ───────────────────────────────────────
             _SectionCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,8 +389,7 @@ class _SetupScreenState extends State<SetupScreen> {
                           color: theme.colorScheme.surface,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                              color:
-                                  theme.colorScheme.primary.withOpacity(0.5)),
+                              color: theme.colorScheme.primary.withOpacity(0.5)),
                         ),
                         child: Text(_kAvatars[_avatarIndex],
                             style: const TextStyle(fontSize: 24)),
@@ -230,50 +446,58 @@ class _SetupScreenState extends State<SetupScreen> {
 
             const SizedBox(height: 16),
 
-            // ── Game mode panel ────────────────────────────────────────────
+            // ── Game mode + Start ─────────────────────────────────────────
             _SectionCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _SectionHeader(t('game_mode_label')),
                   const SizedBox(height: 10),
-                  RadioGroup<String>(
-                    groupValue: _gameMode,
-                    onChanged: (v) => setState(() => _gameMode = v!),
-                    child: Row(children: [
-                      Expanded(
-                        child: RadioListTile<String>(
-                          value: 'standard',
-                          title: Text(t('game_mode_standard')),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
+                  Row(children: [
+                    Expanded(
+                      child: RadioListTile<String>(
+                        value: 'standard',
+                        groupValue: _gameMode,
+                        onChanged: (v) => setState(() => _gameMode = v!),
+                        title: Text(t('game_mode_standard')),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
                       ),
-                      Expanded(
-                        child: RadioListTile<String>(
-                          value: 'multiplicative',
-                          title: Text(t('game_mode_multiplicative')),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
+                    ),
+                    Expanded(
+                      child: RadioListTile<String>(
+                        value: 'multiplicative',
+                        groupValue: _gameMode,
+                        onChanged: (v) => setState(() => _gameMode = v!),
+                        title: Text(t('game_mode_multiplicative')),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
                       ),
-                    ]),
-                  ),
+                    ),
+                  ]),
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _players.length >= 2 ? _startGame : null,
+                      onPressed: canStart ? _startGame : null,
                       child: Text(t('start_game')),
                     ),
                   ),
+                  if (!canStart && _selectedGroup == null && !_offlineMode)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(t('group_required'),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              fontStyle: FontStyle.italic,
+                              color: kDanger)),
+                    ),
                 ],
               ),
             ),
 
             const SizedBox(height: 16),
 
-            // ── Saved games panel ──────────────────────────────────────────
+            // ── Saved games ───────────────────────────────────────────────
             _SectionCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -347,6 +571,321 @@ class _SetupScreenState extends State<SetupScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Group Select Dialog ────────────────────────────────────────────────────────
+
+class _GroupSelectDialog extends StatefulWidget {
+  final LeaderboardService service;
+  const _GroupSelectDialog({required this.service});
+
+  @override
+  State<_GroupSelectDialog> createState() => _GroupSelectDialogState();
+}
+
+class _GroupSelectDialogState extends State<_GroupSelectDialog> {
+  final _searchController = TextEditingController();
+  final _codeController = TextEditingController();
+  final _codeFocusNode = FocusNode();
+  List<Map<String, dynamic>> _groups = [];
+  bool _loading = false;
+  bool _connectionFailed = false;
+  String? _codeStatus; // null | 'ok' | 'error'
+  Map<String, dynamic>? _validatedGroup;
+
+  @override
+  void initState() {
+    super.initState();
+    _doSearch('');
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _codeController.dispose();
+    _codeFocusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _doSearch(String q) async {
+    setState(() => _loading = true);
+    final result = await widget.service.listGroups(search: q);
+    if (mounted) {
+      setState(() {
+        _groups = result ?? [];
+        _connectionFailed = result == null;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _validateCode() async {
+    final code = _codeController.text.trim();
+    if (code.length != 4 || int.tryParse(code) == null) {
+      setState(() { _codeStatus = 'error'; _validatedGroup = null; });
+      return;
+    }
+    final group = await widget.service.getGroupByCode(code);
+    if (mounted) {
+      setState(() {
+        _validatedGroup = group;
+        _codeStatus = group != null ? 'ok' : 'error';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.read<AppSettings>();
+    final t = settings.t;
+    final theme = Theme.of(context);
+
+    return AlertDialog(
+      title: Text(t('group_select_label')),
+      content: SizedBox(
+        width: 380,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Search
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(hintText: t('group_search_placeholder')),
+              onChanged: (v) => _doSearch(v),
+            ),
+            const SizedBox(height: 8),
+
+            // Groups list
+            if (_loading)
+              const LinearProgressIndicator()
+            else if (_connectionFailed)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(t('group_connection_error'),
+                    style: theme.textTheme.bodySmall?.copyWith(color: kDanger)),
+              )
+            else if (_groups.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(t('no_groups'),
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(fontStyle: FontStyle.italic)),
+              )
+            else
+              SizedBox(
+                height: 140,
+                child: ListView.builder(
+                  itemCount: _groups.length,
+                  itemBuilder: (_, i) {
+                    final g = _groups[i];
+                    final n = (g['player_count'] as num?)?.toInt() ?? 0;
+                    return ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.group_outlined, size: 20),
+                      title: Text(g['name'] as String),
+                      subtitle: Text(
+                          t('group_players_count', {'n': n.toString()}),
+                          style: theme.textTheme.bodySmall),
+                      onTap: () {
+                        _searchController.text = g['name'] as String;
+                        _doSearch(g['name'] as String);
+                        _codeFocusNode.requestFocus();
+                      },
+                    );
+                  },
+                ),
+              ),
+
+            const Divider(),
+
+            // Code validation
+            Text(t('group_code_label'),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: _codeController,
+                  focusNode: _codeFocusNode,
+                  decoration: InputDecoration(
+                      hintText: t('group_code_placeholder')),
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  onChanged: (_) => setState(() { _codeStatus = null; _validatedGroup = null; }),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: _validateCode,
+                child: Text(t('group_code_validate')),
+              ),
+            ]),
+
+            if (_codeStatus == 'ok')
+              Text(
+                t('group_code_correct',
+                    {'name': _validatedGroup?['name'] ?? ''}),
+                style: theme.textTheme.bodySmall?.copyWith(color: kSuccess),
+              )
+            else if (_codeStatus == 'error')
+              Text(t('group_code_invalid'),
+                  style: theme.textTheme.bodySmall?.copyWith(color: kDanger)),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(t('cancel')),
+        ),
+        ElevatedButton(
+          onPressed:
+              _validatedGroup != null ? () => Navigator.pop(context, _validatedGroup) : null,
+          child: Text(t('load')),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Group Create Dialog ────────────────────────────────────────────────────────
+
+class _GroupCreateDialog extends StatefulWidget {
+  final LeaderboardService service;
+  const _GroupCreateDialog({required this.service});
+
+  @override
+  State<_GroupCreateDialog> createState() => _GroupCreateDialogState();
+}
+
+class _GroupCreateDialogState extends State<_GroupCreateDialog> {
+  final _nameController = TextEditingController();
+  final _codeController = TextEditingController();
+  String _visibility = 'public';
+  String? _statusMsg;
+  bool _isError = false;
+  bool _creating = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _create() async {
+    final t = context.read<AppSettings>().t;
+    final name = _nameController.text.trim();
+    final code = _codeController.text.trim();
+    if (name.isEmpty) {
+      setState(() { _statusMsg = t('group_name_placeholder') + ' required'; _isError = true; });
+      return;
+    }
+    if (code.length != 4 || int.tryParse(code) == null) {
+      setState(() { _statusMsg = t('group_code_invalid'); _isError = true; });
+      return;
+    }
+    setState(() => _creating = true);
+    final result = await widget.service.createGroup(
+        name: name, code: code, visibility: _visibility);
+    if (!mounted) return;
+    setState(() => _creating = false);
+    if (result.isOk) {
+      setState(() {
+        _statusMsg = t('group_created_ok', {'name': name, 'code': code});
+        _isError = false;
+      });
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (mounted) Navigator.pop(context, result.group);
+    } else if (result.taken) {
+      setState(() {
+        _statusMsg = t('group_code_taken', {'code': code});
+        _isError = true;
+      });
+    } else {
+      setState(() {
+        _statusMsg = t('group_connection_error');
+        _isError = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.read<AppSettings>();
+    final t = settings.t;
+    final theme = Theme.of(context);
+
+    return AlertDialog(
+      title: Text(t('group_create_label')),
+      content: SizedBox(
+        width: 340,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: InputDecoration(hintText: t('group_name_placeholder')),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _codeController,
+              decoration: InputDecoration(hintText: t('group_code_placeholder')),
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+            ),
+            const SizedBox(height: 6),
+            // Visibility
+            Row(children: [
+              Expanded(
+                child: RadioListTile<String>(
+                  value: 'public',
+                  groupValue: _visibility,
+                  onChanged: (v) => setState(() => _visibility = v!),
+                  title: Text(t('group_visibility_public'),
+                      style: const TextStyle(fontSize: 13)),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              Expanded(
+                child: RadioListTile<String>(
+                  value: 'hidden',
+                  groupValue: _visibility,
+                  onChanged: (v) => setState(() => _visibility = v!),
+                  title: Text(t('group_visibility_hidden'),
+                      style: const TextStyle(fontSize: 13)),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ]),
+            if (_statusMsg != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(_statusMsg!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                        color: _isError ? kDanger : kSuccess)),
+              ),
+            if (_creating) const LinearProgressIndicator(),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(t('cancel')),
+        ),
+        ElevatedButton(
+          onPressed: _creating ? null : _create,
+          child: Text(t('group_create_btn')),
+        ),
+      ],
     );
   }
 }

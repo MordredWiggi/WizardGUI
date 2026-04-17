@@ -34,7 +34,11 @@ def compute_game_hash(game_data: dict) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
-def build_game_submission(game_data: dict, played_at: Optional[str] = None) -> dict:
+def build_game_submission(
+    game_data: dict,
+    played_at: Optional[str] = None,
+    group_code: Optional[str] = None,
+) -> dict:
     """Convert a local game dict into the payload expected by POST /api/games."""
     players = game_data.get("players", [])
     num_players = len(players)
@@ -77,13 +81,16 @@ def build_game_submission(game_data: dict, played_at: Optional[str] = None) -> d
     ):
         pr["rank"] = rank
 
-    return {
+    payload: dict = {
         "game_hash": compute_game_hash(game_data),
         "game_mode": game_mode,
         "num_players": num_players,
         "played_at": played_at or datetime.now().isoformat(),
         "players": player_results,
     }
+    if group_code:
+        payload["group_code"] = group_code
+    return payload
 
 
 # ── Synchronous HTTP helpers ─────────────────────────────────────────────────
@@ -131,12 +138,44 @@ class LeaderboardClient:
         return result is not None
 
     def get_leaderboard(self, mode: str = "standard") -> Optional[list]:
-        """Fetch leaderboard data. Returns list of dicts or None on error."""
+        """Fetch global player leaderboard data. Returns list of dicts or None on error."""
         url = f"{self.base_url}/api/leaderboard?mode={urllib.parse.quote(mode)}"
         data = _get_json(url, timeout=5)
         if data is None:
             return None
         return data
+
+    # ── Group methods ────────────────────────────────────────────────────────
+
+    def create_group(self, name: str, code: str, visibility: str = "public") -> Optional[dict]:
+        """Create a new group. Returns group dict on success, None on failure."""
+        url = f"{self.base_url}/api/groups"
+        result = _post_json(url, {"name": name, "code": code, "visibility": visibility})
+        return result
+
+    def get_group_by_code(self, code: str) -> Optional[dict]:
+        """Fetch group by 4-digit code. Returns dict or None if not found/error."""
+        url = f"{self.base_url}/api/groups/{urllib.parse.quote(code)}"
+        return _get_json(url, timeout=5)
+
+    def list_groups(self, search: str = "") -> Optional[list]:
+        """Fetch public groups, optionally filtered by name."""
+        qs = f"?search={urllib.parse.quote(search)}" if search else ""
+        url = f"{self.base_url}/api/groups{qs}"
+        return _get_json(url, timeout=5)
+
+    def get_groups_leaderboard(self) -> Optional[list]:
+        """Fetch the global groups leaderboard."""
+        url = f"{self.base_url}/api/leaderboard/groups"
+        return _get_json(url, timeout=5)
+
+    def get_group_player_leaderboard(self, code: str, mode: str = "standard") -> Optional[list]:
+        """Fetch player leaderboard for a specific group."""
+        url = (
+            f"{self.base_url}/api/leaderboard/group/{urllib.parse.quote(code)}"
+            f"?mode={urllib.parse.quote(mode)}"
+        )
+        return _get_json(url, timeout=5)
 
 
 # ── QThread workers (keep UI responsive) ─────────────────────────────────────
@@ -173,7 +212,7 @@ class GameSubmitWorker(QtCore.QThread):
 
 
 class LeaderboardFetchWorker(QtCore.QThread):
-    """Fetch leaderboard data in the background."""
+    """Fetch player leaderboard data in the background."""
 
     result = QtCore.pyqtSignal(object)  # list[dict] or None
 
@@ -185,3 +224,80 @@ class LeaderboardFetchWorker(QtCore.QThread):
     def run(self) -> None:
         data = self._client.get_leaderboard(self._mode)
         self.result.emit(data)
+
+
+class GroupCodeCheckWorker(QtCore.QThread):
+    """Validate a group code in the background."""
+
+    result = QtCore.pyqtSignal(object)  # dict (group) or None
+
+    def __init__(self, client: LeaderboardClient, code: str) -> None:
+        super().__init__()
+        self._client = client
+        self._code = code
+
+    def run(self) -> None:
+        group = self._client.get_group_by_code(self._code)
+        self.result.emit(group)
+
+
+class GroupsListWorker(QtCore.QThread):
+    """Fetch public groups list in the background."""
+
+    result = QtCore.pyqtSignal(object)  # list[dict] or None
+
+    def __init__(self, client: LeaderboardClient, search: str = "") -> None:
+        super().__init__()
+        self._client = client
+        self._search = search
+
+    def run(self) -> None:
+        groups = self._client.list_groups(self._search)
+        self.result.emit(groups)
+
+
+class GroupsLeaderboardFetchWorker(QtCore.QThread):
+    """Fetch global groups leaderboard in the background."""
+
+    result = QtCore.pyqtSignal(object)  # list[dict] or None
+
+    def __init__(self, client: LeaderboardClient) -> None:
+        super().__init__()
+        self._client = client
+
+    def run(self) -> None:
+        data = self._client.get_groups_leaderboard()
+        self.result.emit(data)
+
+
+class GroupPlayerLeaderboardWorker(QtCore.QThread):
+    """Fetch player leaderboard for a specific group in the background."""
+
+    result = QtCore.pyqtSignal(object)  # list[dict] or None
+
+    def __init__(self, client: LeaderboardClient, code: str, mode: str) -> None:
+        super().__init__()
+        self._client = client
+        self._code = code
+        self._mode = mode
+
+    def run(self) -> None:
+        data = self._client.get_group_player_leaderboard(self._code, self._mode)
+        self.result.emit(data)
+
+
+class GroupCreateWorker(QtCore.QThread):
+    """Create a new group in the background."""
+
+    result = QtCore.pyqtSignal(object)  # dict (group) or None
+
+    def __init__(self, client: LeaderboardClient, name: str, code: str, visibility: str) -> None:
+        super().__init__()
+        self._client = client
+        self._name = name
+        self._code = code
+        self._visibility = visibility
+
+    def run(self) -> None:
+        group = self._client.create_group(self._name, self._code, self._visibility)
+        self.result.emit(group)

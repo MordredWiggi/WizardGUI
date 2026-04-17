@@ -14,6 +14,8 @@ class SavedGameMeta {
   final List<String> players;
   final int rounds;
   final String filePath;
+  final bool pendingSync;
+  final String? groupCode;
 
   const SavedGameMeta({
     required this.name,
@@ -21,6 +23,25 @@ class SavedGameMeta {
     required this.players,
     required this.rounds,
     required this.filePath,
+    this.pendingSync = false,
+    this.groupCode,
+  });
+}
+
+/// A pending-sync game as returned by [SaveManager.listPendingSyncGames].
+class PendingSyncGame {
+  final String filePath;
+  final String name;
+  final String savedAt;
+  final String? groupCode;
+  final Map<String, dynamic> game;
+
+  const PendingSyncGame({
+    required this.filePath,
+    required this.name,
+    required this.savedAt,
+    required this.groupCode,
+    required this.game,
   });
 }
 
@@ -37,9 +58,15 @@ class SaveManager {
   // ---------------------------------------------------------------- save
 
   /// Persist game_data JSON; returns saved file path.
+  ///
+  /// Set [pendingSync] to true for games completed without a network so they
+  /// can be picked up on the next launch and uploaded. [groupCode] is the
+  /// target group (if any) for that later upload.
   Future<String> saveGame(
     Map<String, dynamic> gameData, {
     String? gameName,
+    bool pendingSync = false,
+    String? groupCode,
   }) async {
     final now = DateTime.now();
     String name = gameName ?? _defaultName(now, gameData);
@@ -55,6 +82,8 @@ class SaveManager {
       'meta': {
         'name': name,
         'saved_at': now.toIso8601String(),
+        'pending_sync': pendingSync,
+        'group_code': groupCode,
       },
       'game': gameData,
     };
@@ -113,12 +142,80 @@ class SaveManager {
           players: players,
           rounds: (game['round_number'] as int?) ?? 0,
           filePath: file.path,
+          pendingSync: (meta['pending_sync'] as bool?) ?? false,
+          groupCode: meta['group_code'] as String?,
         ));
       } catch (_) {
         // skip corrupt files
       }
     }
     return result;
+  }
+
+  // -------------------------------------------------------- pending sync
+
+  /// Return every saved game that is still flagged as needing sync.
+  Future<List<PendingSyncGame>> listPendingSyncGames() async {
+    final dir = await _saveDir;
+    final files = dir
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.json'))
+        .toList();
+
+    final result = <PendingSyncGame>[];
+    for (final file in files) {
+      try {
+        final content = await file.readAsString(encoding: utf8);
+        final payload = jsonDecode(content) as Map<String, dynamic>;
+        final meta = (payload['meta'] as Map?) ?? {};
+        if ((meta['pending_sync'] as bool?) != true) continue;
+        result.add(PendingSyncGame(
+          filePath: file.path,
+          name: (meta['name'] as String?) ?? file.uri.pathSegments.last,
+          savedAt: (meta['saved_at'] as String?) ?? '',
+          groupCode: meta['group_code'] as String?,
+          game: Map<String, dynamic>.from(payload['game'] as Map? ?? {}),
+        ));
+      } catch (_) {
+        // skip corrupt files
+      }
+    }
+    return result;
+  }
+
+  /// Clear the pending_sync flag on [filePath] after a successful upload.
+  Future<void> markSynced(String filePath) async {
+    final file = File(filePath);
+    if (!await file.exists()) return;
+    try {
+      final payload =
+          jsonDecode(await file.readAsString(encoding: utf8)) as Map<String, dynamic>;
+      final meta = Map<String, dynamic>.from(payload['meta'] as Map? ?? {});
+      meta['pending_sync'] = false;
+      payload['meta'] = meta;
+      await file.writeAsString(
+        const JsonEncoder.withIndent('  ').convert(payload),
+        encoding: utf8,
+      );
+    } catch (_) {/* ignore */}
+  }
+
+  /// Attach / update the group code on a pending-sync game.
+  Future<void> updatePendingGroupCode(String filePath, String? groupCode) async {
+    final file = File(filePath);
+    if (!await file.exists()) return;
+    try {
+      final payload =
+          jsonDecode(await file.readAsString(encoding: utf8)) as Map<String, dynamic>;
+      final meta = Map<String, dynamic>.from(payload['meta'] as Map? ?? {});
+      meta['group_code'] = groupCode;
+      payload['meta'] = meta;
+      await file.writeAsString(
+        const JsonEncoder.withIndent('  ').convert(payload),
+        encoding: utf8,
+      );
+    } catch (_) {/* ignore */}
   }
 
   // ---------------------------------------------------------------- delete

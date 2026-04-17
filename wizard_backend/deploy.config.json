@@ -1,0 +1,10 @@
+{
+  "_comment": "Kopiere diese Datei nach deploy.config.json und passe die Pfade an. deploy.config.json ist in .gitignore ausgeschlossen, damit dein privater Key-Pfad nicht ins Repo wandert.",
+  "SshKey":    "C:\\Users\\JanCS\\.ssh\\oracle_key.key",
+  "SshUser":   "ubuntu",
+  "SshHost":   "158.180.32.188",
+  "RemoteDir": "~/wizard-leaderboard",
+  "Port":      8000,
+  "Domain":    "play-wizard.de",
+  "Email":     "jansupercell@web.de"
+}

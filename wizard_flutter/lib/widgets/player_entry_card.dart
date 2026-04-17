@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../domain/player.dart';
 import '../domain/round_result.dart';
+import '../persistence/app_settings.dart';
 import '../theme/app_theme.dart';
 
 /// Layer 1 – input card for one player per round.
@@ -67,6 +69,7 @@ class PlayerEntryCardState extends State<PlayerEntryCard> {
     final theme = Theme.of(context);
     final isLight = theme.brightness == Brightness.light;
     final cardBg = isLight ? Colors.white : kBgCard;
+    final t = context.watch<AppSettings>().t;
 
     return Card(
       color: cardBg,
@@ -134,7 +137,7 @@ class PlayerEntryCardState extends State<PlayerEntryCard> {
             Row(children: [
               Expanded(
                 child: _SpinnerField(
-                  label: 'Bid',
+                  label: t('announced'),
                   value: _bid,
                   max: widget.maxBid,
                   color: widget.color,
@@ -146,7 +149,7 @@ class PlayerEntryCardState extends State<PlayerEntryCard> {
               const SizedBox(width: 12),
               Expanded(
                 child: _SpinnerField(
-                  label: 'Made',
+                  label: t('achieved'),
                   value: _made,
                   max: widget.maxBid,
                   color: widget.color,
@@ -272,6 +275,7 @@ class _SpinnerField extends StatelessWidget {
 
   void _showPicker(BuildContext context) {
     final ctrl = TextEditingController(text: '$value');
+    final t = context.read<AppSettings>().t;
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -285,14 +289,14 @@ class _SpinnerField extends StatelessWidget {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: Text(t('cancel'))),
           TextButton(
               onPressed: () {
                 final v = int.tryParse(ctrl.text) ?? value;
                 onChanged(v.clamp(0, max));
                 Navigator.pop(context);
               },
-              child: const Text('OK')),
+              child: Text(t('ok'))),
         ],
       ),
     );

@@ -53,6 +53,13 @@ class GameControl {
   /// Cards dealt this round = round number + 1 (1-indexed).
   int get cardsThisRound => roundNumber + 1;
 
+  /// 1-indexed number of the round currently being played.
+  /// Equals `roundNumber + 1` while the game is active (players are entering
+  /// bids for the next round), and `totalRounds` once the last round has been
+  /// submitted — so the UI never shows a round number greater than the total.
+  int get currentRoundDisplay =>
+      isGameOver ? totalRounds : roundNumber + 1;
+
   List<int> get roundIndices => List.generate(roundNumber + 1, (i) => i);
 
   List<List<int>> get allScores => players.map((p) => p.scores).toList();

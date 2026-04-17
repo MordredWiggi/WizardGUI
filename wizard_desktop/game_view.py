@@ -254,30 +254,25 @@ class MplCanvas(FigureCanvasQTAgg):
             new_handles.append(h)
             new_labels.append(lbl)
 
-        ncol = max(1, len(new_handles))
-
         if get_theme() == "light":
             self.axes.legend(
                 new_handles, new_labels,
                 facecolor="#e4e4ee", edgecolor="#ccccdd",
-                labelcolor="#1a1a2e", fontsize=17,
-                loc="upper center", bbox_to_anchor=(0.5, -0.10),
-                ncol=ncol, framealpha=0.9,
+                labelcolor="#1a1a2e", fontsize=13,
+                loc="upper left", ncol=1, framealpha=0.9,
             )
         else:
             self.axes.legend(
                 new_handles, new_labels,
                 facecolor="#1a1a3a", edgecolor="#2a2a4a",
-                labelcolor=TEXT_MAIN, fontsize=17,
-                loc="upper center", bbox_to_anchor=(0.5, -0.10),
-                ncol=ncol, framealpha=0.9,
+                labelcolor=TEXT_MAIN, fontsize=13,
+                loc="upper left", ncol=1, framealpha=0.9,
             )
 
         # Set up hover annotation on the fresh axes
         self._setup_hover_annotation()
 
         self.fig.tight_layout(pad=1.5)
-        self.fig.subplots_adjust(bottom=0.20)
         self.draw()
 
     def _setup_hover_annotation(self) -> None:
@@ -333,6 +328,10 @@ class MplCanvas(FigureCanvasQTAgg):
                 self._hover_annot.set_text(
                     f"{name}\n{t('round')}: {x}\n{t('points')}: {y}"
                 )
+                # Keep the annotation inside the axes – flip the offset
+                # whenever the point is near the right or top edge, so the
+                # tooltip never gets clipped off the figure.
+                self._place_hover_annot(x, y)
                 self._hover_annot.set_visible(True)
                 changed = True
                 break
@@ -343,6 +342,64 @@ class MplCanvas(FigureCanvasQTAgg):
 
         if changed:
             self.draw_idle()
+
+    def _place_hover_annot(self, x: float, y: float) -> None:
+        """Pick an offset for the hover annotation so it stays on-canvas.
+
+        Uses pixel-accurate measurement: the tooltip's rendered bounding box
+        is measured against the axes/figure extents. If `cursor_x +
+        tooltip_width` would exceed the right edge, the tooltip is bumped to
+        the left of the cursor; the same is done vertically against the top
+        edge. A small margin keeps the tooltip from kissing the frame.
+        """
+        if self._hover_annot is None:
+            return
+
+        default = (15, 15)
+        self._hover_annot.set_position(default)
+
+        # Need an actual renderer + a prior draw to measure the tooltip size.
+        renderer = getattr(self, "_lastRenderer", None)
+        if renderer is None:
+            try:
+                renderer = self.get_renderer()
+            except Exception:
+                return
+
+        try:
+            # Pixel-space position of the anchor point (data coord x,y) and
+            # current size of the tooltip's bounding box.
+            anchor_px = self.axes.transData.transform((x, y))
+            bbox = self._hover_annot.get_window_extent(renderer=renderer)
+            canvas_bbox = self.fig.bbox
+        except Exception:
+            return
+
+        margin = 8
+        tip_w = bbox.width
+        tip_h = bbox.height
+        anchor_x, anchor_y = float(anchor_px[0]), float(anchor_px[1])
+
+        # Horizontal: if tooltip would overflow the right canvas edge, place
+        # it to the left of the cursor instead. Offset is in points; convert
+        # the pixel width to points via the figure DPI.
+        dpi = float(self.fig.get_dpi() or 72.0)
+        px_to_pt = 72.0 / dpi
+        tip_w_pt = tip_w * px_to_pt
+        tip_h_pt = tip_h * px_to_pt
+
+        if anchor_x + tip_w + margin > canvas_bbox.x1:
+            dx = -(tip_w_pt + 15)
+        else:
+            dx = 15
+
+        # Vertical: if tooltip would overflow the top, place it below.
+        if anchor_y + tip_h + margin > canvas_bbox.y1:
+            dy = -(tip_h_pt + 10)
+        else:
+            dy = 15
+
+        self._hover_annot.set_position((dx, dy))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -425,27 +482,31 @@ class PlayerCard(QtWidgets.QFrame):
             spin.setMaximumWidth(60)
             col.addWidget(lbl, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
             col.addWidget(spin, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
-            return col, spin
+            return col, spin, lbl
 
-        col_bid, self._spin_said = _make_spin_col(t("announced"))
+        col_bid, self._spin_said, self._lbl_bid = _make_spin_col(t("announced"))
         input_row.addLayout(col_bid)
         input_row.addSpacing(12)
 
-        # Auto-fill button: sets made = bid for this player
+        # Auto-fill button: sets made = bid for this player.
+        # Large, prominent "=" glyph so it reads as "equal to the bid".
         self._btn_auto_fill = QtWidgets.QPushButton("=")
         self._btn_auto_fill.setToolTip(t("tooltip_auto_fill"))
-        self._btn_auto_fill.setFixedSize(28, 28)
+        self._btn_auto_fill.setFixedSize(54, 54)
         self._btn_auto_fill.setFocusPolicy(QtCore.Qt.FocusPolicy.TabFocus)
+        self._btn_auto_fill.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self._btn_auto_fill.setStyleSheet(
-            f"QPushButton {{ color: {TEXT_DIM}; background: transparent; border: 1px solid {color}55; "
-            f"border-radius: 4px; font-size: 14px; font-weight: 700; }}"
-            f"QPushButton:hover {{ background: {color}22; border-color: {color}; }}"
+            f"QPushButton {{ color: {color}; background: transparent; "
+            f"border: 2px solid {color}88; border-radius: 14px; "
+            f"font-size: 34px; font-weight: 900; padding: 0 0 4px 0; }}"
+            f"QPushButton:hover {{ background: {color}33; border-color: {color}; color: white; }}"
+            f"QPushButton:pressed {{ background: {color}55; }}"
         )
         self._btn_auto_fill.clicked.connect(self._fill_made_from_bid)
         input_row.addWidget(self._btn_auto_fill, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
         input_row.addSpacing(12)
 
-        col_made, self._spin_achieved = _make_spin_col(t("achieved"))
+        col_made, self._spin_achieved, self._lbl_made = _make_spin_col(t("achieved"))
         input_row.addLayout(col_made)
 
         input_row.addStretch()
@@ -510,7 +571,9 @@ class PlayerCard(QtWidgets.QFrame):
         """Update translatable labels on this card."""
         # Dealer badge text is always re-rendered by GameView._refresh_scores(),
         # which calls set_dealer() for every card after retranslate_ui() returns.
-        pass
+        self._lbl_bid.setText(t("announced"))
+        self._lbl_made.setText(t("achieved"))
+        self._btn_auto_fill.setToolTip(t("tooltip_auto_fill"))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -694,18 +757,21 @@ class GameView(QtWidgets.QWidget):
         right_layout.setContentsMargins(16, 16, 16, 16)
         right_layout.setSpacing(8)
 
-        # Toggle row: Chart | Leaderboard
+        # Toggle row: Chart | Leaderboard | Groups
         toggle_row = QtWidgets.QHBoxLayout()
         toggle_row.setSpacing(4)
         self._btn_tab_chart = QtWidgets.QPushButton(t("tab_chart"))
         self._btn_tab_lb = QtWidgets.QPushButton(t("tab_leaderboard"))
-        for btn in (self._btn_tab_chart, self._btn_tab_lb):
+        self._btn_tab_groups = QtWidgets.QPushButton(t("tab_groups_lb"))
+        for btn in (self._btn_tab_chart, self._btn_tab_lb, self._btn_tab_groups):
             btn.setMinimumHeight(30)
             btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self._btn_tab_chart.clicked.connect(lambda: self._switch_right_tab(0))
         self._btn_tab_lb.clicked.connect(lambda: self._switch_right_tab(1))
+        self._btn_tab_groups.clicked.connect(lambda: self._switch_right_tab(2))
         toggle_row.addWidget(self._btn_tab_chart)
         toggle_row.addWidget(self._btn_tab_lb)
+        toggle_row.addWidget(self._btn_tab_groups)
         toggle_row.addStretch()
         right_layout.addLayout(toggle_row)
 
@@ -716,10 +782,15 @@ class GameView(QtWidgets.QWidget):
         self.canvas = MplCanvas(self)
         self._right_stack.addWidget(self.canvas)  # index 0
 
-        # Page 1: Leaderboard
+        # Page 1: Player leaderboard (with Global/Group scope toggle inside)
         from leaderboard_widget import LeaderboardWidget
         self._leaderboard_widget = LeaderboardWidget()
         self._right_stack.addWidget(self._leaderboard_widget)  # index 1
+
+        # Page 2: Global groups ranking
+        from leaderboard_widget import GroupsLeaderboardWidget
+        self._groups_lb_widget = GroupsLeaderboardWidget()
+        self._right_stack.addWidget(self._groups_lb_widget)  # index 2
 
         right_layout.addWidget(self._right_stack, 1)
         self._current_right_tab = 0
@@ -733,6 +804,15 @@ class GameView(QtWidgets.QWidget):
         self._refresh_scores()
         self.canvas.redraw(self.game)
 
+    def set_group(self, group: Optional[dict]) -> None:
+        """Forward the active group's code to the unified leaderboard widget.
+
+        The widget uses this to enable the Group scope toggle; when None, only
+        Global is available.
+        """
+        code = group["code"] if group else None
+        self._leaderboard_widget.set_group(code)
+
     def _switch_right_tab(self, index: int) -> None:
         self._current_right_tab = index
         self._right_stack.setCurrentIndex(index)
@@ -740,20 +820,23 @@ class GameView(QtWidgets.QWidget):
 
     def _apply_right_tab_style(self) -> None:
         dark = get_theme() != "light"
-        for i, btn in enumerate((self._btn_tab_chart, self._btn_tab_lb)):
+        tabs = [
+            self._btn_tab_chart, self._btn_tab_lb, self._btn_tab_groups,
+        ]
+        for i, btn in enumerate(tabs):
             active = (i == self._current_right_tab)
             if dark:
                 if active:
                     btn.setStyleSheet(
                         f"QPushButton {{ background: {ACCENT_DIM}; color: #fff8e0; "
                         f"border: 1px solid {ACCENT}; border-radius: 5px; font-weight: 700; "
-                        f"font-size: 12px; padding: 4px 14px; }}"
+                        f"font-size: 12px; padding: 4px 10px; }}"
                     )
                 else:
                     btn.setStyleSheet(
                         f"QPushButton {{ background: {BG_CARD}; color: {TEXT_DIM}; "
                         f"border: 1px solid #3a3a6a; border-radius: 5px; "
-                        f"font-size: 12px; padding: 4px 14px; }}"
+                        f"font-size: 12px; padding: 4px 10px; }}"
                         f"QPushButton:hover {{ border-color: {ACCENT_DIM}; color: {TEXT_MAIN}; }}"
                     )
             else:
@@ -761,13 +844,13 @@ class GameView(QtWidgets.QWidget):
                     btn.setStyleSheet(
                         "QPushButton { background: #9b7a1e; color: #ffffff; "
                         "border: 1px solid #c9a84c; border-radius: 5px; font-weight: 700; "
-                        "font-size: 12px; padding: 4px 14px; }"
+                        "font-size: 12px; padding: 4px 10px; }"
                     )
                 else:
                     btn.setStyleSheet(
                         "QPushButton { background: #f8f8ff; color: #555577; "
                         "border: 1px solid #aaaacc; border-radius: 5px; "
-                        "font-size: 12px; padding: 4px 14px; }"
+                        "font-size: 12px; padding: 4px 10px; }"
                         "QPushButton:hover { border-color: #9b7a1e; color: #1a1a2e; }"
                     )
 
@@ -917,8 +1000,10 @@ class GameView(QtWidgets.QWidget):
         self.lbl_bid_warning.setText(t("bid_warning"))
         self._btn_tab_chart.setText(t("tab_chart"))
         self._btn_tab_lb.setText(t("tab_leaderboard"))
+        self._btn_tab_groups.setText(t("tab_groups_lb"))
         self._apply_right_tab_style()
         self._leaderboard_widget.retranslate_ui()
+        self._groups_lb_widget.retranslate_ui()
         for card in self._player_cards:
             card.retranslate_ui()
         # _refresh_scores re-renders dealer badges + round header + bid counter

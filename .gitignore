@@ -1,7 +1,6 @@
 .venv
 __pycache__/
 build/
-dist/
 *.spec
 *.pyc
 
@@ -11,7 +10,11 @@ wizard_desktop/sounds/xp_shutdown.wav
 # Backend local DB
 wizard_backend/leaderboard.db
 
+# Backend deployment config (enthaelt lokalen SSH-Key-Pfad)
+wizard_backend/deploy.config.json
+
 # Flutter
 wizard_flutter/.dart_tool/
 wizard_flutter/build/
+
 

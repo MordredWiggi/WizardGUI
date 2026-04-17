@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block title %}Feedback &middot; Wizard{% endblock %}
+
+{% block head_extra %}
+<style>
+    .panel {
+        border: 1px solid #2a2a4a;
+        background: linear-gradient(180deg, #12122b 0%, #0d0d1a 100%);
+        border-radius: 0.9rem;
+    }
+    .vote-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 0.5rem;
+        border: 1px solid #2a2a4a;
+        background: #1a1a3a;
+        color: #888aaa;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: border-color 0.15s, color 0.15s, background 0.15s, transform 0.1s;
+    }
+    .vote-btn:hover { border-color: #c9a84c; color: #e8e8f0; }
+    .vote-btn:active { transform: scale(0.96); }
+    .vote-btn.up.voted { color: #4ade80; border-color: #4ade80; }
+    .vote-btn.down.voted { color: #f87171; border-color: #f87171; }
+    .vote-btn[disabled] { opacity: 0.6; cursor: not-allowed; }
+    .net-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.15rem 0.55rem;
+        border-radius: 9999px;
+        border: 1px solid #2a2a4a;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+    .net-pos { color: #4ade80; border-color: #2f5d3c; background: rgba(74, 222, 128, 0.08); }
+    .net-neu { color: #888aaa; }
+    .net-neg { color: #f87171; border-color: #5d2f33; background: rgba(248, 113, 113, 0.08); }
+    textarea:focus { outline: none; border-color: #c9a84c; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-8">
+    <header class="text-center mb-8">
+        <h1 class="text-3xl sm:text-4xl font-bold tracking-wide text-wizard-gold">Feedback</h1>
+        <p class="mt-2 text-wizard-muted">Share ideas, feature requests, or vote on what others have said.</p>
+    </header>
+
+    <!-- GitHub banner -->
+    <div class="panel p-4 sm:p-5 mb-6 flex items-start gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="text-wizard-gold flex-shrink-0 mt-0.5"><path d="M12 .5C5.73.5.5 5.73.5 12a11.5 11.5 0 007.86 10.92c.57.1.78-.25.78-.55v-1.93c-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.27-1.69-1.27-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.75 2.69 1.24 3.34.95.1-.74.4-1.24.73-1.53-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 015.78 0c2.2-1.49 3.17-1.18 3.17-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.83 1.18 3.09 0 4.42-2.69 5.4-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.66.79.55A11.5 11.5 0 0023.5 12C23.5 5.73 18.27.5 12 .5z"/></svg>
+        <div class="text-sm">
+            <p class="text-wizard-text font-semibold">Found a bug or want to contribute?</p>
+            <p class="text-wizard-muted mt-0.5">
+                <a href="https://github.com/MordredWiggi/WizardGUI/issues/new"
+                   class="text-wizard-gold hover:underline"
+                   target="_blank" rel="noopener">
+                    Create an issue directly on GitHub
+                </a>
+                &mdash; that is the fastest path for technical reports.
+            </p>
+        </div>
+    </div>
+
+    <!-- Submission form -->
+    <form id="feedback-form" class="panel p-4 sm:p-5 mb-8" novalidate>
+        <label for="message" class="block text-sm font-semibold text-wizard-text mb-2">
+            Leave a public message
+        </label>
+        <textarea
+            id="message"
+            name="message"
+            rows="3"
+            required
+            maxlength="2000"
+            placeholder="Share an idea, feature request, or comment&hellip;"
+            class="w-full resize-y rounded-lg border border-wizard-border bg-wizard-panel2 text-wizard-text placeholder-wizard-dim px-3 py-2 text-sm leading-relaxed transition-colors"></textarea>
+        <div class="mt-3 flex items-center justify-between gap-3">
+            <span id="char-count" class="text-xs text-wizard-dim">0 / 2000</span>
+            <button type="submit"
+                    class="cta cta-primary px-5 py-2 rounded-lg font-semibold text-sm"
+                    style="background: linear-gradient(135deg, #c9a84c 0%, #7a6230 100%); color: #0d0d1a;">
+                Post message
+            </button>
+        </div>
+        <p id="form-error" class="mt-2 text-xs text-red-400 hidden"></p>
+    </form>
+
+    <!-- Feed -->
+    <section>
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold tracking-widest uppercase text-wizard-goldDark">
+                Community messages
+            </h2>
+            <button id="refresh-btn"
+                    class="text-xs text-wizard-muted hover:text-wizard-gold transition-colors"
+                    type="button">
+                Refresh
+            </button>
+        </div>
+        <ul id="feedback-list" class="space-y-3">
+            {% if feedbacks and feedbacks|length > 0 %}
+                {% for item in feedbacks %}
+                <li class="panel p-4" data-id="{{ item.id }}">
+                    <div class="flex items-start gap-3">
+                        <div class="flex flex-col items-center gap-1 pt-0.5 flex-shrink-0">
+                            <button class="vote-btn up" data-vote="up" data-id="{{ item.id }}" title="Upvote">
+                                &#9650;
+                                <span class="count-up">{{ item.upvotes }}</span>
+                            </button>
+                            <button class="vote-btn down" data-vote="down" data-id="{{ item.id }}" title="Downvote">
+                                &#9660;
+                                <span class="count-down">{{ item.downvotes }}</span>
+                            </button>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-wizard-text whitespace-pre-wrap break-words">{{ item.message }}</p>
+                            <div class="mt-2 flex items-center gap-2 text-xs text-wizard-dim">
+                                <span class="net-badge
+                                    {% set net = item.upvotes - item.downvotes %}
+                                    {% if net > 0 %}net-pos{% elif net < 0 %}net-neg{% else %}net-neu{% endif %}"
+                                    data-net>
+                                    {% if net > 0 %}+{% endif %}{{ net }}
+                                </span>
+                                <time datetime="{{ item.created_at }}">{{ item.created_at }}</time>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            {% else %}
+                <li id="empty-state" class="panel p-8 text-center text-wizard-muted italic">
+                    No feedback yet &mdash; be the first to post!
+                </li>
+            {% endif %}
+        </ul>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const VOTED_KEY = "wizard_feedback_voted";
+    const loadVoted = () => {
+        try { return JSON.parse(localStorage.getItem(VOTED_KEY)) || {}; }
+        catch (e) { return {}; }
+    };
+    const saveVoted = (v) => localStorage.setItem(VOTED_KEY, JSON.stringify(v));
+
+    function escHtml(s) {
+        const d = document.createElement("div");
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    function markVotedState() {
+        const voted = loadVoted();
+        document.querySelectorAll("li[data-id]").forEach(li => {
+            const id = li.dataset.id;
+            const choice = voted[id];
+            li.querySelectorAll(".vote-btn").forEach(btn => {
+                btn.classList.toggle("voted", choice === btn.dataset.vote);
+                btn.disabled = !!choice;
+            });
+        });
+    }
+
+    function netClass(net) {
+        if (net > 0) return "net-badge net-pos";
+        if (net < 0) return "net-badge net-neg";
+        return "net-badge net-neu";
+    }
+
+    function renderList(items) {
+        const list = document.getElementById("feedback-list");
+        if (!items.length) {
+            list.innerHTML = `<li id="empty-state" class="panel p-8 text-center text-wizard-muted italic">
+                No feedback yet &mdash; be the first to post!
+            </li>`;
+            return;
+        }
+        list.innerHTML = items.map(item => {
+            const net = (item.upvotes || 0) - (item.downvotes || 0);
+            const netTxt = (net > 0 ? "+" : "") + net;
+            return `
+            <li class="panel p-4" data-id="${item.id}">
+                <div class="flex items-start gap-3">
+                    <div class="flex flex-col items-center gap-1 pt-0.5 flex-shrink-0">
+                        <button class="vote-btn up" data-vote="up" data-id="${item.id}" title="Upvote">
+                            &#9650; <span class="count-up">${item.upvotes}</span>
+                        </button>
+                        <button class="vote-btn down" data-vote="down" data-id="${item.id}" title="Downvote">
+                            &#9660; <span class="count-down">${item.downvotes}</span>
+                        </button>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-wizard-text whitespace-pre-wrap break-words">${escHtml(item.message)}</p>
+                        <div class="mt-2 flex items-center gap-2 text-xs text-wizard-dim">
+                            <span class="${netClass(net)}" data-net>${netTxt}</span>
+                            <time datetime="${escHtml(item.created_at)}">${escHtml(item.created_at)}</time>
+                        </div>
+                    </div>
+                </div>
+            </li>`;
+        }).join("");
+        markVotedState();
+    }
+
+    async function refreshList() {
+        try {
+            const resp = await fetch("/api/feedback");
+            if (!resp.ok) throw new Error("Failed to load");
+            const data = await resp.json();
+            renderList(data);
+        } catch (e) {
+            // leave existing list in place on error
+        }
+    }
+
+    // ── Voting ──
+    document.addEventListener("click", async (ev) => {
+        const btn = ev.target.closest(".vote-btn");
+        if (!btn) return;
+        const id = btn.dataset.id;
+        const vote = btn.dataset.vote;
+        const voted = loadVoted();
+        if (voted[id]) return;
+
+        btn.disabled = true;
+        try {
+            const resp = await fetch(`/api/feedback/${id}/vote`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({vote}),
+            });
+            if (!resp.ok) throw new Error("Vote failed");
+            const updated = await resp.json();
+
+            const li = btn.closest("li[data-id]");
+            li.querySelector(".count-up").textContent = updated.upvotes;
+            li.querySelector(".count-down").textContent = updated.downvotes;
+
+            const net = updated.upvotes - updated.downvotes;
+            const badge = li.querySelector("[data-net]");
+            badge.className = netClass(net);
+            badge.textContent = (net > 0 ? "+" : "") + net;
+
+            voted[id] = vote;
+            saveVoted(voted);
+            markVotedState();
+        } catch (e) {
+            btn.disabled = false;
+        }
+    });
+
+    // ── Form submit ──
+    const form = document.getElementById("feedback-form");
+    const messageEl = document.getElementById("message");
+    const charCount = document.getElementById("char-count");
+    const formError = document.getElementById("form-error");
+
+    messageEl.addEventListener("input", () => {
+        charCount.textContent = `${messageEl.value.length} / 2000`;
+    });
+
+    form.addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        formError.classList.add("hidden");
+        const message = messageEl.value.trim();
+        if (!message) {
+            formError.textContent = "Message cannot be empty.";
+            formError.classList.remove("hidden");
+            return;
+        }
+        const submitBtn = form.querySelector("button[type=submit]");
+        submitBtn.disabled = true;
+        try {
+            const resp = await fetch("/api/feedback", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({message}),
+            });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.detail || "Failed to post");
+            }
+            messageEl.value = "";
+            charCount.textContent = "0 / 2000";
+            await refreshList();
+        } catch (e) {
+            formError.textContent = typeof e.message === "string" ? e.message : "Failed to post.";
+            formError.classList.remove("hidden");
+        } finally {
+            submitBtn.disabled = false;
+        }
+    });
+
+    document.getElementById("refresh-btn").addEventListener("click", refreshList);
+
+    markVotedState();
+</script>
+{% endblock %}

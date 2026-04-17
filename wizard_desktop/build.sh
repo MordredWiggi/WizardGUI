@@ -18,11 +18,17 @@ fi
 echo "[+] Bereinige alte Build-Artefakte..."
 rm -rf build dist WizardGUI.spec
 
+# Icon erzeugen (matched die Mobile-App)
+echo "[+] Generiere icon.ico..."
+python generate_icon.py || echo "[!] icon.ico konnte nicht erzeugt werden – Build läuft ohne eigenes Icon."
+
 # Executable bauen
 echo "[+] Baue Executable..."
 ICON_FLAG=""
+ICON_DATA_FLAG=""
 if [ -f "icon.ico" ]; then
     ICON_FLAG="--icon=icon.ico"
+    ICON_DATA_FLAG="--add-data=icon.ico;."
 fi
 
 # shellcheck disable=SC2086
@@ -31,6 +37,7 @@ pyinstaller \
     --windowed \
     --name WizardGUI \
     $ICON_FLAG \
+    $ICON_DATA_FLAG \
     --add-data "translations.py;." \
     --add-data "app_settings.py;." \
     --add-data "icons;icons" \

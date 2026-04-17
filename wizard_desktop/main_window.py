@@ -25,9 +25,10 @@ from game_view import GameView
 from dialogs import (
     SaveGameDialog, LoadGameDialog,
     CelebrationOverlay, WarningDialog, PodiumDialog,
-    MigrationDialog, MigrationProgressDialog,
+    MigrationDialog, MigrationProgressDialog, MigrationGroupDialog,
+    PendingSyncAssignDialog, OfflineGameReminderDialog,
 )
-from app_settings import t, get_theme, get_leaderboard_url
+from app_settings import t, get_theme, get_leaderboard_url, resolve_event_message
 
 MIGRATION_MARKER = Path.home() / ".wizard_gui" / ".migration_done"
 
@@ -41,6 +42,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._save_manager = SaveManager()
         self._game: Optional[GameControl] = None
         self._game_view: Optional[GameView] = None
+        self._active_group: Optional[dict] = None  # currently selected group
 
         # ── Stacked Widget ─────────────────────────────────────────────────
         self._stack = QtWidgets.QStackedWidget()
@@ -57,11 +59,14 @@ class MainWindow(QtWidgets.QMainWindow):
         # ── Celebration Overlay ────────────────────────────────────────────
         self._overlay = CelebrationOverlay(self)
         self._submit_worker = None
+        self._pending_sync_path: Optional[Path] = None
 
         self.showMaximized()
 
         # Check for old games that can be migrated (after UI is up)
         QtCore.QTimer.singleShot(500, self._check_migration)
+        # Retry any games that were completed while offline.
+        QtCore.QTimer.singleShot(1500, self._retry_pending_sync)
 
     # ── Fenstergröße → Overlay anpassen ──────────────────────────────────────
 
@@ -82,7 +87,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # ── State-Übergänge ───────────────────────────────────────────────────────
 
-    def _on_start_game(self, player_data: list, game_mode: str) -> None:
+    def _on_start_game(self, player_data: list, game_mode: str, group: object) -> None:
+        self._active_group = group  # may be None for load-game paths
         self._game = GameControl(player_data, game_mode=game_mode)
         self._show_game_view()
 
@@ -94,6 +100,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self._game_view.deleteLater()
 
         self._game_view = GameView(self._game)
+        self._game_view.set_group(self._active_group)
         self._game_view.request_new_game.connect(self._on_new_game)
         self._game_view.request_save.connect(self._on_save_game)
         self._game_view.request_save_plot.connect(self._on_save_plot)
@@ -112,6 +119,37 @@ class MainWindow(QtWidgets.QMainWindow):
     def _on_round_submitted(self, events: RoundEvents) -> None:
         """Wählt den passenden Celebration-Effekt für die Runde."""
         import random
+        from app_settings import get_custom_rules
+
+        # --- Evaluate Custom Rules (Highest Priority) ---
+        custom_pool = []
+        if self._game:
+            deltas = self._game.last_deltas()
+            for i, p in enumerate(self._game.players):
+                delta = deltas[i]
+                for rule in get_custom_rules():
+                    matched = False
+                    rtype = rule.get("type")
+                    rval = rule.get("value", 0)
+                    msg = rule.get("message", "")
+                    if rtype == "points" and delta == rval:
+                        matched = True
+                    elif rtype == "win_streak" and p.consecutive_perfect == rval:
+                        matched = True
+                    elif rtype == "loss_streak" and p.consecutive_losses == rval:
+                        matched = True
+                        
+                    if matched:
+                        formatted_msg = msg.replace("{name}", p.name).replace("{value}", str(rval))
+                        custom_pool.append(("✨", formatted_msg, "", "#d500f9"))
+                        
+        if custom_pool:
+            emoji, title, subtitle, color = random.choice(custom_pool)
+            self._overlay.show_event(emoji, title, subtitle, color=color)
+            if events.game_over:
+                self._submit_to_leaderboard()
+                QtCore.QTimer.singleShot(0, self._show_podium)
+            return
 
         # --- Priority 1: Check for special Tobi message at 60% rounds ---
         if self._game and self._check_tobi_message(events):
@@ -126,7 +164,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 pass
             self._overlay.show_event(
                 "💥",
-                t("huge_loss", name=events.huge_loss_player.name, delta=events.huge_loss_delta),
+                resolve_event_message(
+                    "huge_loss",
+                    name=events.huge_loss_player.name,
+                    delta=events.huge_loss_delta,
+                ),
                 "",
                 color=DANGER,
             )
@@ -136,34 +178,46 @@ class MainWindow(QtWidgets.QMainWindow):
 
             if events.fire_player:
                 possible_messages.append((
-                    "🔥", f"{events.fire_player.name} ist auf Feuer!",
-                    "3× perfekt in Folge!", "#ff6b35"
+                    "🔥",
+                    resolve_event_message("fire", name=events.fire_player.name),
+                    t("fire_subtitle"),
+                    "#ff6b35",
                 ))
 
             if events.new_leader:
                 possible_messages.append((
-                    "👑", f"{events.new_leader.name} führt jetzt!",
-                    f"{events.new_leader.current_score} Punkte", LEADER
+                    "👑",
+                    resolve_event_message("new_leader", name=events.new_leader.name),
+                    t("new_leader_subtitle", score=events.new_leader.current_score),
+                    LEADER,
                 ))
 
             if events.big_scorer and events.big_score_delta >= 50:
                 possible_messages.append((
-                    "🎯", "Meisterschuss!",
-                    f"+{events.big_score_delta} für {events.big_scorer.name}", SUCCESS
+                    "🎯",
+                    resolve_event_message("big_scorer"),
+                    t("big_scorer_subtitle",
+                      delta=events.big_score_delta,
+                      name=events.big_scorer.name),
+                    SUCCESS,
                 ))
 
             if events.bow_players:
                 for player in events.bow_players:
                     possible_messages.append((
-                        "🏹", t("bow_stretched", name=player.name),
-                        "", DANGER
+                        "🏹",
+                        resolve_event_message("bow_stretched", name=player.name),
+                        "",
+                        DANGER,
                     ))
 
             if events.revenge_players:
                 for player in events.revenge_players:
                     possible_messages.append((
-                        "⚡", t("revenge_lever", name=player.name),
-                        "", "#ff9900"
+                        "⚡",
+                        resolve_event_message("revenge_lever", name=player.name),
+                        "",
+                        "#ff9900",
                     ))
 
             # Show one random message from all possibilities
@@ -207,7 +261,7 @@ class MainWindow(QtWidgets.QMainWindow):
             # Show special message
             self._overlay.show_event(
                 "💪",
-                t("tobi_message", name=tobi_player.name),
+                resolve_event_message("tobi_message", name=tobi_player.name),
                 "",
                 color="#4fc3f7",
             )
@@ -272,27 +326,124 @@ class MainWindow(QtWidgets.QMainWindow):
     # ── Leaderboard: submit game after completion ──────────────────────────────
 
     def _submit_to_leaderboard(self) -> None:
-        """Submit the current (completed) game to the leaderboard server."""
+        """Submit the current (completed) game to the leaderboard server.
+
+        Three paths:
+          • With a selected group → submit to leaderboard, save pending-sync
+            as a fallback (cleared on success).
+          • Without a group (offline mode) → show reminder dialog and only
+            save locally if the user opts in. Do NOT submit anywhere.
+          • No leaderboard URL configured → no-op.
+        """
+        if not self._game or not self._game.is_game_over:
+            return
+
+        game_data = self._game.to_dict()
+
+        # Offline path: no group bound → show the reminder dialog and either
+        # save locally (pending_sync) or discard. Skip the leaderboard call.
+        if self._active_group is None:
+            dlg = OfflineGameReminderDialog(self)
+            if dlg.exec():
+                self._save_manager.save_game(
+                    game_data,
+                    game_name=None,
+                    pending_sync=True,
+                    group_code=None,
+                )
+                self._show_status(t("offline_saved_ok"))
+            return
+
         url = get_leaderboard_url()
-        if not url or not self._game or not self._game.is_game_over:
+        if not url:
             return
 
         from leaderboard_client import (
             LeaderboardClient, GameSubmitWorker, build_game_submission,
         )
 
-        game_data = self._game.to_dict()
-        payload = build_game_submission(game_data)
+        group_code = self._active_group["code"]
+
+        # Always persist offline-first: if the submission fails, we keep the
+        # pending-sync file; if it succeeds, we clear the flag.
+        self._pending_sync_path = self._save_manager.save_game(
+            game_data,
+            game_name=None,
+            pending_sync=True,
+            group_code=group_code,
+        )
+
+        payload = build_game_submission(game_data, group_code=group_code)
         client = LeaderboardClient(url)
         self._submit_worker = GameSubmitWorker(client, payload)
         self._submit_worker.finished.connect(self._on_submit_result)
         self._submit_worker.start()
 
     def _on_submit_result(self, success: bool) -> None:
+        path = getattr(self, "_pending_sync_path", None)
         if success:
+            if path is not None:
+                self._save_manager.mark_synced(path)
             self._show_status(t("leaderboard_submit_ok"))
         else:
-            self._show_status(t("leaderboard_submit_fail"))
+            # Leave the file flagged as pending_sync — it will be retried on
+            # the next launch by _retry_pending_sync().
+            self._show_status(t("leaderboard_submit_fail_offline")
+                              if path is not None
+                              else t("leaderboard_submit_fail"))
+        self._pending_sync_path = None
+
+    # ── Pending-sync retry on launch ─────────────────────────────────────────
+
+    def _retry_pending_sync(self) -> None:
+        """Upload games that were queued offline.
+
+        If any pending games have no group assigned, prompt the user to assign
+        groups first (they can skip and the games go to the global leaderboard).
+        """
+        url = get_leaderboard_url()
+        if not url:
+            return
+        pending = self._save_manager.list_pending_sync_games()
+        if not pending:
+            return
+
+        from leaderboard_client import LeaderboardClient, build_game_submission
+
+        client = LeaderboardClient(url)
+
+        # Ask the user to assign groups for any games that went offline without
+        # one. We reuse MigrationGroupDialog (allow_skip=True → empty group is
+        # OK, it just uploads to the global leaderboard).
+        unassigned = [p for p in pending if not p.get("group_code")]
+        if unassigned:
+            dlg = PendingSyncAssignDialog(self, unassigned, client)
+            if dlg.exec():
+                for item in unassigned:
+                    fp = str(item["filepath"])
+                    assigned = dlg.group_assignments.get(fp)
+                    if assigned:
+                        code = assigned.get("code")
+                        item["group_code"] = code
+                        self._save_manager.update_pending_group_code(item["filepath"], code)
+            # If the user cancels the dialog entirely, we still sync below
+            # (games just go to the global leaderboard without a group).
+
+        synced = 0
+        for item in pending:
+            try:
+                submission = build_game_submission(
+                    item["game"],
+                    played_at=item.get("saved_at") or None,
+                    group_code=item.get("group_code"),
+                )
+                if client.submit_game(submission):
+                    self._save_manager.mark_synced(item["filepath"])
+                    synced += 1
+            except Exception:
+                continue
+        if synced:
+            self._show_status(t("pending_sync_success", n=synced))
 
     # ── Leaderboard: migrate old games ───────────────────────────────────────
 
@@ -320,33 +471,51 @@ class MainWindow(QtWidgets.QMainWindow):
                 continue
 
         if not completed:
+            # Nothing to migrate — mark as done so we don't keep re-scanning.
             MIGRATION_MARKER.parent.mkdir(parents=True, exist_ok=True)
             MIGRATION_MARKER.touch()
             return
 
+        # Only mark migration as done when the user actually goes through with
+        # it end-to-end. Skipping the prompt, closing the window, or canceling
+        # mid-upload should leave the marker absent so the dialog re-appears
+        # next launch.
         dlg = MigrationDialog(self, len(completed))
         if not dlg.exec():
-            MIGRATION_MARKER.parent.mkdir(parents=True, exist_ok=True)
-            MIGRATION_MARKER.touch()
             return
 
         from leaderboard_client import LeaderboardClient, build_game_submission
 
         client = LeaderboardClient(url)
+
+        # Ask user to assign groups to each game
+        saved_meta = [
+            {"name": payload.get("meta", {}).get("name", fp.name), "filepath": str(fp)}
+            for fp, payload in completed
+        ]
+        group_dlg = MigrationGroupDialog(self, saved_meta, client)
+        if not group_dlg.exec():
+            return
+
         success_count = 0
+        was_canceled = False
 
         progress = MigrationProgressDialog(self, len(completed))
         progress.show()
 
         for i, (fp, payload) in enumerate(completed):
             if progress.wasCanceled():
+                was_canceled = True
                 break
             progress.update_progress(i + 1)
             QtWidgets.QApplication.processEvents()
 
+            assigned_group = group_dlg.group_assignments.get(str(fp))
+            group_code = assigned_group["code"] if assigned_group else None
+
             game_data = payload["game"]
             played_at = payload.get("meta", {}).get("saved_at", datetime.now().isoformat())
-            submission = build_game_submission(game_data, played_at=played_at)
+            submission = build_game_submission(game_data, played_at=played_at, group_code=group_code)
             if client.submit_game(submission):
                 success_count += 1
 
@@ -354,6 +523,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if success_count > 0:
             self._show_status(t("migration_success", n=success_count))
+
+        if was_canceled:
+            return
 
         MIGRATION_MARKER.parent.mkdir(parents=True, exist_ok=True)
         MIGRATION_MARKER.touch()

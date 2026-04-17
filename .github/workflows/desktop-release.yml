@@ -1,0 +1,55 @@
+name: Build Desktop Release
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest] # macOS disabled for now due to PyQt6/Pyinstaller complexities on CI, can be added later
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12' # adjust if needed
+
+      - name: Install Dependencies
+        working-directory: wizard_desktop
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Generate Icon
+        working-directory: wizard_desktop
+        run: python generate_icon.py || echo "Icon creation failed, proceeding without it."
+
+      - name: Build with PyInstaller (Windows)
+        if: runner.os == 'Windows'
+        working-directory: wizard_desktop
+        run: |
+          pyinstaller --onefile --windowed --name WizardGUI-Windows --icon=icon.ico --add-data "icon.ico;." --add-data "translations.py;." --add-data "app_settings.py;." --add-data "icons;icons" --hidden-import matplotlib.backends.backend_qtagg main.py
+          
+      - name: Build with PyInstaller (Linux)
+        if: runner.os == 'Linux'
+        working-directory: wizard_desktop
+        # On Linux, path separator for add-data is a colon ':'
+        run: |
+          pyinstaller --onefile --windowed --name WizardGUI-Linux --icon=icon.ico --add-data "icon.ico:." --add-data "translations.py:." --add-data "app_settings.py:." --add-data "icons:icons" --hidden-import matplotlib.backends.backend_qtagg main.py
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            wizard_desktop/dist/WizardGUI-Windows.exe
+            wizard_desktop/dist/WizardGUI-Linux
