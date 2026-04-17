@@ -81,6 +81,17 @@ class GameNotifier extends ChangeNotifier {
     return _saveManager.saveGame(_game!.toJson(), gameName: name);
   }
 
+  /// Persist the current finished game with pending_sync=true so it can be
+  /// uploaded on a later launch (mirrors desktop SaveManager.save_game).
+  Future<String> savePendingGame({String? groupCode}) async {
+    assert(_game != null);
+    return _saveManager.saveGame(
+      _game!.toJson(),
+      pendingSync: true,
+      groupCode: groupCode,
+    );
+  }
+
   Future<void> loadFromFile(String filePath) async {
     final data = await _saveManager.loadGame(filePath);
     _game = GameControl.fromJson(data);
@@ -89,6 +100,15 @@ class GameNotifier extends ChangeNotifier {
 
   Future<List<SavedGameMeta>> listSavedGames() =>
       _saveManager.listSavedGames();
+
+  Future<List<PendingSyncGame>> listPendingSyncGames() =>
+      _saveManager.listPendingSyncGames();
+
+  Future<void> markSynced(String filePath) =>
+      _saveManager.markSynced(filePath);
+
+  Future<void> updatePendingGroupCode(String filePath, String? groupCode) =>
+      _saveManager.updatePendingGroupCode(filePath, groupCode);
 
   Future<void> deleteSavedGame(String filePath) =>
       _saveManager.deleteGame(filePath);

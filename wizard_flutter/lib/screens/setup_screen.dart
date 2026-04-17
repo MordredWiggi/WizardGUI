@@ -9,6 +9,7 @@ import '../state/game_notifier.dart';
 import '../theme/app_theme.dart';
 import 'game_screen.dart';
 import 'settings_screen.dart';
+import 'pending_sync_dialog.dart';
 
 const List<String> _kAvatars = [
   '🧙‍♂️', '🧙‍♀️', '🧚‍♂️', '🧚‍♀️',
@@ -35,11 +36,39 @@ class _SetupScreenState extends State<SetupScreen> {
 
   // ── Group state ──────────────────────────────────────────────────────────
   Map<String, dynamic>? _selectedGroup;
+  // User explicitly opted into playing without a group
+  bool _offlineMode = false;
 
   @override
   void initState() {
     super.initState();
     _refreshSaved();
+    // On first build, check for offline-queued games and offer to sync.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingSync());
+  }
+
+  Future<void> _checkPendingSync() async {
+    if (!mounted) return;
+    final notifier = context.read<GameNotifier>();
+    final settings = context.read<AppSettings>();
+    final pending = await notifier.listPendingSyncGames();
+    if (!mounted || pending.isEmpty) return;
+
+    final url = settings.leaderboardUrl;
+    if (url.isEmpty) return;
+
+    final service = LeaderboardService(url);
+    // Probe connectivity before prompting – if the server is unreachable we
+    // just leave the games flagged and try again next launch.
+    final probe = await service.listGroups(search: '');
+    if (!mounted || probe == null) return;
+
+    await showPendingSyncDialog(
+      context: context,
+      pending: pending,
+      service: service,
+    );
+    if (mounted) _refreshSaved();
   }
 
   @override
@@ -75,7 +104,10 @@ class _SetupScreenState extends State<SetupScreen> {
       builder: (_) => _GroupSelectDialog(service: svc),
     );
     if (group != null && mounted) {
-      setState(() => _selectedGroup = group);
+      setState(() {
+        _selectedGroup = group;
+        _offlineMode = false;
+      });
       context.read<GameNotifier>().setGroup(group);
     }
   }
@@ -91,14 +123,32 @@ class _SetupScreenState extends State<SetupScreen> {
       builder: (_) => _GroupCreateDialog(service: svc),
     );
     if (group != null && mounted) {
-      setState(() => _selectedGroup = group);
+      setState(() {
+        _selectedGroup = group;
+        _offlineMode = false;
+      });
       context.read<GameNotifier>().setGroup(group);
     }
   }
 
   void _clearGroup() {
-    setState(() => _selectedGroup = null);
+    // Bug fix: fully reset all group-related state so the UI reflects the
+    // "no group" state immediately (no stale status text or offline flag).
+    setState(() {
+      _selectedGroup = null;
+      _offlineMode = false;
+    });
     context.read<GameNotifier>().clearGroup();
+  }
+
+  void _toggleOffline() {
+    setState(() {
+      _offlineMode = !_offlineMode;
+      if (_offlineMode) {
+        _selectedGroup = null;
+        context.read<GameNotifier>().clearGroup();
+      }
+    });
   }
 
   void _showNoUrlSnackbar() {
@@ -128,7 +178,7 @@ class _SetupScreenState extends State<SetupScreen> {
 
   void _startGame() {
     if (_players.length < 2) return;
-    if (_selectedGroup == null) return;
+    if (_selectedGroup == null && !_offlineMode) return;
     context.read<GameNotifier>().startGame(List.from(_players), _gameMode);
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const GameScreen()),
@@ -186,7 +236,8 @@ class _SetupScreenState extends State<SetupScreen> {
     final settings = context.watch<AppSettings>();
     final t = settings.t;
     final theme = Theme.of(context);
-    final canStart = _players.length >= 2 && _selectedGroup != null;
+    final canStart =
+        _players.length >= 2 && (_selectedGroup != null || _offlineMode);
 
     return Scaffold(
       appBar: AppBar(
@@ -250,8 +301,23 @@ class _SetupScreenState extends State<SetupScreen> {
                       ),
                     ]),
                     const SizedBox(height: 8),
+                  ] else if (_offlineMode) ...[
+                    Row(children: [
+                      Icon(Icons.wifi_off,
+                          size: 18, color: theme.colorScheme.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          t('offline_mode_active'),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ]),
+                    const SizedBox(height: 8),
                   ] else ...[
-                    Text(t('group_required'),
+                    Text(t('group_not_selected'),
                         style: theme.textTheme.bodySmall?.copyWith(
                             fontStyle: FontStyle.italic,
                             color: theme.colorScheme.onSurface.withOpacity(0.6))),
@@ -276,6 +342,27 @@ class _SetupScreenState extends State<SetupScreen> {
                       ),
                     ),
                   ]),
+                  const SizedBox(height: 8),
+                  // Offline toggle – lets user start a game without a group
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _toggleOffline,
+                      icon: Icon(
+                        _offlineMode ? Icons.check_circle : Icons.wifi_off,
+                        size: 18,
+                      ),
+                      label: Text(t('play_offline_btn')),
+                      style: _offlineMode
+                          ? OutlinedButton.styleFrom(
+                              backgroundColor: theme.colorScheme.primary
+                                  .withOpacity(0.12),
+                              side: BorderSide(
+                                  color: theme.colorScheme.primary, width: 1.5),
+                            )
+                          : null,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -396,7 +483,7 @@ class _SetupScreenState extends State<SetupScreen> {
                       child: Text(t('start_game')),
                     ),
                   ),
-                  if (!canStart && _selectedGroup == null)
+                  if (!canStart && _selectedGroup == null && !_offlineMode)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(t('group_required'),

@@ -1386,3 +1386,51 @@ class CelebrationOverlay(QtWidgets.QWidget):
 
         tmr.timeout.connect(_tick)
         tmr.start()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OfflineGameReminderDialog – end-of-game reminder when no group is bound
+# ─────────────────────────────────────────────────────────────────────────────
+
+class OfflineGameReminderDialog(ThemedDialog):
+    """Shown after a game ends without a group. Offers to save locally.
+
+    Returns ``QDialog.Accepted`` when the user clicks "Save to device";
+    ``QDialog.Rejected`` when they click "Discard".
+    """
+
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(t("offline_reminder_title"))
+        self.setMinimumWidth(440)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setSpacing(16)
+        layout.setContentsMargins(28, 24, 28, 20)
+
+        title = QtWidgets.QLabel(f"🔌  {t('offline_reminder_title')}")
+        title.setStyleSheet(
+            f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;"
+        )
+        layout.addWidget(title)
+        layout.addWidget(_sep())
+
+        msg = QtWidgets.QLabel(t("offline_reminder_message"))
+        msg.setWordWrap(True)
+        msg.setStyleSheet(
+            f"font-size: 14px; color: {TEXT_MAIN}; line-height: 1.5; background: transparent;"
+        )
+        layout.addWidget(msg)
+
+        layout.addWidget(_sep())
+
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_row.addStretch()
+        btn_discard = QtWidgets.QPushButton(t("offline_discard"))
+        btn_save = QtWidgets.QPushButton(f"💾  {t('offline_save_device')}")
+        btn_save.setObjectName("primary")
+        btn_discard.clicked.connect(self.reject)
+        btn_save.clicked.connect(self.accept)
+        btn_row.addWidget(btn_discard)
+        btn_row.addWidget(btn_save)
+        layout.addLayout(btn_row)
