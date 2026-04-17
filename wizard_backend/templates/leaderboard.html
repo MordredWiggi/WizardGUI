@@ -101,24 +101,24 @@
 
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 py-8">
-    <h1 class="text-center text-wizard-gold text-3xl font-bold tracking-widest mb-1">&#127183; WIZARD LEADERBOARD</h1>
-    <p class="text-center text-wizard-muted text-sm tracking-wider mb-7">Global Rankings</p>
+    <h1 class="text-center text-wizard-gold text-3xl font-bold tracking-widest mb-1">&#127183; {{ _("leaderboard_title", lang)|upper }}</h1>
+    <p class="text-center text-wizard-muted text-sm tracking-wider mb-7">{{ _("lb_global", lang) }}</p>
 
     <div class="tabs">
-        <button class="tab active" data-mode="standard">Standard</button>
-        <button class="tab" data-mode="multiplicative">Multiplikativ (&times;)</button>
+        <button class="tab active" data-mode="standard">{{ _("lb_tab_standard", lang) }}</button>
+        <button class="tab" data-mode="multiplicative">{{ _("lb_tab_mult", lang) }}</button>
     </div>
 
     <div class="sort-bar">
-        <button class="sort-btn active" data-sort="wins">Siege</button>
-        <button class="sort-btn" data-sort="win_rate">Gewinnquote</button>
-        <button class="sort-btn" data-sort="avg_score">&#216; Punkte</button>
-        <button class="sort-btn" data-sort="hit_rate">Trefferquote</button>
-        <button class="sort-btn" data-sort="highest_score">Highscore</button>
-        <button class="sort-btn" data-sort="win_streak">Siegesserie</button>
+        <button class="sort-btn active" data-sort="wins">{{ _("lb_sort_wins", lang) }}</button>
+        <button class="sort-btn" data-sort="win_rate">{{ _("lb_sort_winrate", lang) }}</button>
+        <button class="sort-btn" data-sort="avg_score">{{ _("lb_sort_avg", lang) }}</button>
+        <button class="sort-btn" data-sort="hit_rate">{{ _("lb_sort_hitrate", lang) }}</button>
+        <button class="sort-btn" data-sort="highest_score">{{ _("lb_sort_high", lang) }}</button>
+        <button class="sort-btn" data-sort="win_streak">{{ _("lb_sort_streak", lang) }}</button>
     </div>
 
-    <div id="content" class="loading">Lade Daten&hellip;</div>
+    <div id="content" class="loading">{{ _("lb_loading", lang) }}</div>
 </div>
 {% endblock %}
 
@@ -148,20 +148,20 @@
 
     async function fetchData() {
         const content = document.getElementById("content");
-        content.innerHTML = '<div class="loading">Lade Daten&hellip;</div>';
+        content.innerHTML = '<div class="loading">{{ _("lb_loading", lang) }}</div>';
         try {
             const resp = await fetch(`/api/leaderboard?mode=${currentMode}`);
             leaderboardData = await resp.json();
             renderTable();
         } catch (e) {
-            content.innerHTML = '<div class="empty">Fehler beim Laden der Daten.</div>';
+            content.innerHTML = '<div class="empty">{{ _("lb_error", lang) }}</div>';
         }
     }
 
     function renderTable() {
         const content = document.getElementById("content");
         if (leaderboardData.length === 0) {
-            content.innerHTML = '<div class="empty">Noch keine Spiele in diesem Modus.</div>';
+            content.innerHTML = '<div class="empty">{{ _("lb_empty", lang) }}</div>';
             return;
         }
         const sorted = [...leaderboardData].sort((a, b) => b[currentSort] - a[currentSort]);
@@ -169,14 +169,14 @@
         let html = '<div class="table-wrap"><table>';
         html += `<thead><tr>
             <th>#</th>
-            <th>Spieler</th>
-            <th>Spiele</th>
-            <th>Siege</th>
-            <th>Quote</th>
-            <th>&#216; Punkte</th>
-            <th>Treffer</th>
-            <th>Highscore</th>
-            <th>Serie</th>
+            <th>{{ _("lb_name", lang) }}</th>
+            <th>{{ _("lb_table_games", lang) }}</th>
+            <th>{{ _("lb_table_wins", lang) }}</th>
+            <th>{{ _("lb_table_quote", lang) }}</th>
+            <th>{{ _("lb_table_avg", lang) }}</th>
+            <th>{{ _("lb_table_hit", lang) }}</th>
+            <th>{{ _("lb_table_high", lang) }}</th>
+            <th>{{ _("lb_table_streak", lang) }}</th>
         </tr></thead><tbody>`;
 
         sorted.forEach((p, i) => {

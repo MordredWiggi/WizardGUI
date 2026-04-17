@@ -48,8 +48,8 @@
 {% block content %}
 <div class="max-w-3xl mx-auto px-4 py-8">
     <header class="text-center mb-8">
-        <h1 class="text-3xl sm:text-4xl font-bold tracking-wide text-wizard-gold">Feedback</h1>
-        <p class="mt-2 text-wizard-muted">Share ideas, feature requests, or vote on what others have said.</p>
+        <h1 class="text-3xl sm:text-4xl font-bold tracking-wide text-wizard-gold">{{ _("feedback_title", lang) }}</h1>
+        <p class="mt-2 text-wizard-muted">{{ _("feedback_desc", lang) }}</p>
     </header>
 
     <!-- GitHub banner -->
@@ -79,14 +79,14 @@
             rows="3"
             required
             maxlength="2000"
-            placeholder="Share an idea, feature request, or comment&hellip;"
+            placeholder="{{ _('fb_placeholder', lang) }}"
             class="w-full resize-y rounded-lg border border-wizard-border bg-wizard-panel2 text-wizard-text placeholder-wizard-dim px-3 py-2 text-sm leading-relaxed transition-colors"></textarea>
         <div class="mt-3 flex items-center justify-between gap-3">
             <span id="char-count" class="text-xs text-wizard-dim">0 / 2000</span>
             <button type="submit"
                     class="cta cta-primary px-5 py-2 rounded-lg font-semibold text-sm"
                     style="background: linear-gradient(135deg, #c9a84c 0%, #7a6230 100%); color: #0d0d1a;">
-                Post message
+                {{ _("fb_submit", lang) }}
             </button>
         </div>
         <p id="form-error" class="mt-2 text-xs text-red-400 hidden"></p>

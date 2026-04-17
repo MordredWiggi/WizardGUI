@@ -24,8 +24,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field, field_validator
+from typing import Optional
 
 import database as db
+from translations import TRANSLATIONS
 
 app = FastAPI(title="Wizard Leaderboard")
 
@@ -37,6 +39,17 @@ app.add_middleware(
 )
 
 templates = Jinja2Templates(directory="templates")
+
+def get_translations(lang: str) -> dict[str, str]:
+    if lang not in TRANSLATIONS:
+        lang = "en"
+    return TRANSLATIONS.get(lang, TRANSLATIONS["en"])
+
+def trans(key: str, lang: str = "en") -> str:
+    lang_dict = get_translations(lang)
+    return lang_dict.get(key, key)
+
+templates.env.globals["_"] = trans
 
 
 @app.on_event("startup")
@@ -237,27 +250,27 @@ def vote_feedback(feedback_id: int, body: FeedbackVote) -> dict:
 
 
 @app.get("/", response_class=HTMLResponse)
-def home_page(request: Request) -> HTMLResponse:
+def home_page(request: Request, lang: str = "en") -> HTMLResponse:
     """Render the landing page."""
     return templates.TemplateResponse(
-        request, "index.html", {"active_page": "home"}
+        request, "index.html", {"active_page": "home", "lang": lang}
     )
 
 
 @app.get("/leaderboard", response_class=HTMLResponse)
-def leaderboard_page(request: Request) -> HTMLResponse:
+def leaderboard_page(request: Request, lang: str = "en") -> HTMLResponse:
     """Render the leaderboard as a web page."""
     return templates.TemplateResponse(
-        request, "leaderboard.html", {"active_page": "leaderboard"}
+        request, "leaderboard.html", {"active_page": "leaderboard", "lang": lang}
     )
 
 
 @app.get("/feedback", response_class=HTMLResponse)
-def feedback_page(request: Request) -> HTMLResponse:
+def feedback_page(request: Request, lang: str = "en") -> HTMLResponse:
     """Render the public feedback page."""
     feedbacks = db.list_feedback()
     return templates.TemplateResponse(
         request,
         "feedback.html",
-        {"active_page": "feedback", "feedbacks": feedbacks},
+        {"active_page": "feedback", "feedbacks": feedbacks, "lang": lang},
     )

@@ -63,9 +63,16 @@
                 <span class="hidden sm:inline">WIZARD</span>
             </a>
             <div class="flex items-center gap-1 sm:gap-2">
-                <a href="/"           class="nav-link {% if active_page == 'home' %}active{% endif %}">Home</a>
-                <a href="/leaderboard" class="nav-link {% if active_page == 'leaderboard' %}active{% endif %}">Leaderboard</a>
-                <a href="/feedback"    class="nav-link {% if active_page == 'feedback' %}active{% endif %}">Feedback</a>
+                <a href="/?lang={{ lang }}"           class="nav-link {% if active_page == 'home' %}active{% endif %}">{{ _("nav_home", lang) }}</a>
+                <a href="/leaderboard?lang={{ lang }}" class="nav-link {% if active_page == 'leaderboard' %}active{% endif %}">{{ _("nav_leaderboard", lang) }}</a>
+                <a href="/feedback?lang={{ lang }}"    class="nav-link {% if active_page == 'feedback' %}active{% endif %}">{{ _("nav_feedback", lang) }}</a>
+                
+                <div class="ml-4 flex items-center gap-2 text-sm text-wizard-muted" style="margin-left: 20px;">
+                    <a href="?lang=en" class="hover:text-wizard-gold {% if lang == 'en' %}text-wizard-gold{% endif %}">EN</a>|
+                    <a href="?lang=de" class="hover:text-wizard-gold {% if lang == 'de' %}text-wizard-gold{% endif %}">DE</a>|
+                    <a href="?lang=fr" class="hover:text-wizard-gold {% if lang == 'fr' %}text-wizard-gold{% endif %}">FR</a>|
+                    <a href="?lang=hi" class="hover:text-wizard-gold {% if lang == 'hi' %}text-wizard-gold{% endif %}">HI</a>
+                </div>
             </div>
         </div>
     </nav>
@@ -75,7 +82,7 @@
     </main>
 
     <footer class="max-w-5xl mx-auto px-4 py-8 text-center text-xs tracking-wider text-wizard-dim">
-        Wizard Score Tracker &middot;
+        {{ _("footer_text", lang) }} &middot;
         <a href="https://github.com/MordredWiggi/WizardGUI" class="hover:text-wizard-gold" target="_blank" rel="noopener">GitHub</a>
     </footer>
 
