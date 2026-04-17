@@ -91,7 +91,7 @@ $staging = Join-Path $env:TEMP ("wizard-deploy-" + [guid]::NewGuid().ToString("N
 New-Item -ItemType Directory -Path $staging -Force | Out-Null
 
 # Whitelist - nur diese Dateien/Ordner werden hochgeladen
-$items = @("main.py", "database.py", "requirements.txt", "templates")
+$items = @("main.py", "database.py", "requirements.txt", "templates", "translations.py")
 foreach ($item in $items) {
     $src = Join-Path $scriptDir $item
     if (-not (Test-Path $src)) {
@@ -130,7 +130,7 @@ if ($LASTEXITCODE -ne 0) {
 Push-Location $staging
 try {
     & scp -i $SshKey -o StrictHostKeyChecking=accept-new -r -q `
-        "main.py" "database.py" "requirements.txt" "templates" `
+        "main.py" "database.py" "requirements.txt" "templates" "translations.py" `
         "${SshUser}@${SshHost}:${RemoteDir}/"
     if ($LASTEXITCODE -ne 0) {
         Write-Err "scp-Upload fehlgeschlagen."
