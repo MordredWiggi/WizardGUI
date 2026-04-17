@@ -86,6 +86,47 @@ class _GameScreenState extends State<GameScreen>
     final t = settings.t;
     final game = context.read<GameNotifier>().game!;
 
+    // ── Evaluate Custom Rules (Highest Priority) ──
+    final customPool = <(String, String, String, Color)>[];
+    final deltas = game.lastDeltas();
+    for (int i = 0; i < game.players.length; i++) {
+      final p = game.players[i];
+      final delta = deltas[i];
+      for (final rule in settings.customRules) {
+        bool matched = false;
+        if (rule.type == 'points' && delta == rule.value) {
+          matched = true;
+        } else if (rule.type == 'win_streak' && p.consecutivePerfect == rule.value) {
+          matched = true;
+        } else if (rule.type == 'loss_streak' && p.consecutiveLosses == rule.value) {
+          matched = true;
+        }
+        
+        if (matched) {
+          customPool.add((
+            '✨',
+            rule.message.replaceAll('{name}', p.name).replaceAll('{value}', rule.value.toString()),
+            '',
+            Colors.purpleAccent
+          ));
+        }
+      }
+    }
+
+    if (customPool.isNotEmpty) {
+      final pick = customPool[Random().nextInt(customPool.length)];
+      EventOverlay.show(
+        context,
+        emoji: pick.$1,
+        title: pick.$2,
+        subtitle: pick.$3,
+        color: pick.$4,
+        duration: settings.messageDuration,
+      );
+      if (events.gameOver) _scheduleGameOver(context);
+      return;
+    }
+
     // Tobi easter egg
     if (_checkTobi(context, game)) return;
 

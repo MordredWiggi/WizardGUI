@@ -11,7 +11,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final Map<String, TextEditingController> _controllers = {};
   double _durationSec = 2.2;
 
   @override
@@ -19,22 +18,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     final settings = context.read<AppSettings>();
     _durationSec = settings.messageDurationMs / 1000.0;
-    for (final key in kEventKeys) {
-      _controllers[key] =
-          TextEditingController(text: settings.customMessages[key] ?? '');
-    }
   }
 
   @override
   void dispose() {
-    for (final c in _controllers.values) {
-      c.dispose();
-    }
     super.dispose();
   }
 
-  String _eventLabel(String key, String Function(String) t) =>
-      t('event_$key');
+  void _showAddRuleDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => const _AddRuleDialog(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -120,8 +116,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 20),
 
           // ── Custom event messages ──────────────────────────────────────
-          Text(t('settings_custom_messages'),
-              style: Theme.of(context).textTheme.titleMedium),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                t('settings_custom_messages'),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: _showAddRuleDialog,
+              ),
+            ],
+          ),
           const SizedBox(height: 4),
           Text(
             t('settings_custom_messages_hint'),
@@ -130,41 +137,102 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: Theme.of(context).textTheme.bodySmall?.color),
           ),
           const SizedBox(height: 12),
-          ...kEventKeys.map((key) {
-            final defaultText = settings.t(key, _placeholderArgs(key));
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: TextField(
-                controller: _controllers[key],
-                decoration: InputDecoration(
-                  labelText: _eventLabel(key, t),
-                  hintText: defaultText,
-                  border: const OutlineInputBorder(),
-                  isDense: true,
+          ...settings.customRules.asMap().entries.map((req) {
+            final idx = req.key;
+            final rule = req.value;
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                title: Text(rule.message),
+                subtitle: Text('${rule.type}: ${rule.value}'),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: () => settings.removeCustomRule(idx),
                 ),
-                onChanged: (v) => settings.setCustomMessage(key, v),
               ),
             );
-          }),
+          }).toList(),
         ],
       ),
     );
   }
+}
 
-  /// Preview args so the hint shows a realistic-looking default instead of
-  /// literal `{name}` placeholders.
-  Map<String, String> _placeholderArgs(String key) {
-    switch (key) {
-      case 'huge_loss':
-        return const {'name': '…', 'delta': '…'};
-      case 'bow_stretched':
-      case 'revenge_lever':
-      case 'tobi_message':
-      case 'fire':
-      case 'new_leader':
-        return const {'name': '…'};
-      default:
-        return const {};
-    }
+class _AddRuleDialog extends StatefulWidget {
+  const _AddRuleDialog();
+
+  @override
+  State<_AddRuleDialog> createState() => _AddRuleDialogState();
+}
+
+class _AddRuleDialogState extends State<_AddRuleDialog> {
+  String _type = 'points';
+  final _amountController = TextEditingController();
+  final _messageController = TextEditingController();
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<AppSettings>();
+    final t = settings.t;
+
+    return AlertDialog(
+      title: Text(t('settings_custom_messages')),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DropdownButtonFormField<String>(
+            value: _type,
+            isExpanded: true,
+            items: const [
+              DropdownMenuItem(value: 'points', child: Text('Points in Round')),
+              DropdownMenuItem(value: 'win_streak', child: Text('Win Streak')),
+              DropdownMenuItem(value: 'loss_streak', child: Text('Loss Streak')),
+            ],
+            onChanged: (v) => setState(() => _type = v!),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _amountController,
+            decoration: const InputDecoration(labelText: 'Amount / Target Value'),
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _messageController,
+            decoration: const InputDecoration(
+              labelText: 'Message template',
+              hintText: 'e.g. {name} got absolutely crushed',
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(t('cancel')),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final val = int.tryParse(_amountController.text) ?? 0;
+            final msg = _messageController.text.trim();
+            if (msg.isEmpty) return;
+            context.read<AppSettings>().addCustomRule(CustomMessageRule(
+                  type: _type,
+                  value: val,
+                  message: msg,
+                ));
+            Navigator.pop(context);
+          },
+          child: Text(t('btn_add')),
+        ),
+      ],
+    );
   }
 }

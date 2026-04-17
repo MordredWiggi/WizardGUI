@@ -19,6 +19,31 @@ const int _kDefaultMessageDurationMs = 2200;
 const int _kMinMessageDurationMs = 500;
 const int _kMaxMessageDurationMs = 10000;
 
+class CustomMessageRule {
+  final String type; // 'points', 'win_streak', 'loss_streak'
+  final int value;
+  final String message;
+
+  CustomMessageRule({
+    required this.type,
+    required this.value,
+    required this.message,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'type': type,
+        'value': value,
+        'message': message,
+      };
+
+  factory CustomMessageRule.fromJson(Map<String, dynamic> json) =>
+      CustomMessageRule(
+        type: json['type'] as String,
+        value: json['value'] as int,
+        message: json['message'] as String,
+      );
+}
+
 /// Mirrors Python app_settings.py – persists language and theme. The
 /// leaderboard URL is a compile-time constant, matching the desktop app, so
 /// end users never configure or see it.
@@ -27,6 +52,7 @@ class AppSettings extends ChangeNotifier {
   static const _keyTheme = 'theme';
   static const _keyMessageDuration = 'message_display_duration_ms';
   static const _keyCustomMessages = 'custom_event_messages';
+  static const _keyCustomRules = 'custom_rules';
 
   // Kept in sync with wizard_desktop/app_settings.py::_LEADERBOARD_URL.
   static const String _leaderboardUrl = 'http://158.180.32.188:8000';
@@ -37,6 +63,7 @@ class AppSettings extends ChangeNotifier {
   Map<String, String> _customMessages = {
     for (final k in kEventKeys) k: '',
   };
+  List<CustomMessageRule> _customRules = [];
 
   String get language => _language;
   String get theme => _theme;
@@ -47,6 +74,7 @@ class AppSettings extends ChangeNotifier {
   int get messageDurationMs => _messageDurationMs;
   Duration get messageDuration => Duration(milliseconds: _messageDurationMs);
   Map<String, String> get customMessages => Map.unmodifiable(_customMessages);
+  List<CustomMessageRule> get customRules => List.unmodifiable(_customRules);
 
   /// Shorthand translate using current language.
   String t(String key, [Map<String, String> args = const {}]) =>
@@ -89,6 +117,18 @@ class AppSettings extends ChangeNotifier {
         }
       } catch (_) {/* ignore malformed */}
     }
+    
+    final rawRules = prefs.getString(_keyCustomRules);
+    if (rawRules != null && rawRules.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawRules);
+        if (decoded is List) {
+          _customRules = decoded
+              .map((e) => CustomMessageRule.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      } catch (_) {/* ignore malformed */}
+    }
     notifyListeners();
   }
 
@@ -125,6 +165,27 @@ class AppSettings extends ChangeNotifier {
   Future<void> setCustomMessage(String key, String value) async {
     if (!kEventKeys.contains(key)) return;
     await setCustomMessages({..._customMessages, key: value});
+  }
+
+  Future<void> addCustomRule(CustomMessageRule rule) async {
+    _customRules = [..._customRules, rule];
+    await _saveCustomRules();
+  }
+
+  Future<void> removeCustomRule(int index) async {
+    final list = List<CustomMessageRule>.from(_customRules);
+    list.removeAt(index);
+    _customRules = list;
+    await _saveCustomRules();
+  }
+
+  Future<void> _saveCustomRules() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _keyCustomRules,
+      jsonEncode(_customRules.map((e) => e.toJson()).toList()),
+    );
+    notifyListeners();
   }
 
   int _clampDuration(int ms) {

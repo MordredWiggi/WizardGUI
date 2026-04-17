@@ -41,6 +41,7 @@ _settings: dict = {
     # user-supplied overrides for event strings.  Empty string / missing key
     # means "use the translated default".
     "custom_event_messages": {k: "" for k in EVENT_KEYS},
+    "custom_rules": [],
 }
 
 
@@ -150,6 +151,26 @@ def set_custom_event_messages(mapping: dict) -> None:
         if k in mapping:
             cem[k] = str(mapping.get(k) or "")
     save_settings()
+
+
+def get_custom_rules() -> list:
+    return _settings.get("custom_rules", [])
+
+
+def add_custom_rule(rule: dict) -> None:
+    rules = _settings.setdefault("custom_rules", [])
+    if not isinstance(rules, list):
+        rules = []
+        _settings["custom_rules"] = rules
+    rules.append(rule)
+    save_settings()
+
+
+def remove_custom_rule(index: int) -> None:
+    rules = _settings.get("custom_rules", [])
+    if isinstance(rules, list) and 0 <= index < len(rules):
+        rules.pop(index)
+        save_settings()
 
 
 def resolve_event_message(key: str, **kwargs) -> str:

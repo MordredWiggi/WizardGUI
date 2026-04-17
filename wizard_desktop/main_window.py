@@ -119,6 +119,37 @@ class MainWindow(QtWidgets.QMainWindow):
     def _on_round_submitted(self, events: RoundEvents) -> None:
         """Wählt den passenden Celebration-Effekt für die Runde."""
         import random
+        from app_settings import get_custom_rules
+
+        # --- Evaluate Custom Rules (Highest Priority) ---
+        custom_pool = []
+        if self._game:
+            deltas = self._game.last_deltas()
+            for i, p in enumerate(self._game.players):
+                delta = deltas[i]
+                for rule in get_custom_rules():
+                    matched = False
+                    rtype = rule.get("type")
+                    rval = rule.get("value", 0)
+                    msg = rule.get("message", "")
+                    if rtype == "points" and delta == rval:
+                        matched = True
+                    elif rtype == "win_streak" and p.consecutive_perfect == rval:
+                        matched = True
+                    elif rtype == "loss_streak" and p.consecutive_losses == rval:
+                        matched = True
+                        
+                    if matched:
+                        formatted_msg = msg.replace("{name}", p.name).replace("{value}", str(rval))
+                        custom_pool.append(("✨", formatted_msg, "", "#d500f9"))
+                        
+        if custom_pool:
+            emoji, title, subtitle, color = random.choice(custom_pool)
+            self._overlay.show_event(emoji, title, subtitle, color=color)
+            if events.game_over:
+                self._submit_to_leaderboard()
+                QtCore.QTimer.singleShot(0, self._show_podium)
+            return
 
         # --- Priority 1: Check for special Tobi message at 60% rounds ---
         if self._game and self._check_tobi_message(events):

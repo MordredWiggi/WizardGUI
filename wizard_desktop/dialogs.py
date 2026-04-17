@@ -299,38 +299,25 @@ class SettingsDialog(ThemedDialog):
         # Custom event messages
         ce_header = QtWidgets.QLabel(t("settings_custom_messages"))
         ce_header.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {TEXT_DIM}; background: transparent;")
-        layout.addWidget(ce_header)
+        
+        ce_row = QtWidgets.QHBoxLayout()
+        ce_row.addWidget(ce_header)
+        
+        btn_add_rule = QtWidgets.QPushButton("+")
+        btn_add_rule.setMaximumWidth(30)
+        btn_add_rule.clicked.connect(self._add_rule_dialog)
+        ce_row.addWidget(btn_add_rule, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        layout.addLayout(ce_row)
+
         ce_hint = QtWidgets.QLabel(t("settings_custom_message_hint"))
         ce_hint.setStyleSheet(f"font-size: 11px; color: {TEXT_DIM}; background: transparent;")
         ce_hint.setWordWrap(True)
         layout.addWidget(ce_hint)
 
-        self._event_edits: dict[str, QtWidgets.QLineEdit] = {}
-        overrides = _as.get_custom_event_messages()
-        form = QtWidgets.QFormLayout()
-        form.setSpacing(4)
-        form.setContentsMargins(0, 0, 0, 0)
-        for key in _as.EVENT_KEYS:
-            # The default text shown as placeholder — resolve from the raw
-            # translations dict so placeholders like {name} stay visible.
-            from translations import TRANSLATIONS
-            default_text = TRANSLATIONS.get(_as.get_language(), {}).get(
-                key, TRANSLATIONS.get("en", {}).get(key, key)
-            )
-            edit = QtWidgets.QLineEdit()
-            edit.setPlaceholderText(default_text)
-            edit.setText(overrides.get(key, ""))
-            self._event_edits[key] = edit
-            lbl = QtWidgets.QLabel(default_text)
-            lbl.setStyleSheet("font-size: 11px; background: transparent;")
-            lbl.setWordWrap(True)
-            form.addRow(lbl, edit)
-        layout.addLayout(form)
-
-        btn_reset = QtWidgets.QPushButton(t("settings_reset_messages"))
-        btn_reset.setMaximumWidth(140)
-        btn_reset.clicked.connect(self._reset_custom_messages)
-        layout.addWidget(btn_reset, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        self._rules_layout = QtWidgets.QVBoxLayout()
+        layout.addLayout(self._rules_layout)
+        self._rules_widgets = []
+        self._refresh_rules()
 
         layout.addWidget(_sep())
 
@@ -352,9 +339,39 @@ class SettingsDialog(ThemedDialog):
         btn_row.addWidget(btn_apply)
         layout.addLayout(btn_row)
 
-    def _reset_custom_messages(self) -> None:
-        for edit in self._event_edits.values():
-            edit.clear()
+    def _refresh_rules(self) -> None:
+        for w in self._rules_widgets:
+            self._rules_layout.removeWidget(w)
+            w.deleteLater()
+        self._rules_widgets.clear()
+
+        rules = self._as.get_custom_rules()
+        for idx, rule in enumerate(rules):
+            row = QtWidgets.QWidget()
+            layout = QtWidgets.QHBoxLayout(row)
+            layout.setContentsMargins(0, 0, 0, 0)
+            
+            label = QtWidgets.QLabel(f"{rule.get('message')} ({rule.get('type')}: {rule.get('value')})")
+            label.setStyleSheet("font-size: 11px; background: transparent;")
+            layout.addWidget(label)
+            
+            btn_del = QtWidgets.QPushButton("-")
+            btn_del.setMaximumWidth(30)
+            # Capture idx by value
+            btn_del.clicked.connect(lambda _, i=idx: self._remove_rule(i))
+            layout.addWidget(btn_del)
+            
+            self._rules_layout.addWidget(row)
+            self._rules_widgets.append(row)
+
+    def _remove_rule(self, idx: int) -> None:
+        self._as.remove_custom_rule(idx)
+        self._refresh_rules()
+
+    def _add_rule_dialog(self) -> None:
+        dialog = _AddRuleDialog(self)
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            self._refresh_rules()
 
     # ── private ───────────────────────────────────────────────────────────────
 
@@ -391,12 +408,57 @@ class SettingsDialog(ThemedDialog):
             if app:
                 app.setStyleSheet(STYLESHEET)
 
-        # Anzeigedauer & eigene Event-Texte
+        # Anzeigedauer
         self._as.set_message_display_duration_ms(self._dur_spin.value())
-        self._as.set_custom_event_messages(
-            {k: e.text().strip() for k, e in self._event_edits.items()}
-        )
 
+        self.accept()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Add Rule Dialog
+# ─────────────────────────────────────────────────────────────────────────────
+
+class _AddRuleDialog(ThemedDialog):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
+        super().__init__(parent)
+        import app_settings as _as
+        self._as = _as
+        self.setWindowTitle(t("settings_custom_messages"))
+        self.setMinimumWidth(300)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        
+        self.type_combo = QtWidgets.QComboBox()
+        self.type_combo.addItems(["points", "win_streak", "loss_streak"])
+        layout.addWidget(QtWidgets.QLabel("Rule Type:"))
+        layout.addWidget(self.type_combo)
+        
+        self.val_spin = QtWidgets.QSpinBox()
+        self.val_spin.setRange(-1000, 1000)
+        layout.addWidget(QtWidgets.QLabel("Amount / Target Value:"))
+        layout.addWidget(self.val_spin)
+        
+        self.msg_edit = QtWidgets.QLineEdit()
+        self.msg_edit.setPlaceholderText("e.g. {name} got totally crushed")
+        layout.addWidget(QtWidgets.QLabel("Message Template:"))
+        layout.addWidget(self.msg_edit)
+        
+        btn_layout = QtWidgets.QHBoxLayout()
+        btn_add = QtWidgets.QPushButton(t("apply"))
+        btn_add.clicked.connect(self._add_rule)
+        btn_layout.addStretch()
+        btn_layout.addWidget(btn_add)
+        layout.addLayout(btn_layout)
+        
+    def _add_rule(self):
+        msg = self.msg_edit.text().strip()
+        if not msg:
+            return
+        self._as.add_custom_rule({
+            "type": self.type_combo.currentText(),
+            "value": self.val_spin.value(),
+            "message": msg
+        })
         self.accept()
 
 

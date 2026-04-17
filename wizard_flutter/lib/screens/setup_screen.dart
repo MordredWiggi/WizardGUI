@@ -501,6 +501,7 @@ class _GroupSelectDialog extends StatefulWidget {
 class _GroupSelectDialogState extends State<_GroupSelectDialog> {
   final _searchController = TextEditingController();
   final _codeController = TextEditingController();
+  final _codeFocusNode = FocusNode();
   List<Map<String, dynamic>> _groups = [];
   bool _loading = false;
   bool _connectionFailed = false;
@@ -517,6 +518,7 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
   void dispose() {
     _searchController.dispose();
     _codeController.dispose();
+    _codeFocusNode.dispose();
     super.dispose();
   }
 
@@ -600,8 +602,11 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
                       subtitle: Text(
                           t('group_players_count', {'n': n.toString()}),
                           style: theme.textTheme.bodySmall),
-                      // Selection is cosmetic: the code is a shared secret
-                      // and must be typed manually — never auto-filled.
+                      onTap: () {
+                        _searchController.text = g['name'] as String;
+                        _doSearch(g['name'] as String);
+                        _codeFocusNode.requestFocus();
+                      },
                     );
                   },
                 ),
@@ -618,6 +623,7 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
               Expanded(
                 child: TextField(
                   controller: _codeController,
+                  focusNode: _codeFocusNode,
                   decoration: InputDecoration(
                       hintText: t('group_code_placeholder')),
                   keyboardType: TextInputType.number,
