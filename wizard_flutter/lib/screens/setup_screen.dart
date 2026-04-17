@@ -145,8 +145,13 @@ class _SetupScreenState extends State<SetupScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final settings = context.read<AppSettings>();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Load failed: $e')),
+          SnackBar(
+            content: Text(
+                settings.t('load_failed', {'error': e.toString()})),
+            duration: settings.messageDuration,
+          ),
         );
       }
     }

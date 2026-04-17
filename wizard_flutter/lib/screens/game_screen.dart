@@ -65,12 +65,14 @@ class _GameScreenState extends State<GameScreen>
     // Validate: sum of made == cards this round
     final madeTot = results.fold(0, (s, r) => s + r.achieved);
     if (madeTot != game.cardsThisRound) {
+      final settings = context.read<AppSettings>();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(t('made_tricks_warning', {
           'made': madeTot.toString(),
           'total': game.cardsThisRound.toString(),
         })),
         backgroundColor: kDanger,
+        duration: settings.messageDuration,
       ));
       return;
     }
@@ -92,11 +94,12 @@ class _GameScreenState extends State<GameScreen>
       EventOverlay.show(
         context,
         emoji: '💥',
-        title: t('huge_loss', {
+        title: settings.resolveEventMessage('huge_loss', {
           'name': events.hugeLossPlayer!.name,
           'delta': events.hugeLossDelta.abs().toString(),
         }),
         color: kDanger,
+        duration: settings.messageDuration,
       );
       if (events.gameOver) _scheduleGameOver(context);
       return;
@@ -106,21 +109,45 @@ class _GameScreenState extends State<GameScreen>
     final pool = <(String, String, String, Color)>[];
 
     if (events.firePlayer != null) {
-      pool.add(('🔥', '${events.firePlayer!.name}!', '3× perfect', const Color(0xFFFF6B35)));
+      pool.add((
+        '🔥',
+        settings.resolveEventMessage('fire', {'name': events.firePlayer!.name}),
+        settings.t('fire_subtitle'),
+        const Color(0xFFFF6B35),
+      ));
     }
     if (events.newLeader != null) {
-      pool.add(('👑', '${events.newLeader!.name}',
-          '${events.newLeader!.currentScore} pts', kLeader));
+      pool.add((
+        '👑',
+        settings.resolveEventMessage(
+            'new_leader', {'name': events.newLeader!.name}),
+        settings.t('new_leader_subtitle',
+            {'score': events.newLeader!.currentScore.toString()}),
+        kLeader,
+      ));
     }
     if (events.bigScorer != null && events.bigScoreDelta >= 50) {
-      pool.add(('🎯', 'Meisterschuss!',
-          '+${events.bigScoreDelta} für ${events.bigScorer!.name}', kSuccess));
+      pool.add((
+        '🎯',
+        settings.resolveEventMessage('big_scorer'),
+        settings.t('big_scorer_subtitle', {
+          'delta': events.bigScoreDelta.toString(),
+          'name': events.bigScorer!.name,
+        }),
+        kSuccess,
+      ));
     }
     for (final p in events.bowPlayers) {
-      pool.add(('🏹', t('bow_stretched', {'name': p.name}), '', kDanger));
+      pool.add(('🏹',
+          settings.resolveEventMessage('bow_stretched', {'name': p.name}),
+          '',
+          kDanger));
     }
     for (final p in events.revengePlayers) {
-      pool.add(('⚡', t('revenge_lever', {'name': p.name}), '', const Color(0xFFFF9900)));
+      pool.add(('⚡',
+          settings.resolveEventMessage('revenge_lever', {'name': p.name}),
+          '',
+          const Color(0xFFFF9900)));
     }
 
     if (pool.isNotEmpty) {
@@ -131,6 +158,7 @@ class _GameScreenState extends State<GameScreen>
         title: pick.$2,
         subtitle: pick.$3,
         color: pick.$4,
+        duration: settings.messageDuration,
       );
     }
 
@@ -155,8 +183,9 @@ class _GameScreenState extends State<GameScreen>
     EventOverlay.show(
       context,
       emoji: '💪',
-      title: settings.t('tobi_message', {'name': tobi.name}),
+      title: settings.resolveEventMessage('tobi_message', {'name': tobi.name}),
       color: const Color(0xFF4FC3F7),
+      duration: settings.messageDuration,
     );
     return true;
   }
@@ -204,7 +233,7 @@ class _GameScreenState extends State<GameScreen>
         content: Text(success
             ? t('leaderboard_submit_ok')
             : t('leaderboard_submit_fail')),
-        duration: const Duration(seconds: 3),
+        duration: settings.messageDuration,
       ));
     });
   }
@@ -273,14 +302,18 @@ class _GameScreenState extends State<GameScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text(
-                    '${settings.t('save')} ✓  ${path.split('/').last}')),
+              content: Text(
+                  '${settings.t('save')} ✓  ${path.split('/').last}'),
+              duration: settings.messageDuration,
+            ),
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('Save failed: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('${settings.t('save')}: $e'),
+            duration: settings.messageDuration,
+          ));
         }
       }
     }
@@ -343,7 +376,7 @@ class _GameScreenState extends State<GameScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(t('round_header', {
-              'n': game.roundNumber.toString(),
+              'n': game.currentRoundDisplay.toString(),
               'total': game.totalRounds.toString(),
             })),
             Text(
@@ -665,12 +698,12 @@ class _GroupsLeaderboardTabState extends State<_GroupsLeaderboardTab> {
                 headingTextStyle: const TextStyle(
                     fontSize: 11, color: kTextDim, fontWeight: FontWeight.w600),
                 dataTextStyle: const TextStyle(fontSize: 12),
-                columns: const [
-                  DataColumn(label: Text('#')),
-                  DataColumn(label: Text('Name')),
-                  DataColumn(label: Text('Games'), numeric: true),
-                  DataColumn(label: Text('Avg'), numeric: true),
-                  DataColumn(label: Text('Hit%'), numeric: true),
+                columns: [
+                  const DataColumn(label: Text('#')),
+                  DataColumn(label: Text(t('lb_col_name'))),
+                  DataColumn(label: Text(t('lb_col_games')), numeric: true),
+                  DataColumn(label: Text(t('lb_col_avg')), numeric: true),
+                  DataColumn(label: Text(t('lb_col_hit_pct')), numeric: true),
                 ],
                 rows: _data!.map((row) {
                   final rank = row['rank'] as int? ?? 0;
@@ -866,14 +899,14 @@ class _MyGroupLeaderboardTabState extends State<_MyGroupLeaderboardTab> {
                   headingTextStyle: const TextStyle(
                       fontSize: 10, color: kTextDim, fontWeight: FontWeight.w600),
                   dataTextStyle: const TextStyle(fontSize: 12),
-                  columns: const [
-                    DataColumn(label: Text('#')),
-                    DataColumn(label: Text('Name')),
-                    DataColumn(label: Text('Games'), numeric: true),
-                    DataColumn(label: Text('Avg'), numeric: true),
-                    DataColumn(label: Text('Best'), numeric: true),
-                    DataColumn(label: Text('Hit%'), numeric: true),
-                    DataColumn(label: Text('Streak'), numeric: true),
+                  columns: [
+                    const DataColumn(label: Text('#')),
+                    DataColumn(label: Text(t('lb_col_name'))),
+                    DataColumn(label: Text(t('lb_col_games')), numeric: true),
+                    DataColumn(label: Text(t('lb_col_avg')), numeric: true),
+                    DataColumn(label: Text(t('lb_col_best')), numeric: true),
+                    DataColumn(label: Text(t('lb_col_hit_pct')), numeric: true),
+                    DataColumn(label: Text(t('lb_col_streak')), numeric: true),
                   ],
                   rows: _data!.map((row) {
                     final rank = row['rank'] as int? ?? 0;

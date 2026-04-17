@@ -2,10 +2,11 @@
 database.py – SQLite database layer for the Wizard Leaderboard.
 
 Tables:
-  - players: unique player names (case-insensitive)
-  - groups:  named groups with 4-digit code and visibility
-  - games:   one row per completed game (deduplicated by hash)
-  - results: per-player results for each game
+  - players:  unique player names (case-insensitive)
+  - groups:   named groups with 4-digit code and visibility
+  - games:    one row per completed game (deduplicated by hash)
+  - results:  per-player results for each game
+  - feedback: public feedback messages with upvote/downvote counters
 """
 from __future__ import annotations
 
@@ -54,6 +55,13 @@ def init_db() -> None:
             correct_bids INTEGER NOT NULL,
             total_rounds INTEGER NOT NULL,
             PRIMARY KEY (game_id, player_id)
+        );
+        CREATE TABLE IF NOT EXISTS feedback (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            message    TEXT    NOT NULL,
+            upvotes    INTEGER NOT NULL DEFAULT 0,
+            downvotes  INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT    NOT NULL DEFAULT (datetime('now'))
         );
     """)
     # Idempotent migration: add group_id column to games if missing (for existing DBs)
@@ -361,3 +369,67 @@ def get_groups_leaderboard() -> list[dict]:
         }
         for r in rows
     ]
+
+
+# ── Feedback ──────────────────────────────────────────────────────────────────
+
+FEEDBACK_MAX_LEN = 2000
+
+
+def create_feedback(message: str) -> dict:
+    """Insert a new feedback message and return the created row."""
+    db = _get_db()
+    try:
+        cursor = db.execute(
+            "INSERT INTO feedback (message) VALUES (?)", (message,)
+        )
+        feedback_id = cursor.lastrowid
+        db.commit()
+        row = db.execute(
+            "SELECT id, message, upvotes, downvotes, created_at "
+            "FROM feedback WHERE id = ?",
+            (feedback_id,),
+        ).fetchone()
+        return dict(row)
+    finally:
+        db.close()
+
+
+def list_feedback() -> list[dict]:
+    """Return all feedback ordered by net votes (desc) then newest first."""
+    db = _get_db()
+    rows = db.execute(
+        """
+        SELECT id, message, upvotes, downvotes, created_at,
+               (upvotes - downvotes) AS net_votes
+        FROM feedback
+        ORDER BY net_votes DESC, created_at DESC
+        """
+    ).fetchall()
+    db.close()
+    return [dict(r) for r in rows]
+
+
+def vote_feedback(feedback_id: int, vote_type: str) -> Optional[dict]:
+    """Increment upvotes or downvotes on a feedback row. Returns the updated row,
+    or None if no such feedback exists."""
+    if vote_type not in ("up", "down"):
+        raise ValueError("vote_type must be 'up' or 'down'")
+    column = "upvotes" if vote_type == "up" else "downvotes"
+    db = _get_db()
+    try:
+        cursor = db.execute(
+            f"UPDATE feedback SET {column} = {column} + 1 WHERE id = ?",
+            (feedback_id,),
+        )
+        if cursor.rowcount == 0:
+            return None
+        db.commit()
+        row = db.execute(
+            "SELECT id, message, upvotes, downvotes, created_at "
+            "FROM feedback WHERE id = ?",
+            (feedback_id,),
+        ).fetchone()
+        return dict(row)
+    finally:
+        db.close()

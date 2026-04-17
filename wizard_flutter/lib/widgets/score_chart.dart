@@ -47,17 +47,18 @@ class _ScoreChartState extends State<ScoreChart> {
             .entries
             .map((e) => FlSpot(e.key.toDouble(), e.value.toDouble()))
             .toList(),
-        isCurved: true,
-        curveSmoothness: 0.3,
-        color: isTouched ? Colors.white : color,
-        barWidth: isTouched ? 3 : 2,
+        isCurved: false,
+        color: color,
+        barWidth: isTouched ? 3.5 : 2,
         dotData: FlDotData(
           show: true,
           getDotPainter: (spot, pct, bar, idx) => FlDotCirclePainter(
-            radius: idx == game.roundNumber ? 5 : 3,
-            color: isTouched ? Colors.white : color,
-            strokeWidth: 0,
-            strokeColor: Colors.transparent,
+            radius: idx == game.roundNumber
+                ? 5
+                : (isTouched ? 4 : 3),
+            color: color,
+            strokeWidth: isTouched ? 1.5 : 0,
+            strokeColor: isDark ? Colors.white : Colors.black,
           ),
         ),
         belowBarData: BarAreaData(show: false),
@@ -72,8 +73,7 @@ class _ScoreChartState extends State<ScoreChart> {
           .entries
           .map((e) => FlSpot(e.key.toDouble(), e.value))
           .toList(),
-      isCurved: true,
-      curveSmoothness: 0.3,
+      isCurved: false,
       color: (isDark ? Colors.white : Colors.black).withOpacity(0.35),
       barWidth: 1.5,
       dashArray: [6, 4],
@@ -228,16 +228,43 @@ class _ScoreChartState extends State<ScoreChart> {
                   border: Border.all(color: gridColor, width: 0.8),
                 ),
                 lineTouchData: LineTouchData(
+                  handleBuiltInTouches: true,
                   touchCallback: (event, response) {
-                    if (response != null &&
-                        response.lineBarSpots != null &&
-                        response.lineBarSpots!.isNotEmpty) {
-                      setState(() => _touchedLineIndex =
-                          response.lineBarSpots!.first.barIndex);
-                    } else if (event is FlTapUpEvent ||
+                    // Clear the highlight whenever touch/pointer leaves the
+                    // chart area, the gesture is released, or the response
+                    // contains no spots. Picking only explicit "exit" events
+                    // left the highlight stuck when the cursor slid off the
+                    // side of the plot during a hover session.
+                    final isEndEvent = event is FlTapUpEvent ||
+                        event is FlTapCancelEvent ||
                         event is FlLongPressEnd ||
-                        event is FlPointerExitEvent) {
-                      setState(() => _touchedLineIndex = null);
+                        event is FlPanEndEvent ||
+                        event is FlPanCancelEvent ||
+                        event is FlPointerExitEvent;
+
+                    final spots = response?.lineBarSpots;
+                    final hasSpot = spots != null && spots.isNotEmpty;
+
+                    if (isEndEvent || !hasSpot) {
+                      if (_touchedLineIndex != null) {
+                        setState(() => _touchedLineIndex = null);
+                      }
+                      return;
+                    }
+
+                    // Prefer the closest non-average line the user touched.
+                    final touched = spots!.firstWhere(
+                      (s) => s.barIndex < game.players.length,
+                      orElse: () => spots.first,
+                    );
+                    if (touched.barIndex >= game.players.length) {
+                      if (_touchedLineIndex != null) {
+                        setState(() => _touchedLineIndex = null);
+                      }
+                      return;
+                    }
+                    if (_touchedLineIndex != touched.barIndex) {
+                      setState(() => _touchedLineIndex = touched.barIndex);
                     }
                   },
                   touchTooltipData: LineTouchTooltipData(

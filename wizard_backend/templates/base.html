@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Wizard Score Tracker{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        wizard: {
+                            bg:       '#0d0d1a',
+                            panel:    '#1a1a3a',
+                            panel2:   '#12122b',
+                            border:   '#2a2a4a',
+                            gold:     '#c9a84c',
+                            goldDark: '#7a6230',
+                            text:     '#e8e8f0',
+                            muted:    '#888aaa',
+                            dim:      '#555577',
+                        }
+                    },
+                    fontFamily: {
+                        display: ['"Segoe UI"', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        html, body { background: #0d0d1a; color: #e8e8f0; }
+        body { font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+        .nav-link {
+            position: relative;
+            padding: 0.5rem 0.75rem;
+            color: #888aaa;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            transition: color 0.15s;
+        }
+        .nav-link:hover { color: #c9a84c; }
+        .nav-link.active { color: #c9a84c; }
+        .nav-link.active::after {
+            content: '';
+            position: absolute;
+            left: 0.75rem;
+            right: 0.75rem;
+            bottom: -4px;
+            height: 2px;
+            background: #c9a84c;
+            border-radius: 2px;
+        }
+    </style>
+    {% block head_extra %}{% endblock %}
+</head>
+<body class="min-h-screen">
+    <nav class="sticky top-0 z-40 border-b border-wizard-border bg-wizard-bg/90 backdrop-blur">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+            <a href="/" class="flex items-center gap-2 text-wizard-gold font-bold tracking-widest">
+                <span class="text-2xl">&#127183;</span>
+                <span class="hidden sm:inline">WIZARD</span>
+            </a>
+            <div class="flex items-center gap-1 sm:gap-2">
+                <a href="/"           class="nav-link {% if active_page == 'home' %}active{% endif %}">Home</a>
+                <a href="/leaderboard" class="nav-link {% if active_page == 'leaderboard' %}active{% endif %}">Leaderboard</a>
+                <a href="/feedback"    class="nav-link {% if active_page == 'feedback' %}active{% endif %}">Feedback</a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="max-w-5xl mx-auto px-4 py-8 text-center text-xs tracking-wider text-wizard-dim">
+        Wizard Score Tracker &middot;
+        <a href="https://github.com/MordredWiggi/WizardGUI" class="hover:text-wizard-gold" target="_blank" rel="noopener">GitHub</a>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -10,7 +10,12 @@ Endpoints:
   GET  /api/groups/{code}                – get group by 4-digit code
   GET  /api/leaderboard/groups           – global groups leaderboard
   GET  /api/leaderboard/group/{code}     – player leaderboard for a specific group
-  GET  /                                 – HTML leaderboard page
+  GET  /api/feedback                     – list all feedback messages
+  POST /api/feedback                     – submit a new feedback message
+  POST /api/feedback/{id}/vote           – upvote or downvote a message
+  GET  /                                 – landing page
+  GET  /leaderboard                      – HTML leaderboard page
+  GET  /feedback                         – HTML feedback page
 """
 from __future__ import annotations
 
@@ -18,7 +23,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 import database as db
 
@@ -76,6 +81,29 @@ class GroupCreate(BaseModel):
     def visibility_must_be_valid(cls, v: str) -> str:
         if v not in ("public", "hidden"):
             raise ValueError("visibility must be 'public' or 'hidden'")
+        return v
+
+
+class FeedbackCreate(BaseModel):
+    message: str = Field(..., min_length=1, max_length=db.FEEDBACK_MAX_LEN)
+
+    @field_validator("message")
+    @classmethod
+    def message_not_blank(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not cleaned:
+            raise ValueError("message must not be empty")
+        return cleaned
+
+
+class FeedbackVote(BaseModel):
+    vote: str
+
+    @field_validator("vote")
+    @classmethod
+    def vote_must_be_valid(cls, v: str) -> str:
+        if v not in ("up", "down"):
+            raise ValueError("vote must be 'up' or 'down'")
         return v
 
 
@@ -181,11 +209,55 @@ def group_player_leaderboard(
     return result
 
 
-# ── HTML page ────────────────────────────────────────────────────────────────
+# ── Feedback endpoints ────────────────────────────────────────────────────────
+
+
+@app.get("/api/feedback")
+def list_feedback_json() -> list[dict]:
+    """Return all feedback messages, sorted by net votes."""
+    return db.list_feedback()
+
+
+@app.post("/api/feedback", status_code=201)
+def submit_feedback(body: FeedbackCreate) -> dict:
+    """Create a new feedback message."""
+    return db.create_feedback(message=body.message)
+
+
+@app.post("/api/feedback/{feedback_id}/vote")
+def vote_feedback(feedback_id: int, body: FeedbackVote) -> dict:
+    """Upvote or downvote a feedback message."""
+    updated = db.vote_feedback(feedback_id=feedback_id, vote_type=body.vote)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Feedback not found")
+    return updated
+
+
+# ── HTML pages ───────────────────────────────────────────────────────────────
 
 
 @app.get("/", response_class=HTMLResponse)
+def home_page(request: Request) -> HTMLResponse:
+    """Render the landing page."""
+    return templates.TemplateResponse(
+        request, "index.html", {"active_page": "home"}
+    )
+
+
 @app.get("/leaderboard", response_class=HTMLResponse)
 def leaderboard_page(request: Request) -> HTMLResponse:
     """Render the leaderboard as a web page."""
-    return templates.TemplateResponse(request, "leaderboard.html")
+    return templates.TemplateResponse(
+        request, "leaderboard.html", {"active_page": "leaderboard"}
+    )
+
+
+@app.get("/feedback", response_class=HTMLResponse)
+def feedback_page(request: Request) -> HTMLResponse:
+    """Render the public feedback page."""
+    feedbacks = db.list_feedback()
+    return templates.TemplateResponse(
+        request,
+        "feedback.html",
+        {"active_page": "feedback", "feedbacks": feedbacks},
+    )

@@ -344,20 +344,61 @@ class MplCanvas(FigureCanvasQTAgg):
             self.draw_idle()
 
     def _place_hover_annot(self, x: float, y: float) -> None:
-        """Pick an offset for the hover annotation so it stays on-canvas."""
+        """Pick an offset for the hover annotation so it stays on-canvas.
+
+        Uses pixel-accurate measurement: the tooltip's rendered bounding box
+        is measured against the axes/figure extents. If `cursor_x +
+        tooltip_width` would exceed the right edge, the tooltip is bumped to
+        the left of the cursor; the same is done vertically against the top
+        edge. A small margin keeps the tooltip from kissing the frame.
+        """
         if self._hover_annot is None:
             return
+
+        default = (15, 15)
+        self._hover_annot.set_position(default)
+
+        # Need an actual renderer + a prior draw to measure the tooltip size.
+        renderer = getattr(self, "_lastRenderer", None)
+        if renderer is None:
+            try:
+                renderer = self.get_renderer()
+            except Exception:
+                return
+
         try:
-            x_min, x_max = self.axes.get_xlim()
-            y_min, y_max = self.axes.get_ylim()
+            # Pixel-space position of the anchor point (data coord x,y) and
+            # current size of the tooltip's bounding box.
+            anchor_px = self.axes.transData.transform((x, y))
+            bbox = self._hover_annot.get_window_extent(renderer=renderer)
+            canvas_bbox = self.fig.bbox
         except Exception:
-            self._hover_annot.set_position((15, 15))
             return
-        x_span = (x_max - x_min) or 1.0
-        y_span = (y_max - y_min) or 1.0
-        # Near right edge → flip horizontally; near top → flip vertically.
-        dx = -80 if (x_max - x) / x_span < 0.22 else 15
-        dy = -30 if (y_max - y) / y_span < 0.18 else 15
+
+        margin = 8
+        tip_w = bbox.width
+        tip_h = bbox.height
+        anchor_x, anchor_y = float(anchor_px[0]), float(anchor_px[1])
+
+        # Horizontal: if tooltip would overflow the right canvas edge, place
+        # it to the left of the cursor instead. Offset is in points; convert
+        # the pixel width to points via the figure DPI.
+        dpi = float(self.fig.get_dpi() or 72.0)
+        px_to_pt = 72.0 / dpi
+        tip_w_pt = tip_w * px_to_pt
+        tip_h_pt = tip_h * px_to_pt
+
+        if anchor_x + tip_w + margin > canvas_bbox.x1:
+            dx = -(tip_w_pt + 15)
+        else:
+            dx = 15
+
+        # Vertical: if tooltip would overflow the top, place it below.
+        if anchor_y + tip_h + margin > canvas_bbox.y1:
+            dy = -(tip_h_pt + 10)
+        else:
+            dy = 15
+
         self._hover_annot.set_position((dx, dy))
 
 
@@ -441,9 +482,9 @@ class PlayerCard(QtWidgets.QFrame):
             spin.setMaximumWidth(60)
             col.addWidget(lbl, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
             col.addWidget(spin, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
-            return col, spin
+            return col, spin, lbl
 
-        col_bid, self._spin_said = _make_spin_col(t("announced"))
+        col_bid, self._spin_said, self._lbl_bid = _make_spin_col(t("announced"))
         input_row.addLayout(col_bid)
         input_row.addSpacing(12)
 
@@ -465,7 +506,7 @@ class PlayerCard(QtWidgets.QFrame):
         input_row.addWidget(self._btn_auto_fill, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
         input_row.addSpacing(12)
 
-        col_made, self._spin_achieved = _make_spin_col(t("achieved"))
+        col_made, self._spin_achieved, self._lbl_made = _make_spin_col(t("achieved"))
         input_row.addLayout(col_made)
 
         input_row.addStretch()
@@ -530,7 +571,9 @@ class PlayerCard(QtWidgets.QFrame):
         """Update translatable labels on this card."""
         # Dealer badge text is always re-rendered by GameView._refresh_scores(),
         # which calls set_dealer() for every card after retranslate_ui() returns.
-        pass
+        self._lbl_bid.setText(t("announced"))
+        self._lbl_made.setText(t("achieved"))
+        self._btn_auto_fill.setToolTip(t("tooltip_auto_fill"))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
