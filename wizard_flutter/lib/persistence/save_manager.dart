@@ -142,12 +142,80 @@ class SaveManager {
           players: players,
           rounds: (game['round_number'] as int?) ?? 0,
           filePath: file.path,
+          pendingSync: (meta['pending_sync'] as bool?) ?? false,
+          groupCode: meta['group_code'] as String?,
         ));
       } catch (_) {
         // skip corrupt files
       }
     }
     return result;
+  }
+
+  // -------------------------------------------------------- pending sync
+
+  /// Return every saved game that is still flagged as needing sync.
+  Future<List<PendingSyncGame>> listPendingSyncGames() async {
+    final dir = await _saveDir;
+    final files = dir
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.json'))
+        .toList();
+
+    final result = <PendingSyncGame>[];
+    for (final file in files) {
+      try {
+        final content = await file.readAsString(encoding: utf8);
+        final payload = jsonDecode(content) as Map<String, dynamic>;
+        final meta = (payload['meta'] as Map?) ?? {};
+        if ((meta['pending_sync'] as bool?) != true) continue;
+        result.add(PendingSyncGame(
+          filePath: file.path,
+          name: (meta['name'] as String?) ?? file.uri.pathSegments.last,
+          savedAt: (meta['saved_at'] as String?) ?? '',
+          groupCode: meta['group_code'] as String?,
+          game: Map<String, dynamic>.from(payload['game'] as Map? ?? {}),
+        ));
+      } catch (_) {
+        // skip corrupt files
+      }
+    }
+    return result;
+  }
+
+  /// Clear the pending_sync flag on [filePath] after a successful upload.
+  Future<void> markSynced(String filePath) async {
+    final file = File(filePath);
+    if (!await file.exists()) return;
+    try {
+      final payload =
+          jsonDecode(await file.readAsString(encoding: utf8)) as Map<String, dynamic>;
+      final meta = Map<String, dynamic>.from(payload['meta'] as Map? ?? {});
+      meta['pending_sync'] = false;
+      payload['meta'] = meta;
+      await file.writeAsString(
+        const JsonEncoder.withIndent('  ').convert(payload),
+        encoding: utf8,
+      );
+    } catch (_) {/* ignore */}
+  }
+
+  /// Attach / update the group code on a pending-sync game.
+  Future<void> updatePendingGroupCode(String filePath, String? groupCode) async {
+    final file = File(filePath);
+    if (!await file.exists()) return;
+    try {
+      final payload =
+          jsonDecode(await file.readAsString(encoding: utf8)) as Map<String, dynamic>;
+      final meta = Map<String, dynamic>.from(payload['meta'] as Map? ?? {});
+      meta['group_code'] = groupCode;
+      payload['meta'] = meta;
+      await file.writeAsString(
+        const JsonEncoder.withIndent('  ').convert(payload),
+        encoding: utf8,
+      );
+    } catch (_) {/* ignore */}
   }
 
   // ---------------------------------------------------------------- delete

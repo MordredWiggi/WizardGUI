@@ -240,13 +240,21 @@ class _GameScreenState extends State<GameScreen>
 
     Future.delayed(const Duration(milliseconds: 3200), () {
       if (!mounted) return;
-      final game = context.read<GameNotifier>().game;
+      final notifier = context.read<GameNotifier>();
+      final game = notifier.game;
       if (game == null) return;
       final podium = [...game.players]
         ..sort((a, b) => b.currentScore.compareTo(a.currentScore));
       final entries = podium.map((p) => (p.name, p.currentScore)).toList();
+      // When no group was bound, the podium shows the "game not uploaded"
+      // reminder and offers to save locally.
+      final noGroup = notifier.activeGroup == null;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => PodiumScreen(podium: entries)),
+        MaterialPageRoute(
+            builder: (_) => PodiumScreen(
+                  podium: entries,
+                  offlineReminder: noGroup,
+                )),
       );
     });
   }
@@ -257,6 +265,12 @@ class _GameScreenState extends State<GameScreen>
     final game = notifier.game;
     if (game == null || !game.isGameOver) return;
 
+    final t = settings.t;
+
+    // No group bound → the end-of-game offline reminder is shown on the
+    // podium screen instead. Nothing to upload here.
+    if (notifier.activeGroup == null) return;
+
     final url = settings.leaderboardUrl;
     if (url.isEmpty) return;
 
@@ -265,9 +279,14 @@ class _GameScreenState extends State<GameScreen>
       game.toJson(),
       groupCode: groupCode,
     );
-    final t = settings.t;
 
-    LeaderboardService(url).submitGame(payload).then((success) {
+    LeaderboardService(url).submitGame(payload).then((success) async {
+      if (!success) {
+        // Persist offline so the next launch can retry.
+        try {
+          await notifier.savePendingGame(groupCode: groupCode);
+        } catch (_) {/* ignore */}
+      }
       final messenger = rootScaffoldMessengerKey.currentState;
       if (messenger == null) return;
       messenger.showSnackBar(SnackBar(

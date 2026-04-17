@@ -26,7 +26,7 @@ from dialogs import (
     SaveGameDialog, LoadGameDialog,
     CelebrationOverlay, WarningDialog, PodiumDialog,
     MigrationDialog, MigrationProgressDialog, MigrationGroupDialog,
-    PendingSyncAssignDialog,
+    PendingSyncAssignDialog, OfflineGameReminderDialog,
 )
 from app_settings import t, get_theme, get_leaderboard_url, resolve_event_message
 
@@ -328,20 +328,41 @@ class MainWindow(QtWidgets.QMainWindow):
     def _submit_to_leaderboard(self) -> None:
         """Submit the current (completed) game to the leaderboard server.
 
-        If no network is available or the server returns an error, persist the
-        game locally with ``pending_sync=True`` so it can be uploaded later on
-        the next successful launch.
+        Three paths:
+          • With a selected group → submit to leaderboard, save pending-sync
+            as a fallback (cleared on success).
+          • Without a group (offline mode) → show reminder dialog and only
+            save locally if the user opts in. Do NOT submit anywhere.
+          • No leaderboard URL configured → no-op.
         """
+        if not self._game or not self._game.is_game_over:
+            return
+
+        game_data = self._game.to_dict()
+
+        # Offline path: no group bound → show the reminder dialog and either
+        # save locally (pending_sync) or discard. Skip the leaderboard call.
+        if self._active_group is None:
+            dlg = OfflineGameReminderDialog(self)
+            if dlg.exec():
+                self._save_manager.save_game(
+                    game_data,
+                    game_name=None,
+                    pending_sync=True,
+                    group_code=None,
+                )
+                self._show_status(t("offline_saved_ok"))
+            return
+
         url = get_leaderboard_url()
-        if not url or not self._game or not self._game.is_game_over:
+        if not url:
             return
 
         from leaderboard_client import (
             LeaderboardClient, GameSubmitWorker, build_game_submission,
         )
 
-        game_data = self._game.to_dict()
-        group_code = self._active_group["code"] if self._active_group else None
+        group_code = self._active_group["code"]
 
         # Always persist offline-first: if the submission fails, we keep the
         # pending-sync file; if it succeeds, we clear the flag.
