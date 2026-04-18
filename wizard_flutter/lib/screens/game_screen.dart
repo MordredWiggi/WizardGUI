@@ -79,6 +79,7 @@ class _GameScreenState extends State<GameScreen>
     }
 
     final events = context.read<GameNotifier>().submitRound(results);
+    _cardKeys.clear(); // force fresh PlayerEntryCardState on next round
     _handleEvents(context, events);
   }
 
@@ -318,6 +319,7 @@ class _GameScreenState extends State<GameScreen>
     );
     if (confirmed == true && mounted) {
       context.read<GameNotifier>().undoRound();
+      _cardKeys.clear();
     }
   }
 
