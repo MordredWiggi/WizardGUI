@@ -28,7 +28,7 @@ Der Server laeuft dann unter `http://localhost:8000`.
 Der Server laeuft auf einer Oracle Cloud Always Free VM (VM.Standard.E2.1.Micro).
 
 - **Oeffentliche IP:** `158.180.32.188`
-- **URL:** `http://158.180.32.188:8000`
+- **URL:** `https://play-wizard.de`
 - **Datenbank:** `/data/leaderboard.db` (SQLite)
 - **Systemdienst:** `wizard-leaderboard.service`
 

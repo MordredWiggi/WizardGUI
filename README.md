@@ -137,8 +137,8 @@ Android 8.0 (API 26). Covers ~98% of active Android devices.
 
 A central leaderboard server collects finished games from all clients. It runs as a FastAPI app with SQLite on an Oracle Cloud VM.
 
-- **Live leaderboard:** http://158.180.32.188:8000
-- **API docs:** http://158.180.32.188:8000/docs
+- **Live leaderboard:** https://play-wizard.de
+- **API docs:** https://play-wizard.de/docs
 
 ### How it works
 

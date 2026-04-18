@@ -55,7 +55,7 @@ class AppSettings extends ChangeNotifier {
   static const _keyCustomRules = 'custom_rules';
 
   // Kept in sync with wizard_desktop/app_settings.py::_LEADERBOARD_URL.
-  static const String _leaderboardUrl = 'http://158.180.32.188:8000';
+  static const String _leaderboardUrl = 'https://play-wizard.de';
 
   String _language = 'de';
   String _theme = 'dark'; // 'dark' | 'light'

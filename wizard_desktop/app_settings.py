@@ -14,7 +14,7 @@ from pathlib import Path
 _SETTINGS_FILE = Path.home() / ".wizard_gui_settings.json"
 _DEFAULT_LANGUAGE = "de"
 _DEFAULT_THEME = "dark"
-_LEADERBOARD_URL = "http://158.180.32.188:8000"
+_LEADERBOARD_URL = "https://play-wizard.de"
 
 # Event-message defaults -----------------------------------------------------
 _DEFAULT_MESSAGE_DURATION_MS = 2200
