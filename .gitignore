@@ -16,5 +16,6 @@ wizard_backend/deploy.config.json
 # Flutter
 wizard_flutter/.dart_tool/
 wizard_flutter/build/
+wizard_flutter/android/key.properties
 
 
