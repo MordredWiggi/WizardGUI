@@ -146,6 +146,17 @@ class SetupView(QtWidgets.QWidget):
         title_row.addWidget(title_lbl)
         title_row.addStretch()
 
+        self._btn_leaderboard_web = QtWidgets.QPushButton("🌐")
+        self._btn_leaderboard_web.setObjectName("toolbar_btn")
+        self._btn_leaderboard_web.setToolTip("Online Leaderboard")
+        self._btn_leaderboard_web.setFixedSize(44, 44)
+        self._btn_leaderboard_web.setStyleSheet(
+            "QPushButton { font-size: 28px; padding: 0; background: transparent; border: none; }"
+            "QPushButton:hover { background-color: #1a1a3a; border-radius: 4px; }"
+        )
+        self._btn_leaderboard_web.clicked.connect(lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://play-wizard.de")))
+        title_row.addWidget(self._btn_leaderboard_web)
+
         self._btn_settings = QtWidgets.QPushButton("⚙")
         self._btn_settings.setObjectName("toolbar_btn")
         self._btn_settings.setToolTip(t("tooltip_settings"))

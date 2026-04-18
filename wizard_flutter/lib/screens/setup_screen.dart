@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../persistence/app_settings.dart';
 import '../persistence/save_manager.dart';
@@ -316,6 +317,11 @@ class _SetupScreenState extends State<SetupScreen> {
         centerTitle: true,
         actions: [
           IconButton(
+            icon: const Icon(Icons.language),
+            tooltip: 'Online Leaderboard',
+            onPressed: () => launchUrl(Uri.parse('https://play-wizard.de')),
+          ),
+          IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: t('settings_title'),
             onPressed: () => Navigator.push(
@@ -528,20 +534,20 @@ class _SetupScreenState extends State<SetupScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
                     children: [
                       _TabChip(
                         label: t('saved_games_header'),
                         selected: _bottomTab == 0,
                         onTap: () => setState(() => _bottomTab = 0),
                       ),
-                      const SizedBox(width: 6),
                       _TabChip(
                         label: t('tab_groups_lb'),
                         selected: _bottomTab == 1,
                         onTap: () => setState(() => _bottomTab = 1),
                       ),
-                      const SizedBox(width: 6),
                       _TabChip(
                         label: t('tab_group_lb'),
                         selected: _bottomTab == 2,
