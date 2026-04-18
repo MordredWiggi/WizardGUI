@@ -148,8 +148,26 @@ def submit_game(game: GameSubmission) -> dict:
 
 @app.get("/api/players/check")
 def check_player(name: str = Query(..., min_length=1)) -> dict:
-    """Check whether a player name already exists."""
+    """Check whether a player name already exists (global registry)."""
     return {"name": name, "exists": db.player_exists(name)}
+
+
+@app.get("/api/groups/{code}/players/check")
+def check_group_player(
+    code: str,
+    name: str = Query(..., min_length=1),
+) -> dict:
+    """Check whether a player has already played in the given group.
+
+    Name matching is case-insensitive; existence is scoped to games that
+    were submitted with that group's 4-digit code.
+    """
+    if len(code) != 4 or not code.isdigit():
+        raise HTTPException(status_code=400, detail="Code must be exactly 4 digits")
+    exists = db.player_exists_in_group(name=name, code=code)
+    if exists is None:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return {"name": name, "code": code, "exists": exists}
 
 
 # ── Player leaderboard ────────────────────────────────────────────────────────
@@ -259,9 +277,36 @@ def home_page(request: Request, lang: str = "en") -> HTMLResponse:
 
 @app.get("/leaderboard", response_class=HTMLResponse)
 def leaderboard_page(request: Request, lang: str = "en") -> HTMLResponse:
-    """Render the leaderboard as a web page."""
+    """Render the global groups leaderboard with group-code entry flow."""
     return templates.TemplateResponse(
         request, "leaderboard.html", {"active_page": "leaderboard", "lang": lang}
+    )
+
+
+@app.get("/leaderboard/group/{code}", response_class=HTMLResponse)
+def group_leaderboard_page(
+    request: Request,
+    code: str,
+    lang: str = "en",
+) -> HTMLResponse:
+    """Render a specific group's player leaderboard.
+
+    ``code`` is the group's 4-digit shared secret. Entering it counts as
+    proof of membership and works for hidden groups too.
+    """
+    if len(code) != 4 or not code.isdigit():
+        raise HTTPException(status_code=400, detail="Code must be exactly 4 digits")
+    group = db.get_group_by_code(code)
+    if group is None:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return templates.TemplateResponse(
+        request,
+        "group_leaderboard.html",
+        {
+            "active_page": "leaderboard",
+            "lang": lang,
+            "group": group,
+        },
     )
 
 

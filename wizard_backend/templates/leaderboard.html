@@ -1,100 +1,128 @@
 {% extends "base.html" %}
 
-{% block title %}Leaderboard &middot; Wizard{% endblock %}
+{% block title %}{{ _("leaderboard_title", lang) }} &middot; Wizard{% endblock %}
 
 {% block head_extra %}
 <style>
-    /* ── Mode tabs ── */
-    .tabs {
-        display: flex;
-        justify-content: center;
-        gap: 8px;
-        margin-bottom: 20px;
+    .panel {
+        background: #12122b;
+        border: 1px solid #2a2a4a;
+        border-radius: 12px;
     }
-    .tab {
-        padding: 10px 28px;
+    .search-input {
+        width: 100%;
+        background: #1a1a3a;
         border: 1px solid #3a3a6a;
         border-radius: 8px;
-        background: #1a1a3a;
-        color: #888aaa;
-        cursor: pointer;
+        color: #e8e8f0;
+        padding: 10px 14px;
         font-size: 0.95rem;
-        font-weight: 600;
-        transition: all 0.15s;
     }
-    .tab:hover { border-color: #c9a84c; color: #e8e8f0; }
-    .tab.active {
-        background: #7a6230;
-        border-color: #c9a84c;
-        color: #fff8e0;
-    }
+    .search-input:focus { outline: none; border-color: #c9a84c; }
 
-    /* ── Sort bar ── */
-    .sort-bar {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 6px;
-        margin-bottom: 20px;
+    .group-row {
+        display: grid;
+        grid-template-columns: 50px 1fr 90px 90px 90px 90px;
+        gap: 10px;
+        align-items: center;
+        padding: 12px 14px;
+        border-top: 1px solid #1a1a3a;
+        transition: background 0.12s;
     }
-    .sort-btn {
-        padding: 6px 14px;
-        border: 1px solid #2a2a4a;
-        border-radius: 6px;
-        background: transparent;
-        color: #888aaa;
-        cursor: pointer;
-        font-size: 0.8rem;
-        transition: all 0.15s;
-    }
-    .sort-btn:hover { color: #c9a84c; border-color: #7a6230; }
-    .sort-btn.active {
-        background: #20204a;
-        border-color: #c9a84c;
-        color: #c9a84c;
-        font-weight: 600;
-    }
-
-    /* ── Table ── */
-    .table-wrap {
-        overflow-x: auto;
-        border-radius: 10px;
-        border: 1px solid #2a2a4a;
-    }
-    table { width: 100%; border-collapse: collapse; }
-    th {
+    .group-row:hover { background: #181835; cursor: pointer; }
+    .group-row.header {
         background: #1a1a3a;
         color: #7a6230;
         font-size: 0.75rem;
         font-weight: 600;
         letter-spacing: 1.5px;
         text-transform: uppercase;
-        padding: 12px 14px;
-        text-align: left;
-        white-space: nowrap;
+        border-radius: 8px 8px 0 0;
     }
-    th:first-child { text-align: center; width: 50px; }
-    td {
-        padding: 11px 14px;
-        border-top: 1px solid #1a1a3a;
-        font-size: 0.9rem;
-        white-space: nowrap;
-    }
-    td:first-child { text-align: center; font-weight: 700; color: #7a6230; }
-    tr:hover td { background: #12122b; }
-
+    .group-row.header:hover { background: #1a1a3a; cursor: default; }
+    .rank { text-align: center; font-weight: 700; color: #7a6230; }
     .rank-1 { color: #ffd700; }
     .rank-2 { color: #aaaacc; }
     .rank-3 { color: #cd7f32; }
-    .player-name { font-weight: 600; color: #e8e8f0; }
-    .stat-highlight { color: #c9a84c; font-weight: 600; }
-    .empty { text-align: center; color: #888aaa; font-style: italic; padding: 60px 20px; }
-    .loading { text-align: center; color: #888aaa; padding: 60px 20px; }
+    .group-name { font-weight: 600; color: #e8e8f0; }
+    .group-num { text-align: right; font-variant-numeric: tabular-nums; color: #c9a84c; }
+    .group-num.dim { color: #888aaa; font-weight: 500; }
+    .hidden-badge {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 1px 6px;
+        font-size: 0.65rem;
+        letter-spacing: 1px;
+        border-radius: 4px;
+        background: #2a2a4a;
+        color: #888aaa;
+    }
 
-    @media (max-width: 600px) {
-        .tab { padding: 8px 18px; font-size: 0.85rem; }
-        .sort-btn { padding: 5px 10px; font-size: 0.75rem; }
-        td, th { padding: 8px 8px; font-size: 0.8rem; }
+    .empty, .loading {
+        text-align: center; color: #888aaa;
+        padding: 50px 20px; font-style: italic;
+    }
+
+    /* Modal */
+    .modal-overlay {
+        position: fixed; inset: 0;
+        background: rgba(6, 6, 18, 0.8);
+        backdrop-filter: blur(4px);
+        display: none;
+        align-items: center; justify-content: center;
+        z-index: 50;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+        background: #12122b;
+        border: 1px solid #2a2a4a;
+        border-radius: 12px;
+        padding: 28px 26px;
+        width: 360px; max-width: 90vw;
+    }
+    .modal h2 {
+        color: #c9a84c;
+        font-weight: 700; letter-spacing: 1.5px;
+        font-size: 0.95rem; text-transform: uppercase;
+        margin-bottom: 14px; text-align: center;
+    }
+    .modal p { color: #888aaa; font-size: 0.85rem; margin-bottom: 14px; text-align: center; }
+    .code-input {
+        width: 100%;
+        background: #1a1a3a;
+        border: 2px solid #3a3a6a;
+        border-radius: 8px;
+        color: #fff8e0;
+        padding: 14px;
+        font-size: 1.8rem; font-weight: 700;
+        letter-spacing: 10px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+    }
+    .code-input:focus { outline: none; border-color: #c9a84c; }
+    .code-input.error { border-color: #d94a4a; }
+    .modal-btn-row { display: flex; gap: 8px; margin-top: 16px; }
+    .modal-btn {
+        flex: 1;
+        padding: 10px;
+        border-radius: 8px; border: 1px solid #3a3a6a;
+        background: #1a1a3a; color: #e8e8f0;
+        font-weight: 600; cursor: pointer; font-size: 0.9rem;
+        transition: all 0.15s;
+    }
+    .modal-btn:hover { border-color: #c9a84c; color: #c9a84c; }
+    .modal-btn.primary {
+        background: #7a6230; border-color: #c9a84c; color: #fff8e0;
+    }
+    .modal-btn.primary:hover { background: #c9a84c; color: #0d0d1a; }
+    .modal-err {
+        color: #d94a4a; font-size: 0.8rem; margin-top: 8px; text-align: center;
+        min-height: 1.2em;
+    }
+
+    @media (max-width: 720px) {
+        .group-row { grid-template-columns: 40px 1fr 70px 70px; gap: 6px; padding: 10px; }
+        .group-row .hide-sm { display: none; }
     }
 </style>
 {% endblock %}
@@ -102,113 +130,206 @@
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 py-8">
     <h1 class="text-center text-wizard-gold text-3xl font-bold tracking-widest mb-1">&#127183; {{ _("leaderboard_title", lang)|upper }}</h1>
-    <p class="text-center text-wizard-muted text-sm tracking-wider mb-7">{{ _("lb_global", lang) }}</p>
+    <p class="text-center text-wizard-muted text-sm tracking-wider mb-6">{{ _("lb_group_global_subtitle", lang) }}</p>
 
-    <div class="tabs">
-        <button class="tab active" data-mode="standard">{{ _("lb_tab_standard", lang) }}</button>
-        <button class="tab" data-mode="multiplicative">{{ _("lb_tab_mult", lang) }}</button>
+    <div class="mb-4">
+        <input id="searchInput"
+               class="search-input"
+               type="text"
+               placeholder="{{ _('lb_search_placeholder', lang) }}"
+               autocomplete="off">
     </div>
 
-    <div class="sort-bar">
-        <button class="sort-btn active" data-sort="wins">{{ _("lb_sort_wins", lang) }}</button>
-        <button class="sort-btn" data-sort="win_rate">{{ _("lb_sort_winrate", lang) }}</button>
-        <button class="sort-btn" data-sort="avg_score">{{ _("lb_sort_avg", lang) }}</button>
-        <button class="sort-btn" data-sort="hit_rate">{{ _("lb_sort_hitrate", lang) }}</button>
-        <button class="sort-btn" data-sort="highest_score">{{ _("lb_sort_high", lang) }}</button>
-        <button class="sort-btn" data-sort="win_streak">{{ _("lb_sort_streak", lang) }}</button>
+    <div class="panel overflow-hidden">
+        <div class="group-row header">
+            <div class="rank">#</div>
+            <div>{{ _("lb_col_group", lang) }}</div>
+            <div class="group-num dim hide-sm">{{ _("lb_table_games", lang) }}</div>
+            <div class="group-num dim hide-sm">{{ _("lb_table_avg", lang) }}</div>
+            <div class="group-num dim">{{ _("lb_table_hit", lang) }}</div>
+            <div class="group-num dim">{{ _("lb_players_short", lang) }}</div>
+        </div>
+        <div id="tbody">
+            <div class="loading">{{ _("lb_loading", lang) }}</div>
+        </div>
     </div>
 
-    <div id="content" class="loading">{{ _("lb_loading", lang) }}</div>
+    <p class="text-center text-wizard-dim text-xs mt-6">{{ _("lb_click_group_hint", lang) }}</p>
+</div>
+
+<!-- ── Code modal ── -->
+<div id="codeModal" class="modal-overlay">
+    <div class="modal">
+        <h2 id="codeModalTitle">{{ _("lb_enter_code", lang) }}</h2>
+        <p id="codeModalSub"></p>
+        <input id="codeInput" class="code-input" type="text" inputmode="numeric" maxlength="4" autocomplete="off">
+        <div id="codeErr" class="modal-err"></div>
+        <div class="modal-btn-row">
+            <button class="modal-btn" onclick="closeCodeModal()">{{ _("cancel", lang) }}</button>
+            <button class="modal-btn primary" onclick="submitCode()">{{ _("lb_open_btn", lang) }}</button>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    let currentMode = "standard";
-    let currentSort = "wins";
-    let leaderboardData = [];
+    const LANG = "{{ lang }}";
+    let allGroups = [];        // [{id, name, visibility, player_count, ...}]
+    let leaderboardRows = [];  // global groups ranking rows
+    let currentSearch = "";
 
-    document.querySelectorAll(".tab").forEach(btn => {
-        btn.addEventListener("click", () => {
-            document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
-            currentMode = btn.dataset.mode;
-            fetchData();
-        });
-    });
-
-    document.querySelectorAll(".sort-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-            document.querySelectorAll(".sort-btn").forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
-            currentSort = btn.dataset.sort;
-            renderTable();
-        });
-    });
-
-    async function fetchData() {
-        const content = document.getElementById("content");
-        content.innerHTML = '<div class="loading">{{ _("lb_loading", lang) }}</div>';
+    async function loadLeaderboard() {
+        const tbody = document.getElementById("tbody");
+        tbody.innerHTML = '<div class="loading">{{ _("lb_loading", lang) }}</div>';
         try {
-            const resp = await fetch(`/api/leaderboard?mode=${currentMode}`);
-            leaderboardData = await resp.json();
-            renderTable();
+            const [lbResp, listResp] = await Promise.all([
+                fetch("/api/leaderboard/groups"),
+                fetch("/api/groups"),
+            ]);
+            leaderboardRows = await lbResp.json();
+            allGroups = await listResp.json();
+            render();
         } catch (e) {
-            content.innerHTML = '<div class="empty">{{ _("lb_error", lang) }}</div>';
+            tbody.innerHTML = '<div class="empty">{{ _("lb_error", lang) }}</div>';
         }
     }
 
-    function renderTable() {
-        const content = document.getElementById("content");
-        if (leaderboardData.length === 0) {
-            content.innerHTML = '<div class="empty">{{ _("lb_empty", lang) }}</div>';
+    function render() {
+        const tbody = document.getElementById("tbody");
+        const q = currentSearch.trim().toLowerCase();
+
+        // Merge: ranked (public) groups from /api/leaderboard/groups are the
+        // primary rows. Hidden (or unranked) groups from /api/groups that
+        // match the search are appended beneath.
+        const rankedIds = new Set(leaderboardRows.map(r => r.id));
+        const ranked = leaderboardRows.map((r, i) => ({ ...r, _rank: i + 1 }));
+
+        const filteredRanked = q
+            ? ranked.filter(r => (r.name || "").toLowerCase().includes(q))
+            : ranked;
+
+        const extra = q
+            ? allGroups.filter(g =>
+                !rankedIds.has(g.id) &&
+                (g.name || "").toLowerCase().includes(q))
+            : [];
+
+        if (filteredRanked.length === 0 && extra.length === 0) {
+            tbody.innerHTML = '<div class="empty">{{ _("lb_no_groups_found", lang) }}</div>';
             return;
         }
-        const sorted = [...leaderboardData].sort((a, b) => b[currentSort] - a[currentSort]);
 
-        let html = '<div class="table-wrap"><table>';
-        html += `<thead><tr>
-            <th>#</th>
-            <th>{{ _("lb_name", lang) }}</th>
-            <th>{{ _("lb_table_games", lang) }}</th>
-            <th>{{ _("lb_table_wins", lang) }}</th>
-            <th>{{ _("lb_table_quote", lang) }}</th>
-            <th>{{ _("lb_table_avg", lang) }}</th>
-            <th>{{ _("lb_table_hit", lang) }}</th>
-            <th>{{ _("lb_table_high", lang) }}</th>
-            <th>{{ _("lb_table_streak", lang) }}</th>
-        </tr></thead><tbody>`;
-
-        sorted.forEach((p, i) => {
-            const rank = i + 1;
-            const rankClass = rank <= 3 ? ` class="rank-${rank}"` : '';
-            const medals = ["", "&#129351;", "&#129352;", "&#129353;"];
-            const medal = medals[rank] || "";
-            const isHighlight = (col) => col === currentSort ? ' class="stat-highlight"' : '';
-
-            html += `<tr>
-                <td${rankClass}>${medal || rank}</td>
-                <td class="player-name">${escHtml(p.name)}</td>
-                <td>${p.games}</td>
-                <td${isHighlight("wins")}>${p.wins}</td>
-                <td${isHighlight("win_rate")}>${p.win_rate}%</td>
-                <td${isHighlight("avg_score")}>${p.avg_score}</td>
-                <td${isHighlight("hit_rate")}>${p.hit_rate}%</td>
-                <td${isHighlight("highest_score")}>${p.highest_score}</td>
-                <td${isHighlight("win_streak")}>${p.win_streak}</td>
-            </tr>`;
+        let html = "";
+        filteredRanked.forEach(g => {
+            html += rowHtml(g, g._rank, /*hidden=*/false);
         });
+        extra.forEach(g => {
+            html += rowHtml(g, null, g.visibility === "hidden");
+        });
+        tbody.innerHTML = html;
 
-        html += '</tbody></table></div>';
-        content.innerHTML = html;
+        // Wire up click handlers
+        tbody.querySelectorAll(".group-row").forEach(row => {
+            row.addEventListener("click", () => {
+                const name = row.dataset.name || "";
+                openCodeModal(name);
+            });
+        });
+    }
+
+    function rowHtml(g, rank, isHidden) {
+        const medals = ["", "🥇", "🥈", "🥉"];
+        const rankCellClass = rank && rank <= 3 ? `rank rank-${rank}` : 'rank';
+        const rankCell = rank ? (medals[rank] || rank) : "·";
+        const avg = (g.avg_score ?? null);
+        const hit = (g.avg_hit_rate ?? null);
+        const games = (g.total_games ?? null);
+        const playerCount = g.player_count ?? null;
+        const hiddenTag = isHidden
+            ? '<span class="hidden-badge">{{ _("lb_hidden_badge", lang) }}</span>'
+            : '';
+        return `
+            <div class="group-row" data-name="${escHtml(g.name)}">
+                <div class="${rankCellClass}">${rankCell}</div>
+                <div class="group-name">${escHtml(g.name)}${hiddenTag}</div>
+                <div class="group-num dim hide-sm">${games ?? "–"}</div>
+                <div class="group-num dim hide-sm">${avg != null ? Number(avg).toFixed(1) : "–"}</div>
+                <div class="group-num dim">${hit != null ? Number(hit).toFixed(1) + "%" : "–"}</div>
+                <div class="group-num dim">${playerCount ?? "–"}</div>
+            </div>
+        `;
     }
 
     function escHtml(s) {
         const d = document.createElement("div");
-        d.textContent = s;
+        d.textContent = s ?? "";
         return d.innerHTML;
     }
 
-    fetchData();
+    // ── Modal ──────────────────────────────────────────────────────────
+    let pendingGroupName = "";
+
+    function openCodeModal(groupName) {
+        pendingGroupName = groupName;
+        document.getElementById("codeModalSub").textContent =
+            "{{ _('lb_enter_code_for', lang) }}".replace("{name}", groupName);
+        const input = document.getElementById("codeInput");
+        input.value = "";
+        input.classList.remove("error");
+        document.getElementById("codeErr").textContent = "";
+        document.getElementById("codeModal").classList.add("open");
+        setTimeout(() => input.focus(), 30);
+    }
+
+    function closeCodeModal() {
+        document.getElementById("codeModal").classList.remove("open");
+    }
+
+    async function submitCode() {
+        const input = document.getElementById("codeInput");
+        const err = document.getElementById("codeErr");
+        const code = input.value.trim();
+        if (!/^\d{4}$/.test(code)) {
+            input.classList.add("error");
+            err.textContent = "{{ _('lb_code_format_error', lang) }}";
+            return;
+        }
+        err.textContent = "";
+        input.classList.remove("error");
+        try {
+            const resp = await fetch(`/api/groups/${code}`);
+            if (!resp.ok) {
+                input.classList.add("error");
+                err.textContent = "{{ _('lb_code_wrong', lang) }}";
+                return;
+            }
+            const data = await resp.json();
+            // Optional extra guard: name must match the row the user clicked
+            // on, otherwise redirect anyway — they know the code.
+            window.location.href = `/leaderboard/group/${code}?lang=${LANG}`;
+        } catch (e) {
+            err.textContent = "{{ _('lb_error', lang) }}";
+        }
+    }
+
+    // Enter key to submit; ESC to close
+    document.addEventListener("keydown", (e) => {
+        const modalOpen = document.getElementById("codeModal").classList.contains("open");
+        if (!modalOpen) return;
+        if (e.key === "Enter") submitCode();
+        if (e.key === "Escape") closeCodeModal();
+    });
+    document.getElementById("codeModal").addEventListener("click", (e) => {
+        if (e.target.id === "codeModal") closeCodeModal();
+    });
+
+    // Search
+    document.getElementById("searchInput").addEventListener("input", (e) => {
+        currentSearch = e.target.value;
+        render();
+    });
+
+    loadLeaderboard();
 </script>
 {% endblock %}

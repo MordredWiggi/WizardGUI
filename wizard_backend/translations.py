@@ -72,6 +72,23 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         # Feedback
         "fb_submit": "Submit Feedback",
         "fb_placeholder": "Write your feedback...",
+
+        # Groups leaderboard page
+        "lb_group_global_subtitle": "GROUPS RANKING",
+        "lb_group_subtitle": "GROUP PLAYER RANKING",
+        "lb_search_placeholder": "Search groups by name…",
+        "lb_col_group": "Group",
+        "lb_players_short": "Players",
+        "lb_click_group_hint": "Click a group to open its player leaderboard (4-digit code required).",
+        "lb_no_groups_found": "No groups match your search.",
+        "lb_hidden_badge": "HIDDEN",
+        "lb_enter_code": "Enter group code",
+        "lb_enter_code_for": "Enter the 4-digit code for {name}",
+        "lb_open_btn": "Open",
+        "lb_code_format_error": "Code must be 4 digits.",
+        "lb_code_wrong": "Wrong or unknown code.",
+        "lb_back_to_groups": "Back to groups",
+        "cancel": "Cancel",
     },
     "de": {
         # Nav
@@ -135,6 +152,23 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         
         "fb_submit": "Senden",
         "fb_placeholder": "Dein Feedback...",
+
+        # Groups leaderboard page
+        "lb_group_global_subtitle": "GRUPPEN-RANGLISTE",
+        "lb_group_subtitle": "SPIELER-RANGLISTE DER GRUPPE",
+        "lb_search_placeholder": "Gruppe nach Name suchen…",
+        "lb_col_group": "Gruppe",
+        "lb_players_short": "Spieler",
+        "lb_click_group_hint": "Klicke eine Gruppe an, um die Spieler-Rangliste zu öffnen (4-stelliger Code nötig).",
+        "lb_no_groups_found": "Keine Gruppe gefunden.",
+        "lb_hidden_badge": "VERSTECKT",
+        "lb_enter_code": "Gruppen-Code eingeben",
+        "lb_enter_code_for": "Gib den 4-stelligen Code für {name} ein",
+        "lb_open_btn": "Öffnen",
+        "lb_code_format_error": "Code muss aus 4 Ziffern bestehen.",
+        "lb_code_wrong": "Code falsch oder unbekannt.",
+        "lb_back_to_groups": "Zurück zu den Gruppen",
+        "cancel": "Abbrechen",
     },
     "fr": {
         # Nav
@@ -196,6 +230,23 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         
         "fb_submit": "Envoyer",
         "fb_placeholder": "Votre retour...",
+
+        # Groups leaderboard page
+        "lb_group_global_subtitle": "CLASSEMENT DES GROUPES",
+        "lb_group_subtitle": "CLASSEMENT DES JOUEURS DU GROUPE",
+        "lb_search_placeholder": "Rechercher un groupe par nom…",
+        "lb_col_group": "Groupe",
+        "lb_players_short": "Joueurs",
+        "lb_click_group_hint": "Cliquez sur un groupe pour ouvrir son classement (code à 4 chiffres requis).",
+        "lb_no_groups_found": "Aucun groupe trouvé.",
+        "lb_hidden_badge": "MASQUÉ",
+        "lb_enter_code": "Code du groupe",
+        "lb_enter_code_for": "Entrez le code à 4 chiffres de {name}",
+        "lb_open_btn": "Ouvrir",
+        "lb_code_format_error": "Le code doit contenir 4 chiffres.",
+        "lb_code_wrong": "Code incorrect ou inconnu.",
+        "lb_back_to_groups": "Retour aux groupes",
+        "cancel": "Annuler",
     },
     "hi": {
         # Nav
@@ -257,5 +308,22 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         
         "fb_submit": "सबमिट करें",
         "fb_placeholder": "अपना फीडबैक लिखें...",
+
+        # Groups leaderboard page
+        "lb_group_global_subtitle": "समूह रैंकिंग",
+        "lb_group_subtitle": "समूह के खिलाड़ियों की रैंकिंग",
+        "lb_search_placeholder": "नाम से समूह खोजें…",
+        "lb_col_group": "समूह",
+        "lb_players_short": "खिलाड़ी",
+        "lb_click_group_hint": "खिलाड़ियों की रैंकिंग खोलने के लिए किसी समूह पर क्लिक करें (4-अंकीय कोड आवश्यक)।",
+        "lb_no_groups_found": "कोई समूह नहीं मिला।",
+        "lb_hidden_badge": "छिपा हुआ",
+        "lb_enter_code": "समूह कोड दर्ज करें",
+        "lb_enter_code_for": "{name} के लिए 4-अंकीय कोड दर्ज करें",
+        "lb_open_btn": "खोलें",
+        "lb_code_format_error": "कोड 4 अंकों का होना चाहिए।",
+        "lb_code_wrong": "गलत या अज्ञात कोड।",
+        "lb_back_to_groups": "समूहों पर वापस जाएं",
+        "cancel": "रद्द करें",
     }
 }

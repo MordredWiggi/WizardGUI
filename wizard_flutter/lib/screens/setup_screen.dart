@@ -7,6 +7,7 @@ import '../persistence/save_manager.dart';
 import '../services/leaderboard_service.dart';
 import '../state/game_notifier.dart';
 import '../theme/app_theme.dart';
+import '../widgets/leaderboard_tabs.dart';
 import 'game_screen.dart';
 import 'settings_screen.dart';
 import 'pending_sync_dialog.dart';
@@ -34,10 +35,13 @@ class _SetupScreenState extends State<SetupScreen> {
   List<SavedGameMeta> _savedGames = [];
   bool _loadingSaved = false;
 
+  // Index of the active bottom tab: 0 = Saved Games, 1 = Groups LB, 2 = My Group LB
+  int _bottomTab = 0;
+
   // ── Group state ──────────────────────────────────────────────────────────
+  // No group = offline by default. The user can always start a game without
+  // picking a group.
   Map<String, dynamic>? _selectedGroup;
-  // User explicitly opted into playing without a group
-  bool _offlineMode = false;
 
   @override
   void initState() {
@@ -104,10 +108,7 @@ class _SetupScreenState extends State<SetupScreen> {
       builder: (_) => _GroupSelectDialog(service: svc),
     );
     if (group != null && mounted) {
-      setState(() {
-        _selectedGroup = group;
-        _offlineMode = false;
-      });
+      setState(() => _selectedGroup = group);
       context.read<GameNotifier>().setGroup(group);
     }
   }
@@ -123,32 +124,19 @@ class _SetupScreenState extends State<SetupScreen> {
       builder: (_) => _GroupCreateDialog(service: svc),
     );
     if (group != null && mounted) {
-      setState(() {
-        _selectedGroup = group;
-        _offlineMode = false;
-      });
+      setState(() => _selectedGroup = group);
       context.read<GameNotifier>().setGroup(group);
     }
   }
 
   void _clearGroup() {
-    // Bug fix: fully reset all group-related state so the UI reflects the
-    // "no group" state immediately (no stale status text or offline flag).
+    // Return fully to the default offline state — no lingering group.
     setState(() {
       _selectedGroup = null;
-      _offlineMode = false;
+      // If the user was viewing the My-Group tab, bounce back to saved games.
+      if (_bottomTab == 2) _bottomTab = 0;
     });
     context.read<GameNotifier>().clearGroup();
-  }
-
-  void _toggleOffline() {
-    setState(() {
-      _offlineMode = !_offlineMode;
-      if (_offlineMode) {
-        _selectedGroup = null;
-        context.read<GameNotifier>().clearGroup();
-      }
-    });
   }
 
   void _showNoUrlSnackbar() {
@@ -178,7 +166,7 @@ class _SetupScreenState extends State<SetupScreen> {
 
   void _startGame() {
     if (_players.length < 2) return;
-    if (_selectedGroup == null && !_offlineMode) return;
+    // No group selected is a valid, offline-by-default way to play.
     context.read<GameNotifier>().startGame(List.from(_players), _gameMode);
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const GameScreen()),
@@ -205,6 +193,89 @@ class _SetupScreenState extends State<SetupScreen> {
         );
       }
     }
+  }
+
+  Widget _buildSavedGames(BuildContext context, String Function(String, [Map<String, String>]) t, ThemeData theme) {
+    if (_loadingSaved) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_savedGames.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              icon: const Icon(Icons.refresh, size: 20),
+              tooltip: t('btn_refresh'),
+              onPressed: _refreshSaved,
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Text(
+              t('no_saved_games'),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
+            ),
+          ),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: IconButton(
+            icon: const Icon(Icons.refresh, size: 20),
+            tooltip: t('btn_refresh'),
+            onPressed: _refreshSaved,
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+        Expanded(
+          child: ListView.separated(
+            itemCount: _savedGames.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (_, i) {
+              final g = _savedGames[i];
+              String dateStr = '–';
+              try {
+                final dt = DateTime.parse(g.savedAt);
+                dateStr = DateFormat('dd.MM.yyyy HH:mm').format(dt.toLocal());
+              } catch (_) {}
+              return ListTile(
+                dense: true,
+                title: Text(g.name,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600)),
+                subtitle: Text(
+                    '$dateStr  ·  ${g.players.join(', ')}  ·  ${t('saved_round')} ${g.rounds}',
+                    style: theme.textTheme.bodySmall),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.folder_open_outlined, size: 20),
+                      tooltip: t('load'),
+                      onPressed: () => _loadGame(g),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 20),
+                      tooltip: t('delete_game'),
+                      onPressed: () => _deleteGame(g),
+                    ),
+                  ],
+                ),
+                onTap: () => _loadGame(g),
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _deleteGame(SavedGameMeta meta) async {
@@ -236,8 +307,7 @@ class _SetupScreenState extends State<SetupScreen> {
     final settings = context.watch<AppSettings>();
     final t = settings.t;
     final theme = Theme.of(context);
-    final canStart =
-        _players.length >= 2 && (_selectedGroup != null || _offlineMode);
+    final canStart = _players.length >= 2;
 
     return Scaffold(
       appBar: AppBar(
@@ -301,21 +371,6 @@ class _SetupScreenState extends State<SetupScreen> {
                       ),
                     ]),
                     const SizedBox(height: 8),
-                  ] else if (_offlineMode) ...[
-                    Row(children: [
-                      Icon(Icons.wifi_off,
-                          size: 18, color: theme.colorScheme.primary),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          t('offline_mode_active'),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ]),
-                    const SizedBox(height: 8),
                   ] else ...[
                     Text(t('group_not_selected'),
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -342,27 +397,6 @@ class _SetupScreenState extends State<SetupScreen> {
                       ),
                     ),
                   ]),
-                  const SizedBox(height: 8),
-                  // Offline toggle – lets user start a game without a group
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _toggleOffline,
-                      icon: Icon(
-                        _offlineMode ? Icons.check_circle : Icons.wifi_off,
-                        size: 18,
-                      ),
-                      label: Text(t('play_offline_btn')),
-                      style: _offlineMode
-                          ? OutlinedButton.styleFrom(
-                              backgroundColor: theme.colorScheme.primary
-                                  .withOpacity(0.12),
-                              side: BorderSide(
-                                  color: theme.colorScheme.primary, width: 1.5),
-                            )
-                          : null,
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -483,88 +517,53 @@ class _SetupScreenState extends State<SetupScreen> {
                       child: Text(t('start_game')),
                     ),
                   ),
-                  if (!canStart && _selectedGroup == null && !_offlineMode)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(t('group_required'),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                              fontStyle: FontStyle.italic,
-                              color: kDanger)),
-                    ),
                 ],
               ),
             ),
 
             const SizedBox(height: 16),
 
-            // ── Saved games ───────────────────────────────────────────────
+            // ── Bottom tabs: Saved games | Groups LB | My Group LB ────────
             _SectionCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _SectionHeader(t('saved_games_header')),
-                      IconButton(
-                        icon: const Icon(Icons.refresh, size: 20),
-                        tooltip: t('btn_refresh'),
-                        onPressed: _refreshSaved,
-                        visualDensity: VisualDensity.compact,
+                      _TabChip(
+                        label: t('saved_games_header'),
+                        selected: _bottomTab == 0,
+                        onTap: () => setState(() => _bottomTab = 0),
+                      ),
+                      const SizedBox(width: 6),
+                      _TabChip(
+                        label: t('tab_groups_lb'),
+                        selected: _bottomTab == 1,
+                        onTap: () => setState(() => _bottomTab = 1),
+                      ),
+                      const SizedBox(width: 6),
+                      _TabChip(
+                        label: t('tab_group_lb'),
+                        selected: _bottomTab == 2,
+                        // Only enabled once a group is selected
+                        onTap: _selectedGroup == null
+                            ? null
+                            : () => setState(() => _bottomTab = 2),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  if (_loadingSaved)
-                    const Center(child: CircularProgressIndicator())
-                  else if (_savedGames.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Text(t('no_saved_games'),
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(fontStyle: FontStyle.italic)),
-                    )
-                  else
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _savedGames.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (_, i) {
-                        final g = _savedGames[i];
-                        String dateStr = '–';
-                        try {
-                          final dt = DateTime.parse(g.savedAt);
-                          dateStr =
-                              DateFormat('dd.MM.yyyy HH:mm').format(dt.toLocal());
-                        } catch (_) {}
-                        return ListTile(
-                          dense: true,
-                          title: Text(g.name,
-                              style: theme.textTheme.bodyMedium
-                                  ?.copyWith(fontWeight: FontWeight.w600)),
-                          subtitle: Text(
-                              '$dateStr  ·  ${g.players.join(', ')}  ·  ${t('saved_round')} ${g.rounds}',
-                              style: theme.textTheme.bodySmall),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.folder_open_outlined, size: 20),
-                                tooltip: t('load'),
-                                onPressed: () => _loadGame(g),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, size: 20),
-                                tooltip: t('delete_game'),
-                                onPressed: () => _deleteGame(g),
-                              ),
-                            ],
-                          ),
-                          onTap: () => _loadGame(g),
-                        );
-                      },
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 340,
+                    child: IndexedStack(
+                      index: _bottomTab,
+                      children: [
+                        _buildSavedGames(context, t, theme),
+                        const GroupsLeaderboardTab(),
+                        const MyGroupLeaderboardTab(),
+                      ],
                     ),
+                  ),
                 ],
               ),
             ),
@@ -918,6 +917,55 @@ class _SectionHeader extends StatelessWidget {
               color: Theme.of(context).colorScheme.primary,
             ),
       );
+}
+
+class _TabChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+  const _TabChip({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final enabled = onTap != null;
+    final color = !enabled
+        ? theme.colorScheme.onSurface.withOpacity(0.3)
+        : selected
+            ? theme.colorScheme.onPrimary
+            : theme.colorScheme.onSurface.withOpacity(0.7);
+    final bg = selected
+        ? theme.colorScheme.primary
+        : theme.colorScheme.surface;
+    final borderColor = !enabled
+        ? theme.dividerColor
+        : selected
+            ? theme.colorScheme.primary
+            : theme.colorScheme.onSurface.withOpacity(0.2);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: bg,
+            border: Border.all(color: borderColor, width: 1),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: color,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _PlayerChip extends StatelessWidget {

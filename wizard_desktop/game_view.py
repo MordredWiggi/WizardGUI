@@ -757,21 +757,23 @@ class GameView(QtWidgets.QWidget):
         right_layout.setContentsMargins(16, 16, 16, 16)
         right_layout.setSpacing(8)
 
-        # Toggle row: Chart | Leaderboard | Groups
+        # Toggle row: Chart | Groups | My Group
         toggle_row = QtWidgets.QHBoxLayout()
         toggle_row.setSpacing(4)
         self._btn_tab_chart = QtWidgets.QPushButton(t("tab_chart"))
-        self._btn_tab_lb = QtWidgets.QPushButton(t("tab_leaderboard"))
         self._btn_tab_groups = QtWidgets.QPushButton(t("tab_groups_lb"))
-        for btn in (self._btn_tab_chart, self._btn_tab_lb, self._btn_tab_groups):
+        self._btn_tab_mygroup = QtWidgets.QPushButton(t("tab_group_lb"))
+        for btn in (self._btn_tab_chart, self._btn_tab_groups, self._btn_tab_mygroup):
             btn.setMinimumHeight(30)
             btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self._btn_tab_chart.clicked.connect(lambda: self._switch_right_tab(0))
-        self._btn_tab_lb.clicked.connect(lambda: self._switch_right_tab(1))
-        self._btn_tab_groups.clicked.connect(lambda: self._switch_right_tab(2))
+        self._btn_tab_groups.clicked.connect(lambda: self._switch_right_tab(1))
+        self._btn_tab_mygroup.clicked.connect(lambda: self._switch_right_tab(2))
+        # "My Group" tab stays disabled until a group is active
+        self._btn_tab_mygroup.setEnabled(False)
         toggle_row.addWidget(self._btn_tab_chart)
-        toggle_row.addWidget(self._btn_tab_lb)
         toggle_row.addWidget(self._btn_tab_groups)
+        toggle_row.addWidget(self._btn_tab_mygroup)
         toggle_row.addStretch()
         right_layout.addLayout(toggle_row)
 
@@ -782,15 +784,14 @@ class GameView(QtWidgets.QWidget):
         self.canvas = MplCanvas(self)
         self._right_stack.addWidget(self.canvas)  # index 0
 
-        # Page 1: Player leaderboard (with Global/Group scope toggle inside)
-        from leaderboard_widget import LeaderboardWidget
-        self._leaderboard_widget = LeaderboardWidget()
-        self._right_stack.addWidget(self._leaderboard_widget)  # index 1
-
-        # Page 2: Global groups ranking
-        from leaderboard_widget import GroupsLeaderboardWidget
+        # Page 1: Global groups ranking (only public groups)
+        from leaderboard_widget import GroupsLeaderboardWidget, GroupPlayerLeaderboardWidget
         self._groups_lb_widget = GroupsLeaderboardWidget()
-        self._right_stack.addWidget(self._groups_lb_widget)  # index 2
+        self._right_stack.addWidget(self._groups_lb_widget)  # index 1
+
+        # Page 2: Current group's internal player leaderboard
+        self._group_player_lb_widget = GroupPlayerLeaderboardWidget()
+        self._right_stack.addWidget(self._group_player_lb_widget)  # index 2
 
         right_layout.addWidget(self._right_stack, 1)
         self._current_right_tab = 0
@@ -805,13 +806,17 @@ class GameView(QtWidgets.QWidget):
         self.canvas.redraw(self.game)
 
     def set_group(self, group: Optional[dict]) -> None:
-        """Forward the active group's code to the unified leaderboard widget.
+        """Bind or unbind the group-player leaderboard tab.
 
-        The widget uses this to enable the Group scope toggle; when None, only
-        Global is available.
+        When ``group`` is None the "My Group" tab is disabled and the view
+        falls back to the Chart or Groups tab.
         """
         code = group["code"] if group else None
-        self._leaderboard_widget.set_group(code)
+        self._group_player_lb_widget.set_group(code)
+        self._btn_tab_mygroup.setEnabled(group is not None)
+        if group is None and self._current_right_tab == 2:
+            self._switch_right_tab(0)
+        self._apply_right_tab_style()
 
     def _switch_right_tab(self, index: int) -> None:
         self._current_right_tab = index
@@ -821,7 +826,7 @@ class GameView(QtWidgets.QWidget):
     def _apply_right_tab_style(self) -> None:
         dark = get_theme() != "light"
         tabs = [
-            self._btn_tab_chart, self._btn_tab_lb, self._btn_tab_groups,
+            self._btn_tab_chart, self._btn_tab_groups, self._btn_tab_mygroup,
         ]
         for i, btn in enumerate(tabs):
             active = (i == self._current_right_tab)
@@ -999,11 +1004,11 @@ class GameView(QtWidgets.QWidget):
         self.btn_settings.setToolTip(t("tooltip_settings"))
         self.lbl_bid_warning.setText(t("bid_warning"))
         self._btn_tab_chart.setText(t("tab_chart"))
-        self._btn_tab_lb.setText(t("tab_leaderboard"))
         self._btn_tab_groups.setText(t("tab_groups_lb"))
+        self._btn_tab_mygroup.setText(t("tab_group_lb"))
         self._apply_right_tab_style()
-        self._leaderboard_widget.retranslate_ui()
         self._groups_lb_widget.retranslate_ui()
+        self._group_player_lb_widget.retranslate_ui()
         for card in self._player_cards:
             card.retranslate_ui()
         # _refresh_scores re-renders dealer badges + round header + bid counter
