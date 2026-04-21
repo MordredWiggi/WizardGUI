@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../domain/player.dart';
-import '../domain/round_result.dart';
 import '../persistence/app_settings.dart';
 import '../theme/app_theme.dart';
 
 /// Layer 1 – input card for one player per round.
-/// Shows avatar, name, current score, delta, bid/made spinners.
-class PlayerEntryCard extends StatefulWidget {
+/// Controlled widget: bid/made values are owned by the parent so they survive
+/// ListView recycling as players scroll off-screen.
+class PlayerEntryCard extends StatelessWidget {
   final Player player;
   final Color color;
   final int playerIndex;
@@ -16,6 +16,8 @@ class PlayerEntryCard extends StatefulWidget {
   final bool isDealer;
   final bool isLeader;
   final int scoreDelta;       // delta from last round (0 before any round)
+  final int bid;
+  final int made;
   final void Function(int bid, int made) onChanged;
 
   const PlayerEntryCard({
@@ -27,41 +29,19 @@ class PlayerEntryCard extends StatefulWidget {
     required this.isDealer,
     required this.isLeader,
     required this.scoreDelta,
+    required this.bid,
+    required this.made,
     required this.onChanged,
   });
 
-  @override
-  State<PlayerEntryCard> createState() => PlayerEntryCardState();
-}
-
-class PlayerEntryCardState extends State<PlayerEntryCard> {
-  late int _bid;
-  late int _made;
-
-  int get bid => _bid;
-  int get made => _made;
-
-  @override
-  void initState() {
-    super.initState();
-    _bid = 0;
-    _made = 0;
-  }
-
-  void fillMadeFromBid() => setState(() => _made = _bid);
-
-  RoundResult get result => RoundResult(said: _bid, achieved: _made);
-
   void _setBid(int v) {
-    if (v < 0 || v > widget.maxBid) return;
-    setState(() => _bid = v);
-    widget.onChanged(_bid, _made);
+    if (v < 0 || v > maxBid) return;
+    onChanged(v, made);
   }
 
   void _setMade(int v) {
-    if (v < 0 || v > widget.maxBid) return;
-    setState(() => _made = v);
-    widget.onChanged(_bid, _made);
+    if (v < 0 || v > maxBid) return;
+    onChanged(bid, v);
   }
 
   @override
@@ -76,8 +56,8 @@ class PlayerEntryCardState extends State<PlayerEntryCard> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: widget.isLeader ? kLeader : widget.color.withOpacity(0.5),
-          width: widget.isLeader ? 2 : 1,
+          color: isLeader ? kLeader : color.withOpacity(0.5),
+          width: isLeader ? 2 : 1,
         ),
       ),
       child: Padding(
@@ -87,7 +67,7 @@ class PlayerEntryCardState extends State<PlayerEntryCard> {
           children: [
             // ── Header row ─────────────────────────────────────────────
             Row(children: [
-              Text(widget.player.avatar,
+              Text(player.avatar,
                   style: const TextStyle(fontSize: 26)),
               const SizedBox(width: 10),
               Expanded(
@@ -95,16 +75,16 @@ class PlayerEntryCardState extends State<PlayerEntryCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
-                      Text(widget.player.name,
+                      Text(player.name,
                           style: TextStyle(
-                              color: widget.color,
+                              color: color,
                               fontWeight: FontWeight.bold,
                               fontSize: 15)),
-                      if (widget.isDealer) ...[
+                      if (isDealer) ...[
                         const SizedBox(width: 6),
                         _Badge('🃏', kAccentDim),
                       ],
-                      if (widget.isLeader) ...[
+                      if (isLeader) ...[
                         const SizedBox(width: 4),
                         _Badge('👑', kLeader),
                       ],
@@ -112,16 +92,16 @@ class PlayerEntryCardState extends State<PlayerEntryCard> {
                     const SizedBox(height: 2),
                     Row(children: [
                       Text(
-                        widget.player.currentScore.toString(),
+                        player.currentScore.toString(),
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: widget.color,
+                          color: color,
                         ),
                       ),
-                      if (widget.scoreDelta != 0) ...[
+                      if (scoreDelta != 0) ...[
                         const SizedBox(width: 8),
-                        _DeltaBadge(widget.scoreDelta),
+                        _DeltaBadge(scoreDelta),
                       ],
                     ]),
                   ],
@@ -138,11 +118,11 @@ class PlayerEntryCardState extends State<PlayerEntryCard> {
               Expanded(
                 child: _SpinnerField(
                   label: t('announced'),
-                  value: _bid,
-                  max: widget.maxBid,
-                  color: widget.color,
-                  onDecrement: () => _setBid(_bid - 1),
-                  onIncrement: () => _setBid(_bid + 1),
+                  value: bid,
+                  max: maxBid,
+                  color: color,
+                  onDecrement: () => _setBid(bid - 1),
+                  onIncrement: () => _setBid(bid + 1),
                   onChanged: (v) => _setBid(v),
                 ),
               ),
@@ -150,11 +130,11 @@ class PlayerEntryCardState extends State<PlayerEntryCard> {
               Expanded(
                 child: _SpinnerField(
                   label: t('achieved'),
-                  value: _made,
-                  max: widget.maxBid,
-                  color: widget.color,
-                  onDecrement: () => _setMade(_made - 1),
-                  onIncrement: () => _setMade(_made + 1),
+                  value: made,
+                  max: maxBid,
+                  color: color,
+                  onDecrement: () => _setMade(made - 1),
+                  onIncrement: () => _setMade(made + 1),
                   onChanged: (v) => _setMade(v),
                 ),
               ),

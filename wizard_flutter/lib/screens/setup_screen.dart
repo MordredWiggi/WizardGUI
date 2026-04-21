@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -43,13 +45,48 @@ class _SetupScreenState extends State<SetupScreen> {
   // No group = offline by default. The user can always start a game without
   // picking a group.
   Map<String, dynamic>? _selectedGroup;
+  // Lowercased names of players already in _selectedGroup (from the server).
+  // Used to highlight the name field when adding a player whose name is
+  // already registered in the group.
+  Set<String> _groupPlayers = const {};
 
   @override
   void initState() {
     super.initState();
     _refreshSaved();
+    // Rebuild the name field whenever the text changes so its colour can
+    // reflect whether the typed name already exists in the selected group.
+    _nameController.addListener(_onNameChanged);
     // On first build, check for offline-queued games and offer to sync.
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingSync());
+  }
+
+  void _onNameChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _loadGroupPlayers(String code) async {
+    final url = context.read<AppSettings>().leaderboardUrl;
+    if (url.isEmpty) {
+      if (mounted) setState(() => _groupPlayers = const {});
+      return;
+    }
+    final svc = LeaderboardService(url);
+    final rows = await svc.getGroupPlayerLeaderboard(code, 'standard');
+    if (!mounted) return;
+    setState(() {
+      _groupPlayers = (rows ?? const [])
+          .map((r) => (r['name'] as String? ?? '').toLowerCase())
+          .where((s) => s.isNotEmpty)
+          .toSet();
+    });
+  }
+
+  bool get _nameExistsInGroup {
+    if (_selectedGroup == null) return false;
+    final name = _nameController.text.trim().toLowerCase();
+    if (name.isEmpty) return false;
+    return _groupPlayers.contains(name);
   }
 
   Future<void> _checkPendingSync() async {
@@ -78,6 +115,7 @@ class _SetupScreenState extends State<SetupScreen> {
 
   @override
   void dispose() {
+    _nameController.removeListener(_onNameChanged);
     _nameController.dispose();
     _nameFocus.dispose();
     super.dispose();
@@ -111,6 +149,8 @@ class _SetupScreenState extends State<SetupScreen> {
     if (group != null && mounted) {
       setState(() => _selectedGroup = group);
       context.read<GameNotifier>().setGroup(group);
+      final code = group['code'] as String?;
+      if (code != null) _loadGroupPlayers(code);
     }
   }
 
@@ -127,6 +167,8 @@ class _SetupScreenState extends State<SetupScreen> {
     if (group != null && mounted) {
       setState(() => _selectedGroup = group);
       context.read<GameNotifier>().setGroup(group);
+      final code = group['code'] as String?;
+      if (code != null) _loadGroupPlayers(code);
     }
   }
 
@@ -134,6 +176,7 @@ class _SetupScreenState extends State<SetupScreen> {
     // Return fully to the default offline state — no lingering group.
     setState(() {
       _selectedGroup = null;
+      _groupPlayers = const {};
       // If the user was viewing the My-Group tab, bounce back to saved games.
       if (_bottomTab == 2) _bottomTab = 0;
     });
@@ -444,12 +487,17 @@ class _SetupScreenState extends State<SetupScreen> {
                             hintText: t('player_name_placeholder')),
                         onSubmitted: (_) => _addPlayer(),
                         textInputAction: TextInputAction.done,
+                        style: _nameExistsInGroup
+                            ? const TextStyle(
+                                color: kSuccess, fontWeight: FontWeight.w600)
+                            : null,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    ElevatedButton(
+                    IconButton.filled(
                       onPressed: _addPlayer,
-                      child: Text(t('btn_add')),
+                      tooltip: t('btn_add'),
+                      icon: const Icon(Icons.add),
                     ),
                   ]),
 
@@ -597,8 +645,10 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
   List<Map<String, dynamic>> _groups = [];
   bool _loading = false;
   bool _connectionFailed = false;
-  String? _codeStatus; // null | 'ok' | 'error'
+  String? _codeStatus; // null | 'checking' | 'ok' | 'error'
   Map<String, dynamic>? _validatedGroup;
+  Timer? _codeDebounce;
+  int _codeRequestSeq = 0;
 
   @override
   void initState() {
@@ -608,6 +658,7 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
 
   @override
   void dispose() {
+    _codeDebounce?.cancel();
     _searchController.dispose();
     _codeController.dispose();
     _codeFocusNode.dispose();
@@ -626,19 +677,36 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
     }
   }
 
-  Future<void> _validateCode() async {
-    final code = _codeController.text.trim();
-    if (code.length != 4 || int.tryParse(code) == null) {
-      setState(() { _codeStatus = 'error'; _validatedGroup = null; });
+  void _onCodeChanged(String value) {
+    _codeDebounce?.cancel();
+    final code = value.trim();
+    if (code.isEmpty) {
+      setState(() { _codeStatus = null; _validatedGroup = null; });
       return;
     }
-    final group = await widget.service.getGroupByCode(code);
-    if (mounted) {
-      setState(() {
-        _validatedGroup = group;
-        _codeStatus = group != null ? 'ok' : 'error';
-      });
+    if (code.length != 4 || int.tryParse(code) == null) {
+      // Not a complete valid code yet — show nothing while typing.
+      setState(() { _codeStatus = null; _validatedGroup = null; });
+      return;
     }
+    // Debounce briefly so we don't hammer the server on every keystroke.
+    _codeDebounce = Timer(const Duration(milliseconds: 250), () {
+      _validateCode(code);
+    });
+  }
+
+  Future<void> _validateCode(String code) async {
+    final mySeq = ++_codeRequestSeq;
+    setState(() {
+      _codeStatus = 'checking';
+      _validatedGroup = null;
+    });
+    final group = await widget.service.getGroupByCode(code);
+    if (!mounted || mySeq != _codeRequestSeq) return;
+    setState(() {
+      _validatedGroup = group;
+      _codeStatus = group != null ? 'ok' : 'error';
+    });
   }
 
   @override
@@ -711,34 +779,68 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
                 style: theme.textTheme.bodySmall
                     ?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
-            Row(children: [
-              Expanded(
-                child: TextField(
-                  controller: _codeController,
-                  focusNode: _codeFocusNode,
-                  decoration: InputDecoration(
-                      hintText: t('group_code_placeholder')),
-                  keyboardType: TextInputType.number,
-                  maxLength: 4,
-                  onChanged: (_) => setState(() { _codeStatus = null; _validatedGroup = null; }),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _codeController,
+                    focusNode: _codeFocusNode,
+                    decoration: InputDecoration(
+                      hintText: t('group_code_placeholder'),
+                      counterText: '',
+                    ),
+                    keyboardType: TextInputType.number,
+                    maxLength: 4,
+                    onChanged: _onCodeChanged,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: _validateCode,
-                child: Text(t('group_code_validate')),
-              ),
-            ]),
-
-            if (_codeStatus == 'ok')
-              Text(
-                t('group_code_correct',
-                    {'name': _validatedGroup?['name'] ?? ''}),
-                style: theme.textTheme.bodySmall?.copyWith(color: kSuccess),
-              )
-            else if (_codeStatus == 'error')
-              Text(t('group_code_invalid'),
-                  style: theme.textTheme.bodySmall?.copyWith(color: kDanger)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _codeStatus == 'checking'
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : _codeStatus == 'ok'
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.check_circle,
+                                    color: kSuccess, size: 18),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    _validatedGroup?['name'] as String? ?? '',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodySmall
+                                        ?.copyWith(color: kSuccess),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : _codeStatus == 'error'
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.cancel,
+                                        color: kDanger, size: 18),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        t('group_code_invalid_short'),
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(color: kDanger),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : const SizedBox.shrink(),
+                ),
+              ],
+            ),
           ],
         ),
       ),

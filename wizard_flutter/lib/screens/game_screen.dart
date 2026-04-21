@@ -27,8 +27,10 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  // One GlobalKey per player card so we can read bid/made values
-  final List<GlobalKey<PlayerEntryCardState>> _cardKeys = [];
+  // Per-player bid/made values, owned by the parent so they survive ListView
+  // recycling as cards scroll off-screen.
+  final List<int> _bids = [];
+  final List<int> _mades = [];
 
   @override
   void initState() {
@@ -42,13 +44,16 @@ class _GameScreenState extends State<GameScreen>
     super.dispose();
   }
 
-  // ── Build per-player card keys when player count changes ───────────────────
+  void _ensureCapacity(int n) {
+    while (_bids.length < n) _bids.add(0);
+    while (_mades.length < n) _mades.add(0);
+  }
 
-  List<GlobalKey<PlayerEntryCardState>> _keysFor(int n) {
-    while (_cardKeys.length < n) {
-      _cardKeys.add(GlobalKey<PlayerEntryCardState>());
+  void _resetEntries() {
+    for (var i = 0; i < _bids.length; i++) {
+      _bids[i] = 0;
+      _mades[i] = 0;
     }
-    return _cardKeys.sublist(0, n);
   }
 
   // ── Actions ────────────────────────────────────────────────────────────────
@@ -56,12 +61,13 @@ class _GameScreenState extends State<GameScreen>
   void _completeRound(BuildContext context, GameControl game) {
     final settings = context.read<AppSettings>();
     final t = settings.t;
-    final keys = _keysFor(game.numPlayers);
+    _ensureCapacity(game.numPlayers);
 
     // Gather results
-    final results = keys
-        .map((k) => k.currentState?.result ?? const RoundResult(said: 0, achieved: 0))
-        .toList();
+    final results = List<RoundResult>.generate(
+      game.numPlayers,
+      (i) => RoundResult(said: _bids[i], achieved: _mades[i]),
+    );
 
     // Validate: sum of made == cards this round
     final madeTot = results.fold(0, (s, r) => s + r.achieved);
@@ -79,7 +85,7 @@ class _GameScreenState extends State<GameScreen>
     }
 
     final events = context.read<GameNotifier>().submitRound(results);
-    _cardKeys.clear(); // force fresh PlayerEntryCardState on next round
+    _resetEntries();
     _handleEvents(context, events);
   }
 
@@ -319,7 +325,7 @@ class _GameScreenState extends State<GameScreen>
     );
     if (confirmed == true && mounted) {
       context.read<GameNotifier>().undoRound();
-      _cardKeys.clear();
+      _resetEntries();
     }
   }
 
@@ -423,13 +429,14 @@ class _GameScreenState extends State<GameScreen>
       );
     }
 
-    final keys = _keysFor(game.numPlayers);
+    _ensureCapacity(game.numPlayers);
     final deltas = game.lastDeltas();
     final leaderSet = game.leaders.map((p) => p.name).toSet();
 
     // Bid sum tracking for the bid-warning banner
-    final bidSum = keys.fold(0,
-        (s, k) => s + (k.currentState?.bid ?? 0));
+    final bidSum = _bids
+        .take(game.numPlayers)
+        .fold<int>(0, (s, b) => s + b);
     final bidWarning = bidSum == game.cardsThisRound;
 
     return Scaffold(
@@ -489,19 +496,26 @@ class _GameScreenState extends State<GameScreen>
           // ── Tab 0: Player cards + submit ───────────────────────────────
           _Layer1(
             game: game,
-            keys: keys,
+            bids: _bids,
+            mades: _mades,
             deltas: deltas,
             leaderSet: leaderSet,
             bidWarning: bidWarning,
             bidSum: bidSum,
             onAutoFill: () {
-              for (final k in keys) {
-                k.currentState?.fillMadeFromBid();
-              }
-              setState(() {});
+              setState(() {
+                for (var i = 0; i < game.numPlayers; i++) {
+                  _mades[i] = _bids[i];
+                }
+              });
             },
             onCompleteRound: () => _completeRound(context, game),
-            onBidChanged: () => setState(() {}),
+            onEntryChanged: (index, bid, made) {
+              setState(() {
+                _bids[index] = bid;
+                _mades[index] = made;
+              });
+            },
             t: t,
           ),
 
@@ -523,26 +537,28 @@ class _GameScreenState extends State<GameScreen>
 
 class _Layer1 extends StatelessWidget {
   final GameControl game;
-  final List<GlobalKey<PlayerEntryCardState>> keys;
+  final List<int> bids;
+  final List<int> mades;
   final List<int> deltas;
   final Set<String> leaderSet;
   final bool bidWarning;
   final int bidSum;
   final VoidCallback onAutoFill;
   final VoidCallback onCompleteRound;
-  final VoidCallback onBidChanged;
+  final void Function(int index, int bid, int made) onEntryChanged;
   final String Function(String, [Map<String, String>]) t;
 
   const _Layer1({
     required this.game,
-    required this.keys,
+    required this.bids,
+    required this.mades,
     required this.deltas,
     required this.leaderSet,
     required this.bidWarning,
     required this.bidSum,
     required this.onAutoFill,
     required this.onCompleteRound,
-    required this.onBidChanged,
+    required this.onEntryChanged,
     required this.t,
   });
 
@@ -593,7 +609,6 @@ class _Layer1 extends StatelessWidget {
             itemBuilder: (_, i) {
               final p = game.players[i];
               return PlayerEntryCard(
-                key: keys[i],
                 player: p,
                 color: kPlayerColors[i % kPlayerColors.length],
                 playerIndex: i,
@@ -601,7 +616,9 @@ class _Layer1 extends StatelessWidget {
                 isDealer: game.currentDealerIndex == i,
                 isLeader: leaderSet.contains(p.name),
                 scoreDelta: game.roundNumber > 0 ? deltas[i] : 0,
-                onChanged: (_, __) => onBidChanged(),
+                bid: bids[i],
+                made: mades[i],
+                onChanged: (b, m) => onEntryChanged(i, b, m),
               );
             },
           ),
