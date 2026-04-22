@@ -75,13 +75,46 @@ def init_db() -> None:
 # ── Player helpers ────────────────────────────────────────────────────────────
 
 def player_exists(name: str) -> bool:
-    """Check whether a player name is already registered."""
+    """Check whether a player name is already registered (global).
+
+    Kept for compatibility with clients still hitting the old endpoint.
+    """
     db = _get_db()
     row = db.execute(
         "SELECT 1 FROM players WHERE name = ? COLLATE NOCASE", (name,)
     ).fetchone()
     db.close()
     return row is not None
+
+
+def player_exists_in_group(name: str, code: str) -> Optional[bool]:
+    """Check whether ``name`` has played at least one game in the group
+    identified by ``code``.
+
+    Returns ``None`` if the group itself does not exist, ``True`` if the
+    player has a result in that group, ``False`` otherwise.
+    """
+    db = _get_db()
+    try:
+        group_row = db.execute(
+            "SELECT id FROM groups WHERE code = ?", (code,)
+        ).fetchone()
+        if group_row is None:
+            return None
+        row = db.execute(
+            """
+            SELECT 1
+            FROM results r
+            JOIN players p ON p.id = r.player_id
+            JOIN games   g ON g.id = r.game_id
+            WHERE g.group_id = ? AND p.name = ? COLLATE NOCASE
+            LIMIT 1
+            """,
+            (group_row["id"], name),
+        ).fetchone()
+        return row is not None
+    finally:
+        db.close()
 
 
 def _get_or_create_player(db: sqlite3.Connection, name: str) -> int:

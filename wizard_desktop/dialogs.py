@@ -22,10 +22,10 @@ from PyQt6 import QtCore, QtWidgets, QtGui
 
 from style import (
     BG_PANEL, BG_CARD, BG_DEEP,
-    ACCENT, ACCENT_DIM, TEXT_MAIN, TEXT_DIM,
+    ACCENT, ACCENT_DIM, TEXT_MAIN, TEXT_DIM, TEXT_MAIN_L,
     SUCCESS, DANGER, LEADER, apply_titlebar_theme,
 )
-from app_settings import t
+from app_settings import t, get_theme
 
 
 # ── Hilfsfunktion ─────────────────────────────────────────────────────────────
@@ -289,7 +289,7 @@ class SettingsDialog(ThemedDialog):
         self._dur_spin = QtWidgets.QSpinBox()
         self._dur_spin.setRange(500, 10000)
         self._dur_spin.setSingleStep(100)
-        self._dur_spin.setSuffix(" ms")
+        self._dur_spin.setStyleSheet("font-size: 14px; min-width: 60px;")
         self._dur_spin.setValue(_as.get_message_display_duration_ms())
         dur_row.addWidget(dur_lbl)
         dur_row.addWidget(self._dur_spin)
@@ -303,8 +303,7 @@ class SettingsDialog(ThemedDialog):
         ce_row = QtWidgets.QHBoxLayout()
         ce_row.addWidget(ce_header)
         
-        btn_add_rule = QtWidgets.QPushButton("+")
-        btn_add_rule.setMaximumWidth(30)
+        btn_add_rule = QtWidgets.QPushButton(t("btn_add"))
         btn_add_rule.clicked.connect(self._add_rule_dialog)
         ce_row.addWidget(btn_add_rule, 0, QtCore.Qt.AlignmentFlag.AlignRight)
         layout.addLayout(ce_row)
@@ -348,15 +347,17 @@ class SettingsDialog(ThemedDialog):
         rules = self._as.get_custom_rules()
         for idx, rule in enumerate(rules):
             row = QtWidgets.QWidget()
+            row.setStyleSheet("background: transparent;")
             layout = QtWidgets.QHBoxLayout(row)
             layout.setContentsMargins(0, 0, 0, 0)
             
-            label = QtWidgets.QLabel(f"{rule.get('message')} ({rule.get('type')}: {rule.get('value')})")
-            label.setStyleSheet("font-size: 11px; background: transparent;")
+            label = QtWidgets.QLabel(f"• {rule.get('message')} ({rule.get('type')}: {rule.get('value')})")
+            label.setStyleSheet("font-size: 12px; background: transparent;")
             layout.addWidget(label)
             
-            btn_del = QtWidgets.QPushButton("-")
-            btn_del.setMaximumWidth(30)
+            btn_del = QtWidgets.QPushButton("✕")
+            btn_del.setFixedSize(24, 24)
+            btn_del.setStyleSheet("padding: 0px; background: transparent; border: none; color: #ff4444; font-weight: bold;")
             # Capture idx by value
             btn_del.clicked.connect(lambda _, i=idx: self._remove_rule(i))
             layout.addWidget(btn_del)
@@ -586,7 +587,8 @@ class MigrationDialog(ThemedDialog):
         # Message
         msg = QtWidgets.QLabel(t("migration_message", n=count))
         msg.setWordWrap(True)
-        msg.setStyleSheet(f"font-size: 14px; color: {TEXT_MAIN}; line-height: 1.5; background: transparent;")
+        text_color = TEXT_MAIN_L if get_theme() == 'light' else TEXT_MAIN
+        msg.setStyleSheet(f"font-size: 14px; color: {text_color}; line-height: 1.5; background: transparent;")
         layout.addWidget(msg)
 
         layout.addWidget(_sep())
@@ -991,7 +993,7 @@ class MigrationGroupDialog(ThemedDialog):
         self.group_assignments: Dict[str, Dict] = {}
 
         self.setWindowTitle(t("migration_group_header"))
-        self.setMinimumSize(560, 520)
+        self.setMinimumSize(1000, 520)
         self.setModal(True)
 
         layout = QtWidgets.QVBoxLayout(self)
@@ -1050,9 +1052,9 @@ class MigrationGroupDialog(ThemedDialog):
             group_lbl.setStyleSheet(f"font-size: 12px; color: {TEXT_DIM}; background: transparent;")
 
             btn_pick = QtWidgets.QPushButton(t("group_select_label"))
-            btn_pick.setMinimumHeight(28)
+            btn_pick.setMinimumHeight(35)
             btn_create = QtWidgets.QPushButton(t("group_create_btn"))
-            btn_create.setMinimumHeight(28)
+            btn_create.setMinimumHeight(35)
 
             row_layout.addWidget(name_lbl, 1)
             row_layout.addWidget(group_lbl)
@@ -1152,7 +1154,7 @@ class PendingSyncAssignDialog(ThemedDialog):
         self.group_assignments: Dict[str, Optional[Dict]] = {}
 
         self.setWindowTitle(t("pending_sync_assign_title"))
-        self.setMinimumSize(560, 480)
+        self.setMinimumSize(720, 480)
         self.setModal(True)
 
         layout = QtWidgets.QVBoxLayout(self)
@@ -1192,9 +1194,9 @@ class PendingSyncAssignDialog(ThemedDialog):
             group_lbl.setStyleSheet(f"font-size: 12px; color: {TEXT_DIM}; background: transparent;")
 
             btn_pick = QtWidgets.QPushButton(t("group_select_label"))
-            btn_pick.setMinimumHeight(28)
+            btn_pick.setMinimumHeight(35)
             btn_create = QtWidgets.QPushButton(t("group_create_btn"))
-            btn_create.setMinimumHeight(28)
+            btn_create.setMinimumHeight(35)
 
             row_layout.addWidget(name_lbl, 1)
             row_layout.addWidget(group_lbl)

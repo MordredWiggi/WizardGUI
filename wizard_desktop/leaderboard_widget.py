@@ -2,11 +2,14 @@
 leaderboard_widget.py – Reusable in-app leaderboard views.
 
 Provides:
-  • LeaderboardWidget – player leaderboard with Global/Group scope toggle,
-    Standard/Multiplicative mode toggle, clickable header-based sorting, and
-    centered cells.
-  • GroupsLeaderboardWidget – global groups ranking (also with clickable
-    header sort and centered cells).
+  • GroupPlayerLeaderboardWidget – player leaderboard for a specific group
+    (group-internal only), with Standard/Multiplicative mode toggle,
+    clickable header-based sorting, and centered cells.
+  • GroupsLeaderboardWidget – global groups ranking (public groups only).
+
+The old global-player leaderboard has been removed: only two leaderboard
+kinds exist now — the global groups ranking and each group's internal
+player ranking.
 """
 from __future__ import annotations
 
@@ -147,15 +150,12 @@ def _refresh_btn_style() -> str:
     )
 
 
-SCOPE_GLOBAL = "global"
-SCOPE_GROUP = "group"
+class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
+    """Player leaderboard for a specific group, with Standard/Multi mode toggle.
 
-
-class LeaderboardWidget(QtWidgets.QWidget):
-    """Player leaderboard with Global/Group scope and Standard/Multi mode.
-
-    Sorting is performed by clicking on a column header. The rank column is
-    always recomputed from the current sort order.
+    Sorting is performed by clicking on a column header. Until a group code is
+    supplied via :meth:`set_group`, the widget shows an informational status
+    message instead of a table.
     """
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
@@ -163,7 +163,6 @@ class LeaderboardWidget(QtWidgets.QWidget):
         self._fetch_worker: Optional[object] = None
         self._current_mode = GAME_MODE_STANDARD
         self._current_sort = "wins"
-        self._current_scope = SCOPE_GLOBAL
         self._group_code: Optional[str] = None
         self._data: list[dict] = []
         self._build_ui()
@@ -171,17 +170,8 @@ class LeaderboardWidget(QtWidgets.QWidget):
     # ── Public API ───────────────────────────────────────────────────────────
 
     def set_group(self, code: Optional[str]) -> None:
-        """Provide the currently-selected group's 4-digit code.
-
-        Called by the parent when the group selection changes. If no group is
-        active the Group scope button is disabled and Global is forced.
-        """
+        """Bind the widget to a group (by 4-digit code), or ``None`` to clear."""
         self._group_code = code
-        has_group = bool(code)
-        self._btn_scope_group.setEnabled(has_group)
-        if not has_group and self._current_scope == SCOPE_GROUP:
-            self._current_scope = SCOPE_GLOBAL
-            self._apply_scope_style()
         if self.isVisible():
             self.refresh()
 
@@ -192,22 +182,9 @@ class LeaderboardWidget(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
-        # ── Scope (Global | Group) + Mode (Standard | Multi) + Refresh ──
+        # ── Mode (Standard | Multi) + Refresh ──
         top_row = QtWidgets.QHBoxLayout()
         top_row.setSpacing(6)
-
-        self._btn_scope_global = QtWidgets.QPushButton(t("lb_scope_global"))
-        self._btn_scope_group = QtWidgets.QPushButton(t("lb_scope_group"))
-        self._btn_scope_group.setEnabled(False)
-        for btn in (self._btn_scope_global, self._btn_scope_group):
-            btn.setMinimumHeight(30)
-            btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
-        self._btn_scope_global.clicked.connect(lambda: self._set_scope(SCOPE_GLOBAL))
-        self._btn_scope_group.clicked.connect(lambda: self._set_scope(SCOPE_GROUP))
-        top_row.addWidget(self._btn_scope_global)
-        top_row.addWidget(self._btn_scope_group)
-
-        top_row.addSpacing(12)
 
         self._btn_standard = QtWidgets.QPushButton(t("game_mode_standard"))
         self._btn_multi = QtWidgets.QPushButton(t("game_mode_multiplicative"))
@@ -250,14 +227,12 @@ class LeaderboardWidget(QtWidgets.QWidget):
             header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.Stretch)
         self._table.setAlternatingRowColors(True)
 
-        # Wrap the table in a centering container so it never hugs one side.
         wrap = QtWidgets.QHBoxLayout()
         wrap.addStretch()
         wrap.addWidget(self._table, 10)
         wrap.addStretch()
         layout.addLayout(wrap, 1)
 
-        # ── Status label ─────────────────────────────────────────────────
         self._status_label = QtWidgets.QLabel()
         self._status_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self._status_label.setStyleSheet(
@@ -266,7 +241,6 @@ class LeaderboardWidget(QtWidgets.QWidget):
         self._status_label.hide()
         layout.addWidget(self._status_label)
 
-        self._apply_scope_style()
         self._apply_mode_style()
         self._apply_refresh_style()
         self._apply_table_style()
@@ -284,27 +258,10 @@ class LeaderboardWidget(QtWidgets.QWidget):
             _toggle_btn_style(self._current_mode == GAME_MODE_MULTIPLICATIVE)
         )
 
-    def _apply_scope_style(self) -> None:
-        self._btn_scope_global.setStyleSheet(
-            _toggle_btn_style(self._current_scope == SCOPE_GLOBAL)
-        )
-        self._btn_scope_group.setStyleSheet(
-            _toggle_btn_style(self._current_scope == SCOPE_GROUP)
-        )
-
     def _apply_refresh_style(self) -> None:
         self._btn_refresh.setStyleSheet(_refresh_btn_style())
 
-    # ── Scope / Mode / Sort switching ────────────────────────────────────────
-
-    def _set_scope(self, scope: str) -> None:
-        if scope == self._current_scope:
-            return
-        if scope == SCOPE_GROUP and not self._group_code:
-            return
-        self._current_scope = scope
-        self._apply_scope_style()
-        self.refresh()
+    # ── Mode / Sort switching ────────────────────────────────────────────────
 
     def _set_mode(self, mode: str) -> None:
         if mode == self._current_mode:
@@ -323,26 +280,22 @@ class LeaderboardWidget(QtWidgets.QWidget):
     # ── Data fetching ────────────────────────────────────────────────────────
 
     def refresh(self) -> None:
+        if not self._group_code:
+            self._show_status(t("group_required"))
+            return
         url = get_leaderboard_url()
         if not url:
             self._show_status(t("lb_error"))
             return
-        if self._current_scope == SCOPE_GROUP and not self._group_code:
-            self._show_status(t("group_required"))
-            return
         self._show_status(t("lb_loading"))
         from leaderboard_client import (
             LeaderboardClient,
-            LeaderboardFetchWorker,
             GroupPlayerLeaderboardWorker,
         )
         client = LeaderboardClient(url)
-        if self._current_scope == SCOPE_GROUP:
-            self._fetch_worker = GroupPlayerLeaderboardWorker(
-                client, self._group_code, self._current_mode
-            )
-        else:
-            self._fetch_worker = LeaderboardFetchWorker(client, self._current_mode)
+        self._fetch_worker = GroupPlayerLeaderboardWorker(
+            client, self._group_code, self._current_mode
+        )
         self._fetch_worker.result.connect(self._on_data_received)
         self._fetch_worker.start()
 
@@ -408,19 +361,15 @@ class LeaderboardWidget(QtWidgets.QWidget):
         self.refresh()
 
     def retranslate_ui(self) -> None:
-        self._btn_scope_global.setText(t("lb_scope_global"))
-        self._btn_scope_group.setText(t("lb_scope_group"))
         self._btn_standard.setText(t("game_mode_standard"))
         self._btn_multi.setText(t("game_mode_multiplicative"))
         self._btn_refresh.setToolTip(t("btn_refresh"))
         self._table.setHorizontalHeaderLabels([t(col[1]) for col in _COLUMNS])
-        self._apply_scope_style()
         self._apply_mode_style()
         self._apply_refresh_style()
         self._apply_table_style()
 
     def restyle(self) -> None:
-        self._apply_scope_style()
         self._apply_mode_style()
         self._apply_refresh_style()
         self._apply_table_style()
@@ -448,7 +397,7 @@ class GroupsLeaderboardWidget(QtWidgets.QWidget):
         top_row = QtWidgets.QHBoxLayout()
         top_row.addStretch()
         self._btn_refresh = QtWidgets.QPushButton("↻")
-        self._btn_refresh.setFixedSize(36, 30)
+        self._btn_refresh.setFixedSize(36, 32)
         self._btn_refresh.setToolTip(t("btn_refresh"))
         self._btn_refresh.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self._btn_refresh.clicked.connect(self.refresh)
@@ -577,15 +526,3 @@ class GroupsLeaderboardWidget(QtWidgets.QWidget):
     def restyle(self) -> None:
         self._apply_refresh_style()
         self._apply_table_style()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Backwards-compat alias: GroupPlayerLeaderboardWidget was previously a
-# separate widget that is now merged into LeaderboardWidget via its
-# set_group() method and the Global/Group scope toggle.  We keep the old
-# name as a thin subclass to avoid breaking callers that import it.
-# ─────────────────────────────────────────────────────────────────────────────
-
-class GroupPlayerLeaderboardWidget(LeaderboardWidget):
-    """Convenience subclass that starts in Group scope when a code is set."""
-    pass

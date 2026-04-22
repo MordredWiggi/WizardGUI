@@ -355,6 +355,8 @@ QToolTip {{
     border-radius: 4px;
     padding: 4px 8px;
     font-size: 12px;
+    font-weight: normal;
+    font-family: "Segoe UI", Arial, sans-serif;
 }}
 
 /* ── RadioButton ── */
@@ -696,6 +698,8 @@ QToolTip {{
     border-radius: 4px;
     padding: 4px 8px;
     font-size: 12px;
+    font-weight: normal;
+    font-family: "Segoe UI", Arial, sans-serif;
 }}
 
 /* ── RadioButton ── */

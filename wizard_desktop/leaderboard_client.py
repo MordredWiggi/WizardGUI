@@ -177,6 +177,21 @@ class LeaderboardClient:
         )
         return _get_json(url, timeout=5)
 
+    def check_group_player(self, code: str, name: str) -> Optional[bool]:
+        """Check whether a player name exists within the specified group.
+
+        Returns True if the player has played at least one game in that
+        group, False if not, and None on error.
+        """
+        url = (
+            f"{self.base_url}/api/groups/{urllib.parse.quote(code)}"
+            f"/players/check?name={urllib.parse.quote(name)}"
+        )
+        data = _get_json(url, timeout=3)
+        if data is None:
+            return None
+        return data.get("exists", False)
+
 
 # ── QThread workers (keep UI responsive) ─────────────────────────────────────
 
@@ -193,6 +208,22 @@ class PlayerCheckWorker(QtCore.QThread):
 
     def run(self) -> None:
         exists = self._client.check_player(self._name)
+        self.result.emit(self._name, exists)
+
+
+class GroupPlayerCheckWorker(QtCore.QThread):
+    """Check if a player name exists within a given group, in the background."""
+
+    result = QtCore.pyqtSignal(str, object)  # (name, exists_or_None)
+
+    def __init__(self, client: LeaderboardClient, code: str, name: str) -> None:
+        super().__init__()
+        self._client = client
+        self._code = code
+        self._name = name
+
+    def run(self) -> None:
+        exists = self._client.check_group_player(self._code, self._name)
         self.result.emit(self._name, exists)
 
 

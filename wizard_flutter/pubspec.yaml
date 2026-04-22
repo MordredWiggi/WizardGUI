@@ -25,6 +25,7 @@ dependencies:
 
   # SHA-256 hashing for game deduplication
   crypto: ^3.0.3
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
