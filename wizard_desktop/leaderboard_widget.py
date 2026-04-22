@@ -397,7 +397,7 @@ class GroupsLeaderboardWidget(QtWidgets.QWidget):
         top_row = QtWidgets.QHBoxLayout()
         top_row.addStretch()
         self._btn_refresh = QtWidgets.QPushButton("↻")
-        self._btn_refresh.setFixedSize(36, 30)
+        self._btn_refresh.setFixedSize(36, 32)
         self._btn_refresh.setToolTip(t("btn_refresh"))
         self._btn_refresh.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self._btn_refresh.clicked.connect(self.refresh)

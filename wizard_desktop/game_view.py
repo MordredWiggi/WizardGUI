@@ -22,7 +22,7 @@ from PyQt6 import QtCore, QtWidgets, QtGui
 
 from game_control import GameControl, RoundResult, RoundEvents
 from style import (
-    ACCENT, ACCENT_DIM, BG_BASE, BG_PANEL, BG_CARD, BG_DEEP,
+    ACCENT, ACCENT_DIM, BG_BASE, BG_PANEL, BG_CARD, BG_DEEP, BG_CARD_L,
     TEXT_MAIN, TEXT_DIM, TEXT_MAIN_L, SUCCESS, DANGER, LEADER, PLAYER_COLORS,
 )
 from app_settings import t, get_theme
@@ -258,14 +258,14 @@ class MplCanvas(FigureCanvasQTAgg):
             self.axes.legend(
                 new_handles, new_labels,
                 facecolor="#e4e4ee", edgecolor="#ccccdd",
-                labelcolor="#1a1a2e", fontsize=13,
+                labelcolor="#1a1a2e", fontsize=17,
                 loc="upper left", ncol=1, framealpha=0.9,
             )
         else:
             self.axes.legend(
                 new_handles, new_labels,
                 facecolor="#1a1a3a", edgecolor="#2a2a4a",
-                labelcolor=TEXT_MAIN, fontsize=13,
+                labelcolor=TEXT_MAIN, fontsize=17,
                 loc="upper left", ncol=1, framealpha=0.9,
             )
 
@@ -469,52 +469,47 @@ class PlayerCard(QtWidgets.QFrame):
         layout.addWidget(line)
 
         # Eingabe-Zeile
-        input_row = QtWidgets.QHBoxLayout()
-        input_row.addStretch()
+        input_grid = QtWidgets.QGridLayout()
+        input_grid.setContentsMargins(0, 0, 0, 0)
+        input_grid.setColumnStretch(0, 1)
+        input_grid.setColumnStretch(4, 1)
 
-        def _make_spin_col(label_key: str) -> tuple:
-            col = QtWidgets.QVBoxLayout()
+        def _make_spin_widgets(label_key: str) -> tuple:
             lbl = QtWidgets.QLabel(label_key)
             lbl.setObjectName("input_label")
             lbl.setStyleSheet(f"color: {TEXT_DIM}; font-size: 15px; font-weight: 600; letter-spacing: 1px; background: transparent; border: none;")
             spin = NoScrollSpinBox()
             spin.setRange(0, 20)
             spin.setMaximumWidth(60)
-            col.addWidget(lbl, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
-            col.addWidget(spin, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
-            return col, spin, lbl
+            return spin, lbl
 
-        col_bid, self._spin_said, self._lbl_bid = _make_spin_col(t("announced"))
-        input_row.addLayout(col_bid)
-        input_row.addSpacing(12)
+        self._spin_said, self._lbl_bid = _make_spin_widgets(t("announced"))
+        input_grid.addWidget(self._lbl_bid, 0, 1, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
+        input_grid.addWidget(self._spin_said, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
 
         # Auto-fill button: sets made = bid for this player.
         # Large, prominent "=" glyph so it reads as "equal to the bid".
         self._btn_auto_fill = QtWidgets.QPushButton("=")
         self._btn_auto_fill.setToolTip(t("tooltip_auto_fill"))
-        self._btn_auto_fill.setFixedSize(54, 54)
+        self._btn_auto_fill.setFixedSize(45, 45)
         self._btn_auto_fill.setFocusPolicy(QtCore.Qt.FocusPolicy.TabFocus)
         self._btn_auto_fill.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-        self._btn_auto_fill.setStyleSheet(
-            f"QPushButton {{ color: {color}; background: transparent; "
-            f"border: 2px solid {color}88; border-radius: 14px; "
-            f"font-size: 34px; font-weight: 900; padding: 0 0 4px 0; }}"
-            f"QPushButton:hover {{ background: {color}33; border-color: {color}; color: white; }}"
-            f"QPushButton:pressed {{ background: {color}55; }}"
-        )
+        self._update_auto_fill_style()
         self._btn_auto_fill.clicked.connect(self._fill_made_from_bid)
-        input_row.addWidget(self._btn_auto_fill, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
-        input_row.addSpacing(12)
+        
+        btn_wrapper = QtWidgets.QHBoxLayout()
+        btn_wrapper.setContentsMargins(12, 0, 12, 0)
+        btn_wrapper.addWidget(self._btn_auto_fill)
+        input_grid.addLayout(btn_wrapper, 1, 2, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
 
-        col_made, self._spin_achieved, self._lbl_made = _make_spin_col(t("achieved"))
-        input_row.addLayout(col_made)
-
-        input_row.addStretch()
+        self._spin_achieved, self._lbl_made = _make_spin_widgets(t("achieved"))
+        input_grid.addWidget(self._lbl_made, 0, 3, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
+        input_grid.addWidget(self._spin_achieved, 1, 3, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
 
         # Emit bid_changed whenever the announced (said) spinbox changes
         self._spin_said.valueChanged.connect(self.bid_changed)
 
-        layout.addLayout(input_row)
+        layout.addLayout(input_grid)
 
         # Dealer badge – prominent, larger font with highlighted background
         self.lbl_dealer = QtWidgets.QLabel()
@@ -574,7 +569,20 @@ class PlayerCard(QtWidgets.QFrame):
         self._lbl_bid.setText(t("announced"))
         self._lbl_made.setText(t("achieved"))
         self._btn_auto_fill.setToolTip(t("tooltip_auto_fill"))
+        self._update_auto_fill_style()
 
+    def _update_auto_fill_style(self) -> None:
+        self._btn_auto_fill.setStyleSheet(
+            f"QPushButton {{ color: {self.color}; background: transparent; "
+            f"border: 1.2px solid {self.color}; border-radius: 14px; "
+            f"font-family: Arial, sans-serif; font-size: 32px; padding: 0px 0px 0px 0px; }}"
+            f"QPushButton:hover {{ background: {self.color}33; border-color: {self.color}; color: white; }}"
+            f"QPushButton:pressed {{ background: {self.color}55; }}"
+            f"QToolTip {{ font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; font-weight: normal; "
+            f"background-color: {BG_CARD_L if get_theme() == 'light' else BG_CARD}; "
+            f"color: {TEXT_MAIN_L if get_theme() == 'light' else TEXT_MAIN}; "
+            f"border: 1px solid {self.color}; border-radius: 4px; padding: 4px 8px; }}"
+        )
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GameView
@@ -739,13 +747,10 @@ class GameView(QtWidgets.QWidget):
         self.btn_save = self._make_action_btn(t("save"), tooltip=t("tooltip_save"))
         self.btn_save.clicked.connect(self.request_save)
 
-        self.btn_export = self._make_action_btn(t("plot"), tooltip=t("tooltip_plot"))
-        self.btn_export.clicked.connect(self.request_save_plot)
-
         self.btn_new = self._make_action_btn(t("new"), tooltip=t("tooltip_new"))
         self.btn_new.clicked.connect(self._on_new_game)
 
-        for btn in [self.btn_undo, self.btn_save, self.btn_export, self.btn_new]:
+        for btn in [self.btn_undo, self.btn_save, self.btn_new]:
             action_row.addWidget(btn)
         sidebar_layout.addLayout(action_row)
 
@@ -997,8 +1002,6 @@ class GameView(QtWidgets.QWidget):
         self.btn_undo.setToolTip(t("tooltip_undo"))
         self.btn_save.setText(t("save"))
         self.btn_save.setToolTip(t("tooltip_save"))
-        self.btn_export.setText(t("plot"))
-        self.btn_export.setToolTip(t("tooltip_plot"))
         self.btn_new.setText(t("new"))
         self.btn_new.setToolTip(t("tooltip_new"))
         self.btn_settings.setToolTip(t("tooltip_settings"))

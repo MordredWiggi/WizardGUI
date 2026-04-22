@@ -137,36 +137,45 @@ class SetupView(QtWidgets.QWidget):
 
         # ── Titel ──────────────────────────────────────────────────────────
         title_row = QtWidgets.QHBoxLayout()
-        title_row.addStretch()
+
+        left_spacer = QtWidgets.QWidget()
+        title_row.addWidget(left_spacer, 1)
 
         title_lbl = QtWidgets.QLabel("🃏  WIZARD")
         title_lbl.setObjectName("title")
         title_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         title_lbl.setStyleSheet("font-size: 40px; background: transparent;")
-        title_row.addWidget(title_lbl)
-        title_row.addStretch()
+        title_row.addWidget(title_lbl, 0)
+
+        right_container = QtWidgets.QWidget()
+        right_layout = QtWidgets.QHBoxLayout(right_container)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(20)
+        right_layout.addStretch()
 
         self._btn_leaderboard_web = QtWidgets.QPushButton("🌐")
         self._btn_leaderboard_web.setObjectName("toolbar_btn")
         self._btn_leaderboard_web.setToolTip("Online Leaderboard")
-        self._btn_leaderboard_web.setFixedSize(44, 44)
+        self._btn_leaderboard_web.setFixedSize(45, 45)
         self._btn_leaderboard_web.setStyleSheet(
-            "QPushButton { font-size: 28px; padding: 0; background: transparent; border: none; }"
+            "QPushButton { font-size: 28px; padding: 1px; background: transparent; border: none; }"
             "QPushButton:hover { background-color: #1a1a3a; border-radius: 4px; }"
         )
         self._btn_leaderboard_web.clicked.connect(lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://play-wizard.de")))
-        title_row.addWidget(self._btn_leaderboard_web)
+        right_layout.addWidget(self._btn_leaderboard_web)
 
         self._btn_settings = QtWidgets.QPushButton("⚙")
         self._btn_settings.setObjectName("toolbar_btn")
         self._btn_settings.setToolTip(t("tooltip_settings"))
-        self._btn_settings.setFixedSize(44, 44)
+        self._btn_settings.setFixedSize(45, 45)
         self._btn_settings.setStyleSheet(
-            "QPushButton { font-size: 28px; padding: 0; background: transparent; border: none; }"
+            "QPushButton { font-size: 28px; padding: 1px; background: transparent; border: none; }"
             "QPushButton:hover { background-color: #1a1a3a; border-radius: 4px; }"
         )
         self._btn_settings.clicked.connect(self._on_settings)
-        title_row.addWidget(self._btn_settings)
+        right_layout.addWidget(self._btn_settings)
+
+        title_row.addWidget(right_container, 1)
 
         main.addLayout(title_row)
 
@@ -344,6 +353,7 @@ class SetupView(QtWidgets.QWidget):
 
         # Stacked widget for switching content
         self._bottom_stack = QtWidgets.QStackedWidget()
+        self._bottom_stack.setStyleSheet("background: transparent;")
 
         # Page 0: Saved games
         saved_page = QtWidgets.QWidget()

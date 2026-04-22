@@ -41,6 +41,7 @@ pyinstaller \
     --add-data "translations.py;." \
     --add-data "app_settings.py;." \
     --add-data "icons;icons" \
+    --add-data "sounds;sounds" \
     --hidden-import matplotlib.backends.backend_qtagg \
     main.py
 
