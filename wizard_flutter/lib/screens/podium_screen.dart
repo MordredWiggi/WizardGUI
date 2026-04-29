@@ -26,6 +26,23 @@ class PodiumScreen extends StatefulWidget {
 
 class _PodiumScreenState extends State<PodiumScreen> {
   bool _reminderShown = false;
+  bool _savedAfterFinish = false;
+
+  Future<void> _onSaveAfterFinish() async {
+    final settings = context.read<AppSettings>();
+    final notifier = context.read<GameNotifier>();
+    if (notifier.game == null) return;
+    try {
+      await notifier.saveGame();
+      if (mounted) {
+        setState(() => _savedAfterFinish = true);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(settings.t('offline_saved_ok')),
+          duration: settings.messageDuration,
+        ));
+      }
+    } catch (_) {/* ignore */}
+  }
 
   @override
   void initState() {
@@ -84,11 +101,38 @@ class _PodiumScreenState extends State<PodiumScreen> {
     final t = settings.t;
     final theme = Theme.of(context);
 
-    final podiumKeys = [
-      ('podium_1st', '🥇'),
-      ('podium_2nd', '🥈'),
-      ('podium_3rd', '🥉'),
-    ];
+    // Compute competition ranks (1224) so multiple players with identical
+    // scores share the same place — and the same emoji.
+    final ranks = <int>[];
+    int? lastScore;
+    int currentRank = 1;
+    for (var i = 0; i < widget.podium.length; i++) {
+      final score = widget.podium[i].$2;
+      if (lastScore == null || score != lastScore) {
+        currentRank = i + 1;
+        lastScore = score;
+      }
+      ranks.add(currentRank);
+    }
+
+    String rankEmoji(int r) {
+      if (r == 1) return '🥇';
+      if (r == 2) return '🥈';
+      if (r == 3) return '🥉';
+      return '$r.';
+    }
+
+    // Split into "podium" (rank ≤ 3) and "rest" so ties can extend the podium
+    // beyond three rows (e.g. two co-winners both get gold and appear on top).
+    final topEntries = <int>[];
+    final restEntries = <int>[];
+    for (var i = 0; i < widget.podium.length; i++) {
+      if (ranks[i] <= 3) {
+        topEntries.add(i);
+      } else {
+        restEntries.add(i);
+      }
+    }
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -107,51 +151,49 @@ class _PodiumScreenState extends State<PodiumScreen> {
                       ?.copyWith(color: kLeader, fontSize: 20)),
               const SizedBox(height: 40),
 
-              // Podium entries
-              ...List.generate(
-                widget.podium.length.clamp(0, 3),
-                (i) {
-                  final (name, score) = widget.podium[i];
-                  final (_, emoji) = podiumKeys[i];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(children: [
-                      Text(emoji, style: const TextStyle(fontSize: 32)),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Text(name,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: i == 0
-                                  ? kLeader
-                                  : theme.textTheme.bodyLarge?.color,
-                            )),
+              // Podium entries (rank ≤ 3, may include ties)
+              ...topEntries.map((i) {
+                final (name, score) = widget.podium[i];
+                final r = ranks[i];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(children: [
+                    Text(rankEmoji(r), style: const TextStyle(fontSize: 32)),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(name,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: r == 1
+                                ? kLeader
+                                : theme.textTheme.bodyLarge?.color,
+                          )),
+                    ),
+                    Text(
+                      t('podium_points', {'pts': score.toString()}),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: r == 1 ? kLeader : kAccentDim,
+                        fontWeight: FontWeight.w600,
                       ),
-                      Text(
-                        t('podium_points', {'pts': score.toString()}),
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: i == 0 ? kLeader : kAccentDim,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ]),
-                  );
-                },
-              ),
+                    ),
+                  ]),
+                );
+              }),
 
               // Extra players beyond podium
-              if (widget.podium.length > 3) ...[
+              if (restEntries.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 8),
-                ...widget.podium.skip(3).toList().asMap().entries.map((e) {
-                  final (name, score) = e.value;
+                ...restEntries.map((i) {
+                  final (name, score) = widget.podium[i];
+                  final r = ranks[i];
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(children: [
-                      Text('${e.key + 4}.',
+                      Text('$r.',
                           style: const TextStyle(
                               fontSize: 16, color: kTextDim)),
                       const SizedBox(width: 12),
@@ -167,6 +209,26 @@ class _PodiumScreenState extends State<PodiumScreen> {
               ],
 
               const SizedBox(height: 48),
+              // Always offer to save the finished game locally so it can be
+              // re-opened later via the Setup screen's "saved games" list,
+              // mirroring the desktop app.
+              if (!widget.offlineReminder)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _savedAfterFinish ? null : _onSaveAfterFinish,
+                    icon: Icon(
+                      _savedAfterFinish
+                          ? Icons.check_circle_outline
+                          : Icons.save_outlined,
+                      size: 18,
+                    ),
+                    label: Text(_savedAfterFinish
+                        ? t('offline_saved_ok')
+                        : t('offline_save_device')),
+                  ),
+                ),
+              if (!widget.offlineReminder) const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

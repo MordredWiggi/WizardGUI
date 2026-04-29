@@ -16,6 +16,7 @@ import '../widgets/leaderboard_tabs.dart';
 import '../main.dart' show rootScaffoldMessengerKey;
 import 'setup_screen.dart';
 import 'podium_screen.dart';
+import 'settings_screen.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -482,6 +483,14 @@ class _GameScreenState extends State<GameScreen>
             icon: const Icon(Icons.save_outlined, size: 22),
             tooltip: t('save'),
             onPressed: () => _onSave(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, size: 22),
+            tooltip: t('settings_title'),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.refresh, size: 22),

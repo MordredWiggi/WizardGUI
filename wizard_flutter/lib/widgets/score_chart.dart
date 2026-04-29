@@ -163,6 +163,10 @@ class _ScoreChartState extends State<ScoreChart> {
             padding: const EdgeInsets.fromLTRB(0, 0, 20, 12),
             child: LineChart(
               LineChartData(
+                // Add a tiny bit of horizontal padding so the dots at round 0
+                // and at the latest round aren't clipped by the chart border.
+                minX: -0.25,
+                maxX: game.roundNumber.toDouble() + 0.25,
                 lineBarsData: lines,
                 gridData: FlGridData(
                   show: true,
@@ -268,6 +272,11 @@ class _ScoreChartState extends State<ScoreChart> {
                     }
                   },
                   touchTooltipData: LineTouchTooltipData(
+                    // Auto-flip the tooltip below the marker when it would
+                    // otherwise be clipped against the top edge of the chart
+                    // (e.g. for the highest line in late rounds).
+                    fitInsideVertically: true,
+                    fitInsideHorizontally: true,
                     getTooltipItems: (spots) => spots.map((s) {
                       // Skip average line tooltip
                       if (s.barIndex >= game.players.length) {

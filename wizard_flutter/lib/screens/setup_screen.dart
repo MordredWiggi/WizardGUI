@@ -58,6 +58,8 @@ class _SetupScreenState extends State<SetupScreen> {
     // reflect whether the typed name already exists in the selected group.
     _nameController.addListener(_onNameChanged);
     // On first build, check for offline-queued games and offer to sync.
+    // The default state is intentionally "no group selected" — so the user
+    // can play offline immediately without a server round-trip.
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingSync());
   }
 
@@ -149,6 +151,10 @@ class _SetupScreenState extends State<SetupScreen> {
     if (group != null && mounted) {
       setState(() => _selectedGroup = group);
       context.read<GameNotifier>().setGroup(group);
+      // Remember the group's code so the join dialog can autofill it the
+      // next time the user picks the same group. The setup screen still
+      // starts with no group selected on subsequent app launches.
+      context.read<AppSettings>().addKnownGroup(group);
       final code = group['code'] as String?;
       if (code != null) _loadGroupPlayers(code);
     }
@@ -167,6 +173,8 @@ class _SetupScreenState extends State<SetupScreen> {
     if (group != null && mounted) {
       setState(() => _selectedGroup = group);
       context.read<GameNotifier>().setGroup(group);
+      // Same as joining: remember the code so it can autofill next time.
+      context.read<AppSettings>().addKnownGroup(group);
       final code = group['code'] as String?;
       if (code != null) _loadGroupPlayers(code);
     }
@@ -654,6 +662,9 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
   void initState() {
     super.initState();
     _doSearch('');
+    // Intentionally no autofill on open: the dialog starts blank so the
+    // user can pick freely. The code field is only autofilled when they
+    // tap a group they've already played in (see _onPickGroup).
   }
 
   @override
@@ -675,6 +686,26 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
         _loading = false;
       });
     }
+  }
+
+  /// Called when the user taps a group in the search results. If they have
+  /// previously joined the same group (by id, falling back to name) and we
+  /// remembered its code, autofill the 4-digit code field and validate it
+  /// straight away. Otherwise just focus the field so they can type.
+  void _onPickGroup(Map<String, dynamic> g) {
+    final name = g['name'] as String? ?? '';
+    _searchController.text = name;
+    _doSearch(name);
+
+    final settings = context.read<AppSettings>();
+    final known = settings.findKnownGroupById(g['id'] as int?) ??
+        settings.findKnownGroupByName(name);
+    final savedCode = known?['code'] as String?;
+    if (savedCode != null && savedCode.length == 4) {
+      _codeController.text = savedCode;
+      _onCodeChanged(savedCode);
+    }
+    _codeFocusNode.requestFocus();
   }
 
   void _onCodeChanged(String value) {
@@ -762,11 +793,7 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
                       subtitle: Text(
                           t('group_players_count', {'n': n.toString()}),
                           style: theme.textTheme.bodySmall),
-                      onTap: () {
-                        _searchController.text = g['name'] as String;
-                        _doSearch(g['name'] as String);
-                        _codeFocusNode.requestFocus();
-                      },
+                      onTap: () => _onPickGroup(g),
                     );
                   },
                 ),

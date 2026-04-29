@@ -75,11 +75,20 @@ def build_game_submission(
             }
         )
 
-    # Assign ranks by descending score
-    for rank, pr in enumerate(
-        sorted(player_results, key=lambda x: x["final_score"], reverse=True), 1
-    ):
-        pr["rank"] = rank
+    # Assign ranks by descending score, with tied scores sharing the same
+    # rank ("competition" / 1224 ranking). Players tied for the lead all
+    # get rank 1, so the server's ``COUNT(rank == 1)`` win statistic counts
+    # the game as a win for every co-leader.
+    sorted_results = sorted(
+        player_results, key=lambda x: x["final_score"], reverse=True
+    )
+    last_score = None
+    current_rank = 0
+    for i, pr in enumerate(sorted_results, 1):
+        if last_score is None or pr["final_score"] != last_score:
+            current_rank = i
+            last_score = pr["final_score"]
+        pr["rank"] = current_rank
 
     payload: dict = {
         "game_hash": compute_game_hash(game_data),

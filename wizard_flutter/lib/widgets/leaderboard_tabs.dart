@@ -19,6 +19,8 @@ class _GroupsLeaderboardTabState extends State<GroupsLeaderboardTab> {
   List<Map<String, dynamic>>? _data;
   bool _loading = false;
   bool _hasError = false;
+  int _sortColumnIndex = 2; // default: total games
+  bool _sortAscending = false;
 
   @override
   void didChangeDependencies() {
@@ -40,6 +42,54 @@ class _GroupsLeaderboardTabState extends State<GroupsLeaderboardTab> {
     } catch (_) {
       if (mounted) setState(() { _loading = false; _hasError = true; });
     }
+  }
+
+  void _sortBy(int columnIndex, String key, {required bool numeric}) {
+    setState(() {
+      if (_sortColumnIndex == columnIndex) {
+        _sortAscending = !_sortAscending;
+      } else {
+        _sortColumnIndex = columnIndex;
+        _sortAscending = !numeric; // strings: A→Z; numbers: high→low
+      }
+    });
+  }
+
+  List<Map<String, dynamic>> _sortedData() {
+    if (_data == null) return const [];
+    final rows = List<Map<String, dynamic>>.from(_data!);
+    int cmp(Map<String, dynamic> a, Map<String, dynamic> b) {
+      Comparable av;
+      Comparable bv;
+      switch (_sortColumnIndex) {
+        case 1: // name
+          av = (a['name'] as String? ?? '').toLowerCase();
+          bv = (b['name'] as String? ?? '').toLowerCase();
+          break;
+        case 2: // total_games
+          av = (a['total_games'] as num?)?.toDouble() ?? 0;
+          bv = (b['total_games'] as num?)?.toDouble() ?? 0;
+          break;
+        case 3: // player_count
+          av = (a['player_count'] as num?)?.toDouble() ?? 0;
+          bv = (b['player_count'] as num?)?.toDouble() ?? 0;
+          break;
+        case 4: // avg_score
+          av = (a['avg_score'] as num?)?.toDouble() ?? 0;
+          bv = (b['avg_score'] as num?)?.toDouble() ?? 0;
+          break;
+        case 5: // avg_hit_rate
+          av = (a['avg_hit_rate'] as num?)?.toDouble() ?? 0;
+          bv = (b['avg_hit_rate'] as num?)?.toDouble() ?? 0;
+          break;
+        default:
+          return 0;
+      }
+      final c = Comparable.compare(av, bv);
+      return _sortAscending ? c : -c;
+    }
+    rows.sort(cmp);
+    return rows;
   }
 
   @override
@@ -101,6 +151,7 @@ class _GroupsLeaderboardTabState extends State<GroupsLeaderboardTab> {
       );
     }
 
+    final rows = _sortedData();
     return Column(
       children: [
         Padding(
@@ -132,37 +183,66 @@ class _GroupsLeaderboardTabState extends State<GroupsLeaderboardTab> {
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: DataTable(
                 columnSpacing: 16,
-                headingRowHeight: 36,
+                headingRowHeight: 40,
                 dataRowMinHeight: 40,
                 dataRowMaxHeight: 40,
+                sortColumnIndex: _sortColumnIndex,
+                sortAscending: _sortAscending,
                 headingTextStyle: const TextStyle(
                     fontSize: 11, color: kTextDim, fontWeight: FontWeight.w600),
                 dataTextStyle: const TextStyle(fontSize: 12),
                 columns: [
-                  const DataColumn(label: Text('#')),
-                  DataColumn(label: Text(t('lb_col_name'))),
-                  DataColumn(label: Text(t('lb_col_games')), numeric: true),
-                  DataColumn(label: Text(t('lb_col_avg')), numeric: true),
-                  DataColumn(label: Text(t('lb_col_hit_pct')), numeric: true),
+                  const DataColumn(
+                      label: _CenterHeader('#', width: _kRankCellWidth)),
+                  DataColumn(
+                    label: _CenterHeader(t('lb_col_name'),
+                        width: _kNameCellWidth),
+                    onSort: (i, _) => _sortBy(i, 'name', numeric: false),
+                  ),
+                  DataColumn(
+                    label: _CenterHeader(t('lb_col_games')),
+                    onSort: (i, _) => _sortBy(i, 'total_games', numeric: true),
+                  ),
+                  DataColumn(
+                    label: _CenterHeader(t('lb_col_players')),
+                    onSort: (i, _) => _sortBy(i, 'player_count', numeric: true),
+                  ),
+                  DataColumn(
+                    label: _CenterHeader(t('lb_col_avg')),
+                    onSort: (i, _) => _sortBy(i, 'avg_score', numeric: true),
+                  ),
+                  DataColumn(
+                    label: _CenterHeader(t('lb_col_hit_pct')),
+                    onSort: (i, _) => _sortBy(i, 'avg_hit_rate', numeric: true),
+                  ),
                 ],
-                rows: _data!.map((row) {
-                  final rank = row['rank'] as int? ?? 0;
+                rows: rows.asMap().entries.map((entry) {
+                  final visualRank = entry.key + 1;
+                  final row = entry.value;
                   final name = row['name'] as String? ?? '';
-                  final games = row['total_games'] as int? ?? 0;
+                  final games = (row['total_games'] as num?)?.toInt() ?? 0;
+                  final players = (row['player_count'] as num?)?.toInt() ?? 0;
                   final avg = (row['avg_score'] as num?)?.toDouble() ?? 0.0;
+                  // Server already returns avg_hit_rate as a percentage (0-100).
                   final hit = (row['avg_hit_rate'] as num?)?.toDouble() ?? 0.0;
                   return DataRow(cells: [
-                    DataCell(Text(_rankBadge(rank),
-                        style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: _rankColor(rank)))),
-                    DataCell(Text(name,
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                        overflow: TextOverflow.ellipsis)),
-                    DataCell(Text(games.toString())),
-                    DataCell(Text(avg.toStringAsFixed(0))),
-                    DataCell(Text('${(hit * 100).toStringAsFixed(0)}%')),
+                    DataCell(_CenterCell(
+                        Text(_rankBadge(visualRank),
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: _rankColor(visualRank))),
+                        width: _kRankCellWidth)),
+                    DataCell(_CenterCell(
+                        Text(name,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                            overflow: TextOverflow.ellipsis),
+                        width: _kNameCellWidth)),
+                    DataCell(_CenterCell(Text(games.toString()))),
+                    DataCell(_CenterCell(Text(players.toString()))),
+                    DataCell(_CenterCell(Text(avg.toStringAsFixed(0)))),
+                    DataCell(_CenterCell(Text('${hit.toStringAsFixed(0)}%'))),
                   ]);
                 }).toList(),
               ),
@@ -189,6 +269,8 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
   bool _hasError = false;
   String _mode = 'standard';
   String? _lastGroupCode;
+  int _sortColumnIndex = 4; // default: avg score, descending
+  bool _sortAscending = false;
 
   @override
   void didChangeDependencies() {
@@ -219,6 +301,62 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
     setState(() { _mode = mode; _data = null; });
     final code = context.read<GameNotifier>().activeGroup?['code'] as String?;
     if (code != null) _load(code);
+  }
+
+  void _sortBy(int columnIndex, {required bool numeric}) {
+    setState(() {
+      if (_sortColumnIndex == columnIndex) {
+        _sortAscending = !_sortAscending;
+      } else {
+        _sortColumnIndex = columnIndex;
+        _sortAscending = !numeric;
+      }
+    });
+  }
+
+  List<Map<String, dynamic>> _sortedData() {
+    if (_data == null) return const [];
+    final rows = List<Map<String, dynamic>>.from(_data!);
+    int cmp(Map<String, dynamic> a, Map<String, dynamic> b) {
+      Comparable av;
+      Comparable bv;
+      switch (_sortColumnIndex) {
+        case 1: // name
+          av = (a['name'] as String? ?? '').toLowerCase();
+          bv = (b['name'] as String? ?? '').toLowerCase();
+          break;
+        case 2: // games
+          av = (a['games'] as num?)?.toDouble() ?? 0;
+          bv = (b['games'] as num?)?.toDouble() ?? 0;
+          break;
+        case 3: // wins
+          av = (a['wins'] as num?)?.toDouble() ?? 0;
+          bv = (b['wins'] as num?)?.toDouble() ?? 0;
+          break;
+        case 4: // avg_score
+          av = (a['avg_score'] as num?)?.toDouble() ?? 0;
+          bv = (b['avg_score'] as num?)?.toDouble() ?? 0;
+          break;
+        case 5: // highest_score
+          av = (a['highest_score'] as num?)?.toDouble() ?? 0;
+          bv = (b['highest_score'] as num?)?.toDouble() ?? 0;
+          break;
+        case 6: // hit_rate
+          av = (a['hit_rate'] as num?)?.toDouble() ?? 0;
+          bv = (b['hit_rate'] as num?)?.toDouble() ?? 0;
+          break;
+        case 7: // win_streak
+          av = (a['win_streak'] as num?)?.toDouble() ?? 0;
+          bv = (b['win_streak'] as num?)?.toDouble() ?? 0;
+          break;
+        default:
+          return 0;
+      }
+      final c = Comparable.compare(av, bv);
+      return _sortAscending ? c : -c;
+    }
+    rows.sort(cmp);
+    return rows;
   }
 
   @override
@@ -331,43 +469,79 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: DataTable(
                   columnSpacing: 12,
-                  headingRowHeight: 36,
+                  headingRowHeight: 40,
                   dataRowMinHeight: 40,
                   dataRowMaxHeight: 40,
+                  sortColumnIndex: _sortColumnIndex,
+                  sortAscending: _sortAscending,
                   headingTextStyle: const TextStyle(
                       fontSize: 10, color: kTextDim, fontWeight: FontWeight.w600),
                   dataTextStyle: const TextStyle(fontSize: 12),
                   columns: [
-                    const DataColumn(label: Text('#')),
-                    DataColumn(label: Text(t('lb_col_name'))),
-                    DataColumn(label: Text(t('lb_col_games')), numeric: true),
-                    DataColumn(label: Text(t('lb_col_avg')), numeric: true),
-                    DataColumn(label: Text(t('lb_col_best')), numeric: true),
-                    DataColumn(label: Text(t('lb_col_hit_pct')), numeric: true),
-                    DataColumn(label: Text(t('lb_col_streak')), numeric: true),
+                    const DataColumn(
+                        label: _CenterHeader('#', width: _kRankCellWidth)),
+                    DataColumn(
+                      label: _CenterHeader(t('lb_col_name'),
+                          width: _kNameCellWidth),
+                      onSort: (i, _) => _sortBy(i, numeric: false),
+                    ),
+                    DataColumn(
+                      label: _CenterHeader(t('lb_col_games')),
+                      onSort: (i, _) => _sortBy(i, numeric: true),
+                    ),
+                    DataColumn(
+                      label: _CenterHeader(t('lb_col_wins')),
+                      onSort: (i, _) => _sortBy(i, numeric: true),
+                    ),
+                    DataColumn(
+                      label: _CenterHeader(t('lb_col_avg')),
+                      onSort: (i, _) => _sortBy(i, numeric: true),
+                    ),
+                    DataColumn(
+                      label: _CenterHeader(t('lb_col_best')),
+                      onSort: (i, _) => _sortBy(i, numeric: true),
+                    ),
+                    DataColumn(
+                      label: _CenterHeader(t('lb_col_hit_pct')),
+                      onSort: (i, _) => _sortBy(i, numeric: true),
+                    ),
+                    DataColumn(
+                      label: _CenterHeader(t('lb_col_streak')),
+                      onSort: (i, _) => _sortBy(i, numeric: true),
+                    ),
                   ],
-                  rows: _data!.map((row) {
-                    final rank = row['rank'] as int? ?? 0;
+                  rows: _sortedData().asMap().entries.map((entry) {
+                    final visualRank = entry.key + 1;
+                    final row = entry.value;
                     final name = row['name'] as String? ?? '';
-                    final games = row['games_played'] as int? ?? 0;
+                    final games = (row['games'] as num?)?.toInt() ?? 0;
+                    final wins = (row['wins'] as num?)?.toInt() ?? 0;
                     final avg = (row['avg_score'] as num?)?.toDouble() ?? 0.0;
-                    final best = row['best_score'] as int? ?? 0;
-                    final hitPct = (row['avg_correct_bids_pct'] as num?)?.toDouble() ?? 0.0;
-                    final streak = row['current_streak'] as int? ?? 0;
+                    final best = (row['highest_score'] as num?)?.toInt() ?? 0;
+                    // Server already returns hit_rate as a percentage (0-100).
+                    final hitPct = (row['hit_rate'] as num?)?.toDouble() ?? 0.0;
+                    final streak = (row['win_streak'] as num?)?.toInt() ?? 0;
                     return DataRow(cells: [
-                      DataCell(Text(_rankBadge(rank),
-                          style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: _rankColor(rank)))),
-                      DataCell(Text(name,
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                          overflow: TextOverflow.ellipsis)),
-                      DataCell(Text(games.toString())),
-                      DataCell(Text(avg.toStringAsFixed(0))),
-                      DataCell(Text(best.toString())),
-                      DataCell(Text('${(hitPct * 100).toStringAsFixed(0)}%')),
-                      DataCell(Text(streak > 0 ? '🔥$streak' : streak.toString())),
+                      DataCell(_CenterCell(
+                          Text(_rankBadge(visualRank),
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: _rankColor(visualRank))),
+                          width: _kRankCellWidth)),
+                      DataCell(_CenterCell(
+                          Text(name,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontWeight: FontWeight.w500),
+                              overflow: TextOverflow.ellipsis),
+                          width: _kNameCellWidth)),
+                      DataCell(_CenterCell(Text(games.toString()))),
+                      DataCell(_CenterCell(Text(wins.toString()))),
+                      DataCell(_CenterCell(Text(avg.toStringAsFixed(0)))),
+                      DataCell(_CenterCell(Text(best.toString()))),
+                      DataCell(_CenterCell(Text('${hitPct.toStringAsFixed(0)}%'))),
+                      DataCell(_CenterCell(
+                          Text(streak > 0 ? '🔥$streak' : streak.toString()))),
                     ]);
                   }).toList(),
                 ),
@@ -415,6 +589,47 @@ class _ModeChip extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Centered cell helpers ─────────────────────────────────────────────────────
+
+// DataTable wraps cell content in an alignment-controlling Container that
+// hugs its child. To get a true centered look across the column we give each
+// cell/header a fixed minimum width and centre the content inside it. The
+// column's intrinsic width then comes from this SizedBox so Center has a
+// bounded width to operate on.
+const double _kHeaderCellWidth = 64;
+const double _kNameCellWidth = 96;
+const double _kRankCellWidth = 36;
+
+class _CenterHeader extends StatelessWidget {
+  final String text;
+  final double width;
+  const _CenterHeader(this.text, {this.width = _kHeaderCellWidth});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: Center(
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+}
+
+class _CenterCell extends StatelessWidget {
+  final Widget child;
+  final double width;
+  const _CenterCell(this.child, {this.width = _kHeaderCellWidth});
+
+  @override
+  Widget build(BuildContext context) =>
+      SizedBox(width: width, child: Center(child: child));
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────

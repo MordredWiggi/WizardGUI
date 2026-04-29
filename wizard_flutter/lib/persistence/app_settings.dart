@@ -53,6 +53,12 @@ class AppSettings extends ChangeNotifier {
   static const _keyMessageDuration = 'message_display_duration_ms';
   static const _keyCustomMessages = 'custom_event_messages';
   static const _keyCustomRules = 'custom_rules';
+  // Persisted list of every group the user has previously joined or created.
+  // Used to autofill the code in the join dialog when they reselect that
+  // group — never to pre-select a group at app startup.
+  static const _keyKnownGroups = 'known_groups';
+  // Legacy single-group key from the previous version, migrated on load.
+  static const _keyLastGroup = 'last_group';
 
   // Kept in sync with wizard_desktop/app_settings.py::_LEADERBOARD_URL.
   static const String _leaderboardUrl = 'https://play-wizard.de';
@@ -64,6 +70,9 @@ class AppSettings extends ChangeNotifier {
     for (final k in kEventKeys) k: '',
   };
   List<CustomMessageRule> _customRules = [];
+  // Most-recent-first list of groups the user has previously joined or
+  // created. Each entry is a map with at least {id, name, code, visibility}.
+  List<Map<String, dynamic>> _knownGroups = [];
 
   String get language => _language;
   String get theme => _theme;
@@ -75,6 +84,34 @@ class AppSettings extends ChangeNotifier {
   Duration get messageDuration => Duration(milliseconds: _messageDurationMs);
   Map<String, String> get customMessages => Map.unmodifiable(_customMessages);
   List<CustomMessageRule> get customRules => List.unmodifiable(_customRules);
+
+  /// All groups the user has previously joined or created, most-recent-first.
+  /// The setup screen does NOT auto-restore these on startup — they're only
+  /// used by the join dialog to autofill the 4-digit code when the user
+  /// reselects a group they've played in before.
+  List<Map<String, dynamic>> get knownGroups =>
+      List.unmodifiable(_knownGroups);
+
+  /// Look up a previously-joined group by name (case-insensitive). Returns
+  /// null if the user has never played in a group with that name.
+  Map<String, dynamic>? findKnownGroupByName(String name) {
+    final needle = name.trim().toLowerCase();
+    if (needle.isEmpty) return null;
+    for (final g in _knownGroups) {
+      if ((g['name'] as String? ?? '').toLowerCase() == needle) return g;
+    }
+    return null;
+  }
+
+  /// Look up a previously-joined group by its server id. Returns null if
+  /// the group is not in the local known-groups list.
+  Map<String, dynamic>? findKnownGroupById(int? id) {
+    if (id == null) return null;
+    for (final g in _knownGroups) {
+      if (g['id'] == id) return g;
+    }
+    return null;
+  }
 
   /// Shorthand translate using current language.
   String t(String key, [Map<String, String> args = const {}]) =>
@@ -129,6 +166,72 @@ class AppSettings extends ChangeNotifier {
         }
       } catch (_) {/* ignore malformed */}
     }
+
+    final rawKnown = prefs.getString(_keyKnownGroups);
+    if (rawKnown != null && rawKnown.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawKnown);
+        if (decoded is List) {
+          _knownGroups = decoded
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+        }
+      } catch (_) {/* ignore malformed */}
+    }
+
+    // One-shot migration from the previous `last_group` single-entry key.
+    if (_knownGroups.isEmpty) {
+      final legacy = prefs.getString(_keyLastGroup);
+      if (legacy != null && legacy.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(legacy);
+          if (decoded is Map) {
+            _knownGroups = [Map<String, dynamic>.from(decoded)];
+            await prefs.setString(_keyKnownGroups, jsonEncode(_knownGroups));
+          }
+        } catch (_) {/* ignore malformed */}
+        await prefs.remove(_keyLastGroup);
+      }
+    }
+
+    notifyListeners();
+  }
+
+  /// Remember a group the user just joined or created so its 4-digit code
+  /// can be autofilled the next time they reselect that group. The most
+  /// recently used group moves to the front of the list. Calling this
+  /// purposely does NOT make the group "active" for the next session —
+  /// the setup screen still starts with no group selected.
+  Future<void> addKnownGroup(Map<String, dynamic> group) async {
+    final code = group['code'] as String?;
+    final id = group['id'];
+    if (code == null || code.isEmpty) return;
+
+    bool sameGroup(Map<String, dynamic> g) {
+      if (id != null && g['id'] == id) return true;
+      return g['code'] == code;
+    }
+
+    final next = [
+      Map<String, dynamic>.from(group),
+      ..._knownGroups.where((g) => !sameGroup(g)),
+    ];
+    _knownGroups = next;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyKnownGroups, jsonEncode(_knownGroups));
+    notifyListeners();
+  }
+
+  /// Remove a saved group code (e.g. if the server reports the group
+  /// no longer exists). No-op if the code wasn't known.
+  Future<void> forgetKnownGroupByCode(String code) async {
+    final filtered =
+        _knownGroups.where((g) => g['code'] != code).toList();
+    if (filtered.length == _knownGroups.length) return;
+    _knownGroups = filtered;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyKnownGroups, jsonEncode(_knownGroups));
     notifyListeners();
   }
 

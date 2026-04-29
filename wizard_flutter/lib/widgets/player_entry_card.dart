@@ -56,91 +56,121 @@ class PlayerEntryCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isLeader ? kLeader : color.withOpacity(0.5),
-          width: isLeader ? 2 : 1,
+          color: isDealer
+              ? kAccent
+              : (isLeader ? kLeader : color.withOpacity(0.5)),
+          width: isDealer ? 2.5 : (isLeader ? 2 : 1),
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Header row ─────────────────────────────────────────────
-            Row(children: [
-              Text(player.avatar,
-                  style: const TextStyle(fontSize: 26)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      Text(player.name,
-                          style: TextStyle(
-                              color: color,
+      child: Stack(
+        children: [
+          // Subtle accent background when this player is the dealer so the
+          // marker is impossible to miss while glancing through the list.
+          if (isDealer)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(11),
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        kAccent.withOpacity(0.18),
+                        kAccent.withOpacity(0.04),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.45, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Prominent dealer banner above the header — clearly marks the
+                // player who has to deal cards this round.
+                if (isDealer) ...[
+                  _DealerBanner(label: t('dealer_badge', {'n': maxBid.toString()})),
+                  const SizedBox(height: 8),
+                ],
+                // ── Header row ─────────────────────────────────────────────
+                Row(children: [
+                  Text(player.avatar,
+                      style: const TextStyle(fontSize: 26)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          Text(player.name,
+                              style: TextStyle(
+                                  color: color,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15)),
+                          if (isLeader) ...[
+                            const SizedBox(width: 4),
+                            _Badge('👑', kLeader),
+                          ],
+                        ]),
+                        const SizedBox(height: 2),
+                        Row(children: [
+                          Text(
+                            player.currentScore.toString(),
+                            style: TextStyle(
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              fontSize: 15)),
-                      if (isDealer) ...[
-                        const SizedBox(width: 6),
-                        _Badge('🃏', kAccentDim),
+                              color: color,
+                            ),
+                          ),
+                          if (scoreDelta != 0) ...[
+                            const SizedBox(width: 8),
+                            _DeltaBadge(scoreDelta),
+                          ],
+                        ]),
                       ],
-                      if (isLeader) ...[
-                        const SizedBox(width: 4),
-                        _Badge('👑', kLeader),
-                      ],
-                    ]),
-                    const SizedBox(height: 2),
-                    Row(children: [
-                      Text(
-                        player.currentScore.toString(),
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: color,
-                        ),
-                      ),
-                      if (scoreDelta != 0) ...[
-                        const SizedBox(width: 8),
-                        _DeltaBadge(scoreDelta),
-                      ],
-                    ]),
-                  ],
-                ),
-              ),
-            ]),
+                    ),
+                  ),
+                ]),
 
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-            const SizedBox(height: 12),
+                const SizedBox(height: 12),
+                const Divider(height: 1),
+                const SizedBox(height: 12),
 
-            // ── Bid / Made spinners ────────────────────────────────────
-            Row(children: [
-              Expanded(
-                child: _SpinnerField(
-                  label: t('announced'),
-                  value: bid,
-                  max: maxBid,
-                  color: color,
-                  onDecrement: () => _setBid(bid - 1),
-                  onIncrement: () => _setBid(bid + 1),
-                  onChanged: (v) => _setBid(v),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _SpinnerField(
-                  label: t('achieved'),
-                  value: made,
-                  max: maxBid,
-                  color: color,
-                  onDecrement: () => _setMade(made - 1),
-                  onIncrement: () => _setMade(made + 1),
-                  onChanged: (v) => _setMade(v),
-                ),
-              ),
-            ]),
-          ],
-        ),
+                // ── Bid / Made spinners ────────────────────────────────────
+                Row(children: [
+                  Expanded(
+                    child: _SpinnerField(
+                      label: t('announced'),
+                      value: bid,
+                      max: maxBid,
+                      color: color,
+                      onDecrement: () => _setBid(bid - 1),
+                      onIncrement: () => _setBid(bid + 1),
+                      onChanged: (v) => _setBid(v),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _SpinnerField(
+                      label: t('achieved'),
+                      value: made,
+                      max: maxBid,
+                      color: color,
+                      onDecrement: () => _setMade(made - 1),
+                      onIncrement: () => _setMade(made + 1),
+                      onChanged: (v) => _setMade(v),
+                    ),
+                  ),
+                ]),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -206,9 +236,10 @@ class _SpinnerField extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(label,
+            textAlign: TextAlign.center,
             style: theme.textTheme.labelSmall
                 ?.copyWith(color: color, letterSpacing: 1)),
         const SizedBox(height: 4),
@@ -278,6 +309,50 @@ class _SpinnerField extends StatelessWidget {
               },
               child: Text(t('ok'))),
         ],
+      ),
+    );
+  }
+}
+
+class _DealerBanner extends StatelessWidget {
+  final String label;
+  const _DealerBanner({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            kAccent.withOpacity(0.85),
+            kAccent.withOpacity(0.55),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: kAccent.withOpacity(0.35),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w800,
+            fontSize: 13,
+            letterSpacing: 1.0,
+          ),
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
       ),
     );
   }

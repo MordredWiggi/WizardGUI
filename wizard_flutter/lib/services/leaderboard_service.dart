@@ -244,11 +244,21 @@ Map<String, dynamic> buildGameSubmission(
     };
   }).toList();
 
-  // Assign ranks (descending score)
+  // Assign ranks (descending score). Players with the same score share the
+  // same rank — competition (or "1224") ranking — so a tied first place
+  // counts as a win for every tied player on the server's leaderboards
+  // (which credit a win whenever rank == 1).
   playerResults
       .sort((a, b) => (b['final_score'] as int) - (a['final_score'] as int));
+  int currentRank = 1;
+  int? lastScore;
   for (int i = 0; i < playerResults.length; i++) {
-    playerResults[i]['rank'] = i + 1;
+    final score = playerResults[i]['final_score'] as int;
+    if (lastScore == null || score != lastScore) {
+      currentRank = i + 1;
+      lastScore = score;
+    }
+    playerResults[i]['rank'] = currentRank;
   }
 
   final payload = <String, dynamic>{
