@@ -14,6 +14,10 @@ from typing import List, Dict, Optional
 SAVE_DIR = Path.home() / ".wizard_gui" / "games"
 SCHEMA_VERSION = "1.1"
 
+# Reserved filename for the auto-paused game (Home button mid-round).
+# Stored alongside regular saves but excluded from listings.
+PAUSED_FILENAME = "__paused__.json"
+
 
 class SaveManager:
     def __init__(self, save_dir: Path = SAVE_DIR) -> None:
@@ -66,12 +70,60 @@ class SaveManager:
             payload = json.load(fh)
         return payload["game"]
 
+    # ----------------------------------------------------------- paused game
+
+    @property
+    def _paused_path(self) -> Path:
+        return self.save_dir / PAUSED_FILENAME
+
+    def save_paused(self, game_data: dict, group: Optional[dict] = None) -> Path:
+        """Persist the in-progress game so it can be resumed from the menu."""
+        payload = {
+            "schema_version": SCHEMA_VERSION,
+            "meta": {
+                "saved_at": datetime.now().isoformat(),
+                "paused": True,
+                "group": group,
+            },
+            "game": game_data,
+        }
+        fp = self._paused_path
+        with open(fp, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2, ensure_ascii=False)
+        return fp
+
+    def load_paused(self) -> Optional[Dict]:
+        """Return ``{'game': ..., 'group': ...}`` or None when nothing is paused."""
+        fp = self._paused_path
+        if not fp.exists():
+            return None
+        try:
+            with open(fp, "r", encoding="utf-8") as fh:
+                payload = json.load(fh)
+            return {
+                "game": payload.get("game", {}),
+                "group": (payload.get("meta") or {}).get("group"),
+            }
+        except (json.JSONDecodeError, KeyError, OSError):
+            return None
+
+    def has_paused(self) -> bool:
+        return self._paused_path.exists()
+
+    def clear_paused(self) -> None:
+        try:
+            self._paused_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
     # ----------------------------------------------------------- list games
 
     def list_saved_games(self) -> List[Dict]:
         """Return metadata for all saved games, newest first."""
         games: List[Dict] = []
         for fp in sorted(self.save_dir.glob("*.json"), reverse=True):
+            if fp.name == PAUSED_FILENAME:
+                continue
             try:
                 with open(fp, "r", encoding="utf-8") as fh:
                     payload = json.load(fh)
@@ -100,6 +152,8 @@ class SaveManager:
         """Return metadata + game for games that need to be uploaded."""
         pending: List[Dict] = []
         for fp in sorted(self.save_dir.glob("*.json")):
+            if fp.name == PAUSED_FILENAME:
+                continue
             try:
                 with open(fp, "r", encoding="utf-8") as fh:
                     payload = json.load(fh)

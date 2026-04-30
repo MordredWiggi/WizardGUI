@@ -51,6 +51,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._setup_view = SetupView(self._save_manager)
         self._setup_view.start_game.connect(self._on_start_game)
         self._setup_view.load_game.connect(self._on_load_game_from_path)
+        self._setup_view.resume_game.connect(self._on_resume_game)
         self._setup_view.settings_changed.connect(self._on_settings_changed)
         self._stack.addWidget(self._setup_view)   # index 0
 
@@ -88,6 +89,14 @@ class MainWindow(QtWidgets.QMainWindow):
     # ── State-Übergänge ───────────────────────────────────────────────────────
 
     def _on_start_game(self, player_data: list, game_mode: str, group: object) -> None:
+        # Warn the user if they would discard a paused game by starting fresh.
+        if self._save_manager.has_paused():
+            dlg = WarningDialog(self, t("start_overrides_pause"))
+            if not dlg.exec():
+                return
+            self._save_manager.clear_paused()
+            self._setup_view.refresh_resume_state()
+
         self._active_group = group  # may be None for load-game paths
         self._game = GameControl(player_data, game_mode=game_mode)
         self._show_game_view()
@@ -104,6 +113,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._game_view.request_new_game.connect(self._on_new_game)
         self._game_view.request_save.connect(self._on_save_game)
         self._game_view.request_save_plot.connect(self._on_save_plot)
+        self._game_view.request_home.connect(self._on_home)
         self._game_view.round_submitted.connect(self._on_round_submitted)
         self._game_view.settings_changed.connect(self._on_settings_changed)
         self._stack.addWidget(self._game_view)
@@ -111,8 +121,50 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_new_game(self) -> None:
         """Zurück zur Setup-Ansicht."""
+        # Starting fresh from the in-game "new" button discards any paused
+        # state too — otherwise resume would silently bring it back later.
+        if self._save_manager.has_paused():
+            self._save_manager.clear_paused()
+        self._setup_view.refresh_resume_state()
         self._setup_view.retranslate_ui()
         self._stack.setCurrentWidget(self._setup_view)
+
+    def _on_home(self) -> None:
+        """Persist the current game as paused and return to setup."""
+        if self._game is None:
+            self._stack.setCurrentWidget(self._setup_view)
+            return
+        try:
+            self._save_manager.save_paused(
+                self._game.to_dict(),
+                group=self._active_group,
+            )
+        except Exception:
+            pass
+        self._setup_view.refresh_resume_state()
+        self._setup_view.retranslate_ui()
+        self._stack.setCurrentWidget(self._setup_view)
+
+    def _on_resume_game(self) -> None:
+        """Restore the paused game and switch to the game view."""
+        data = self._save_manager.load_paused()
+        if not data:
+            self._setup_view.refresh_resume_state()
+            return
+        try:
+            self._game = GameControl.from_dict(data["game"])
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(
+                self, "Fehler",
+                f"Pausiertes Spiel konnte nicht geladen werden:\n{exc}",
+            )
+            self._save_manager.clear_paused()
+            self._setup_view.refresh_resume_state()
+            return
+        self._active_group = data.get("group")
+        self._save_manager.clear_paused()
+        self._setup_view.refresh_resume_state()
+        self._show_game_view()
 
     # ── Spielrunden-Events → Celebration ─────────────────────────────────────
 

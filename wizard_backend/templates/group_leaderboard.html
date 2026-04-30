@@ -28,31 +28,6 @@
         color: #fff8e0;
     }
 
-    .sort-bar {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 6px;
-        margin-bottom: 20px;
-    }
-    .sort-btn {
-        padding: 6px 14px;
-        border: 1px solid #2a2a4a;
-        border-radius: 6px;
-        background: transparent;
-        color: #888aaa;
-        cursor: pointer;
-        font-size: 0.8rem;
-        transition: all 0.15s;
-    }
-    .sort-btn:hover { color: #c9a84c; border-color: #7a6230; }
-    .sort-btn.active {
-        background: #20204a;
-        border-color: #c9a84c;
-        color: #c9a84c;
-        font-weight: 600;
-    }
-
     .table-wrap {
         overflow-x: auto;
         border-radius: 10px;
@@ -71,6 +46,19 @@
         white-space: nowrap;
     }
     th:first-child { text-align: center; width: 50px; }
+    th.sortable {
+        cursor: pointer;
+        user-select: none;
+        transition: color 0.12s;
+    }
+    th.sortable:hover { color: #c9a84c; }
+    th.sortable.active { color: #c9a84c; }
+    .sort-arrow {
+        display: inline-block;
+        margin-left: 4px;
+        font-size: 0.7rem;
+        opacity: 0.7;
+    }
     td {
         padding: 11px 14px;
         border-top: 1px solid #1a1a3a;
@@ -119,15 +107,6 @@
         <button class="tab" data-mode="multiplicative">{{ _("lb_tab_mult", lang) }}</button>
     </div>
 
-    <div class="sort-bar">
-        <button class="sort-btn active" data-sort="wins">{{ _("lb_sort_wins", lang) }}</button>
-        <button class="sort-btn" data-sort="win_rate">{{ _("lb_sort_winrate", lang) }}</button>
-        <button class="sort-btn" data-sort="avg_score">{{ _("lb_sort_avg", lang) }}</button>
-        <button class="sort-btn" data-sort="hit_rate">{{ _("lb_sort_hitrate", lang) }}</button>
-        <button class="sort-btn" data-sort="highest_score">{{ _("lb_sort_high", lang) }}</button>
-        <button class="sort-btn" data-sort="win_streak">{{ _("lb_sort_streak", lang) }}</button>
-    </div>
-
     <div id="content" class="loading">{{ _("lb_loading", lang) }}</div>
 </div>
 {% endblock %}
@@ -136,8 +115,14 @@
 <script>
     const GROUP_CODE = "{{ group.code }}";
     let currentMode = "standard";
-    let currentSort = "wins";
+    // Default sort mirrors the mobile app: avg_score descending.
+    let currentSort = "avg_score";
+    let sortAsc = false;
     let leaderboardData = [];
+    const NUMERIC_SORTS = new Set([
+        "games", "wins", "win_rate", "avg_score",
+        "hit_rate", "highest_score", "win_streak"
+    ]);
 
     document.querySelectorAll(".tab").forEach(btn => {
         btn.addEventListener("click", () => {
@@ -148,14 +133,15 @@
         });
     });
 
-    document.querySelectorAll(".sort-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-            document.querySelectorAll(".sort-btn").forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
-            currentSort = btn.dataset.sort;
-            renderTable();
-        });
-    });
+    function setSort(key) {
+        if (currentSort === key) {
+            sortAsc = !sortAsc;
+        } else {
+            currentSort = key;
+            sortAsc = !NUMERIC_SORTS.has(key); // strings asc, numbers desc
+        }
+        renderTable();
+    }
 
     async function fetchData() {
         const content = document.getElementById("content");
@@ -179,19 +165,24 @@
             content.innerHTML = '<div class="empty">{{ _("lb_empty", lang) }}</div>';
             return;
         }
-        const sorted = [...leaderboardData].sort((a, b) => b[currentSort] - a[currentSort]);
+        const sorted = sortRows(leaderboardData.slice());
+
+        const arrow = (key) => key === currentSort
+            ? `<span class="sort-arrow">${sortAsc ? "▲" : "▼"}</span>`
+            : '<span class="sort-arrow"></span>';
+        const headerCls = (key) => `sortable${key === currentSort ? " active" : ""}`;
 
         let html = '<div class="table-wrap"><table>';
         html += `<thead><tr>
             <th>#</th>
-            <th>{{ _("lb_name", lang) }}</th>
-            <th>{{ _("lb_table_games", lang) }}</th>
-            <th>{{ _("lb_table_wins", lang) }}</th>
-            <th>{{ _("lb_table_quote", lang) }}</th>
-            <th>{{ _("lb_table_avg", lang) }}</th>
-            <th>{{ _("lb_table_hit", lang) }}</th>
-            <th>{{ _("lb_table_high", lang) }}</th>
-            <th>{{ _("lb_table_streak", lang) }}</th>
+            <th class="${headerCls('name')}" data-sort="name">{{ _("lb_name", lang) }}${arrow('name')}</th>
+            <th class="${headerCls('games')}" data-sort="games">{{ _("lb_table_games", lang) }}${arrow('games')}</th>
+            <th class="${headerCls('wins')}" data-sort="wins">{{ _("lb_table_wins", lang) }}${arrow('wins')}</th>
+            <th class="${headerCls('win_rate')}" data-sort="win_rate">{{ _("lb_table_quote", lang) }}${arrow('win_rate')}</th>
+            <th class="${headerCls('avg_score')}" data-sort="avg_score">{{ _("lb_table_avg", lang) }}${arrow('avg_score')}</th>
+            <th class="${headerCls('hit_rate')}" data-sort="hit_rate">{{ _("lb_table_hit", lang) }}${arrow('hit_rate')}</th>
+            <th class="${headerCls('highest_score')}" data-sort="highest_score">{{ _("lb_table_high", lang) }}${arrow('highest_score')}</th>
+            <th class="${headerCls('win_streak')}" data-sort="win_streak">{{ _("lb_table_streak", lang) }}${arrow('win_streak')}</th>
         </tr></thead><tbody>`;
 
         sorted.forEach((p, i) => {
@@ -203,8 +194,8 @@
 
             html += `<tr>
                 <td${rankClass}>${medal || rank}</td>
-                <td class="player-name">${escHtml(p.name)}</td>
-                <td>${p.games}</td>
+                <td class="player-name"${currentSort === "name" ? ' style="color:#c9a84c;"' : ''}>${escHtml(p.name)}</td>
+                <td${isHighlight("games")}>${p.games}</td>
                 <td${isHighlight("wins")}>${p.wins}</td>
                 <td${isHighlight("win_rate")}>${p.win_rate}%</td>
                 <td${isHighlight("avg_score")}>${p.avg_score}</td>
@@ -216,6 +207,31 @@
 
         html += '</tbody></table></div>';
         content.innerHTML = html;
+
+        // Wire up clickable column headers (mobile-style sort).
+        content.querySelectorAll("th.sortable").forEach(th => {
+            th.addEventListener("click", () => setSort(th.dataset.sort));
+        });
+    }
+
+    function sortRows(rows) {
+        const isNumeric = NUMERIC_SORTS.has(currentSort);
+        const dir = sortAsc ? 1 : -1;
+        rows.sort((a, b) => {
+            let av = a[currentSort];
+            let bv = b[currentSort];
+            if (isNumeric) {
+                av = av == null ? -Infinity : Number(av);
+                bv = bv == null ? -Infinity : Number(bv);
+                return (av - bv) * dir;
+            }
+            av = (av || "").toString().toLowerCase();
+            bv = (bv || "").toString().toLowerCase();
+            if (av < bv) return -1 * dir;
+            if (av > bv) return 1 * dir;
+            return 0;
+        });
+        return rows;
     }
 
     function escHtml(s) {

@@ -8,6 +8,10 @@ import 'package:intl/intl.dart';
 /// Schema version matches desktop: "1.1"
 const _schemaVersion = '1.1';
 
+/// Reserved filename for the auto-paused game (Home button mid-round).
+/// Stored alongside regular saves but excluded from listings.
+const _pausedFilename = '__paused__.json';
+
 class SavedGameMeta {
   final String name;
   final String savedAt;
@@ -113,6 +117,66 @@ class SaveManager {
     return payload['game'] as Map<String, dynamic>;
   }
 
+  // --------------------------------------------------------- paused game
+
+  Future<File> _pausedFile() async {
+    final dir = await _saveDir;
+    return File('${dir.path}/$_pausedFilename');
+  }
+
+  /// Persist the in-progress game so it can be resumed from the menu.
+  Future<String> savePaused(
+    Map<String, dynamic> gameData, {
+    Map<String, dynamic>? group,
+  }) async {
+    final payload = {
+      'schema_version': _schemaVersion,
+      'meta': {
+        'saved_at': DateTime.now().toIso8601String(),
+        'paused': true,
+        'group': group,
+      },
+      'game': gameData,
+    };
+    final file = await _pausedFile();
+    await file.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(payload),
+      encoding: utf8,
+    );
+    return file.path;
+  }
+
+  /// Returns `{'game': ..., 'group': ...}` or `null` when nothing is paused.
+  Future<Map<String, dynamic>?> loadPaused() async {
+    final file = await _pausedFile();
+    if (!await file.exists()) return null;
+    try {
+      final payload =
+          jsonDecode(await file.readAsString(encoding: utf8)) as Map<String, dynamic>;
+      final meta = (payload['meta'] as Map?) ?? const {};
+      return {
+        'game': Map<String, dynamic>.from(payload['game'] as Map? ?? {}),
+        'group': meta['group'] == null
+            ? null
+            : Map<String, dynamic>.from(meta['group'] as Map),
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<bool> hasPaused() async {
+    final file = await _pausedFile();
+    return file.exists();
+  }
+
+  Future<void> clearPaused() async {
+    try {
+      final file = await _pausedFile();
+      if (await file.exists()) await file.delete();
+    } catch (_) {/* ignore */}
+  }
+
   // ----------------------------------------------------------- list games
 
   /// Return metadata for all saved games, newest first.
@@ -122,6 +186,7 @@ class SaveManager {
         .listSync()
         .whereType<File>()
         .where((f) => f.path.endsWith('.json'))
+        .where((f) => f.uri.pathSegments.last != _pausedFilename)
         .toList()
       ..sort((a, b) => b.path.compareTo(a.path)); // reverse alphabetical ≈ newest first
 
@@ -161,6 +226,7 @@ class SaveManager {
         .listSync()
         .whereType<File>()
         .where((f) => f.path.endsWith('.json'))
+        .where((f) => f.uri.pathSegments.last != _pausedFilename)
         .toList();
 
     final result = <PendingSyncGame>[];

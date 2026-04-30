@@ -38,6 +38,10 @@ class _SetupScreenState extends State<SetupScreen> {
   List<SavedGameMeta> _savedGames = [];
   bool _loadingSaved = false;
 
+  // Paused-game banner state (mirrors desktop SetupView).
+  bool _hasPaused = false;
+  String _pausedPlayers = '';
+
   // Index of the active bottom tab: 0 = Saved Games, 1 = Groups LB, 2 = My Group LB
   int _bottomTab = 0;
 
@@ -54,6 +58,7 @@ class _SetupScreenState extends State<SetupScreen> {
   void initState() {
     super.initState();
     _refreshSaved();
+    _refreshResumeState();
     // Rebuild the name field whenever the text changes so its colour can
     // reflect whether the typed name already exists in the selected group.
     _nameController.addListener(_onNameChanged);
@@ -61,6 +66,81 @@ class _SetupScreenState extends State<SetupScreen> {
     // The default state is intentionally "no group selected" — so the user
     // can play offline immediately without a server round-trip.
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingSync());
+  }
+
+  Future<void> _refreshResumeState() async {
+    final notifier = context.read<GameNotifier>();
+    final has = await notifier.hasPaused();
+    if (!mounted) return;
+    if (!has) {
+      setState(() {
+        _hasPaused = false;
+        _pausedPlayers = '';
+      });
+      return;
+    }
+    final data = await notifier.peekPaused();
+    if (!mounted) return;
+    if (data == null) {
+      setState(() {
+        _hasPaused = false;
+        _pausedPlayers = '';
+      });
+      return;
+    }
+    final game = data['game'] as Map?;
+    final players = (game?['players'] as List?)
+            ?.map((p) => (p as Map)['name'] as String? ?? '')
+            .where((s) => s.isNotEmpty)
+            .join(', ') ??
+        '';
+    setState(() {
+      _hasPaused = true;
+      _pausedPlayers = players;
+    });
+  }
+
+  Future<void> _onResume() async {
+    final notifier = context.read<GameNotifier>();
+    final ok = await notifier.resumePaused();
+    if (!mounted) return;
+    if (!ok) {
+      await _refreshResumeState();
+      return;
+    }
+    // Group state was restored inside resumePaused(). Mirror it locally so
+    // the setup UI shows the right banner if the user comes back here.
+    final group = notifier.activeGroup;
+    setState(() {
+      _selectedGroup = group;
+    });
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const GameScreen()),
+    );
+  }
+
+  Future<void> _onDiscardPaused() async {
+    final settings = context.read<AppSettings>();
+    final t = settings.t;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(t('warning_title')),
+        content: Text(t('resume_discard_confirm')),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(t('cancel'))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(t('resume_discard'))),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await context.read<GameNotifier>().clearPaused();
+      await _refreshResumeState();
+    }
   }
 
   void _onNameChanged() {
@@ -216,10 +296,37 @@ class _SetupScreenState extends State<SetupScreen> {
   void _removePlayer(String name) =>
       setState(() => _players.removeWhere((p) => p['name'] == name));
 
-  void _startGame() {
+  Future<void> _startGame() async {
     if (_players.length < 2) return;
+    final notifier = context.read<GameNotifier>();
+    // Warn before discarding a paused game silently.
+    if (await notifier.hasPaused()) {
+      if (!mounted) return;
+      final settings = context.read<AppSettings>();
+      final t = settings.t;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(t('warning_title')),
+          content: Text(t('start_overrides_pause')),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(t('cancel'))),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(t('proceed'))),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      await notifier.clearPaused();
+      if (!mounted) return;
+      await _refreshResumeState();
+      if (!mounted) return;
+    }
     // No group selected is a valid, offline-by-default way to play.
-    context.read<GameNotifier>().startGame(List.from(_players), _gameMode);
+    notifier.startGame(List.from(_players), _gameMode);
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const GameScreen()),
     );
@@ -395,6 +502,54 @@ class _SetupScreenState extends State<SetupScreen> {
                     letterSpacing: 1.5)),
 
             const SizedBox(height: 24),
+
+            // ── Resume banner (only shown when a paused game exists) ──────
+            if (_hasPaused) ...[
+              Card(
+                shape: RoundedRectangleBorder(
+                  side: const BorderSide(color: kAccent, width: 2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        t('resume_game'),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: kAccent,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (_pausedPlayers.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          t('resume_game_subtitle', {'players': _pausedPlayers}),
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      Row(children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _onResume,
+                            icon: const Icon(Icons.play_arrow, size: 18),
+                            label: Text(t('resume_game')),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          onPressed: _onDiscardPaused,
+                          child: Text(t('resume_discard')),
+                        ),
+                      ]),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // ── Step 1: Group ─────────────────────────────────────────────
             _SectionCard(

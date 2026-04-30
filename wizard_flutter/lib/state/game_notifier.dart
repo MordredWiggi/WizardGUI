@@ -112,4 +112,39 @@ class GameNotifier extends ChangeNotifier {
 
   Future<void> deleteSavedGame(String filePath) =>
       _saveManager.deleteGame(filePath);
+
+  // ── Paused-game (Home button) ──────────────────────────────────────────────
+
+  Future<void> savePaused() async {
+    if (_game == null) return;
+    await _saveManager.savePaused(_game!.toJson(), group: _activeGroup);
+  }
+
+  Future<bool> hasPaused() => _saveManager.hasPaused();
+
+  /// Returns the raw paused payload (`{'game': ..., 'group': ...}`) without
+  /// restoring it — used by the UI to render the resume banner.
+  Future<Map<String, dynamic>?> peekPaused() => _saveManager.loadPaused();
+
+  /// Restore a paused game; on success the game + group are re-bound and the
+  /// paused file is cleared. Returns true when a paused game was loaded.
+  Future<bool> resumePaused() async {
+    final data = await _saveManager.loadPaused();
+    if (data == null) return false;
+    try {
+      _game = GameControl.fromJson(
+        Map<String, dynamic>.from(data['game'] as Map),
+      );
+    } catch (_) {
+      await _saveManager.clearPaused();
+      return false;
+    }
+    final group = data['group'];
+    _activeGroup = group is Map ? Map<String, dynamic>.from(group) : null;
+    await _saveManager.clearPaused();
+    notifyListeners();
+    return true;
+  }
+
+  Future<void> clearPaused() => _saveManager.clearPaused();
 }

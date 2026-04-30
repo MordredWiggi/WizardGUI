@@ -625,6 +625,7 @@ class GameView(QtWidgets.QWidget):
     request_new_game  = QtCore.pyqtSignal()
     request_save      = QtCore.pyqtSignal()
     request_save_plot = QtCore.pyqtSignal()
+    request_home      = QtCore.pyqtSignal()
     round_submitted   = QtCore.pyqtSignal(object)   # RoundEvents
     settings_changed  = QtCore.pyqtSignal()
 
@@ -747,10 +748,13 @@ class GameView(QtWidgets.QWidget):
         self.btn_save = self._make_action_btn(t("save"), tooltip=t("tooltip_save"))
         self.btn_save.clicked.connect(self.request_save)
 
+        self.btn_home = self._make_action_btn(t("home"), tooltip=t("tooltip_home"))
+        self.btn_home.clicked.connect(self.request_home)
+
         self.btn_new = self._make_action_btn(t("new"), tooltip=t("tooltip_new"))
         self.btn_new.clicked.connect(self._on_new_game)
 
-        for btn in [self.btn_undo, self.btn_save, self.btn_new]:
+        for btn in [self.btn_undo, self.btn_save, self.btn_home, self.btn_new]:
             action_row.addWidget(btn)
         sidebar_layout.addLayout(action_row)
 
@@ -1002,6 +1006,8 @@ class GameView(QtWidgets.QWidget):
         self.btn_undo.setToolTip(t("tooltip_undo"))
         self.btn_save.setText(t("save"))
         self.btn_save.setToolTip(t("tooltip_save"))
+        self.btn_home.setText(t("home"))
+        self.btn_home.setToolTip(t("tooltip_home"))
         self.btn_new.setText(t("new"))
         self.btn_new.setToolTip(t("tooltip_new"))
         self.btn_settings.setToolTip(t("tooltip_settings"))

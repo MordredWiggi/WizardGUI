@@ -407,12 +407,31 @@ class _GameScreenState extends State<GameScreen>
       ),
     );
     if (confirmed == true && mounted) {
-      context.read<GameNotifier>().endGame();
+      // Starting fresh discards any paused state — otherwise resume would
+      // silently bring it back later.
+      final notifier = context.read<GameNotifier>();
+      await notifier.clearPaused();
+      notifier.endGame();
+      if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const SetupScreen()),
         (_) => false,
       );
     }
+  }
+
+  Future<void> _onHome(BuildContext context) async {
+    final notifier = context.read<GameNotifier>();
+    if (notifier.game == null) return;
+    try {
+      await notifier.savePaused();
+    } catch (_) {/* ignore – fall through to navigation */}
+    notifier.endGame();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const SetupScreen()),
+      (_) => false,
+    );
   }
 
   // ── UI ─────────────────────────────────────────────────────────────────────
@@ -483,6 +502,11 @@ class _GameScreenState extends State<GameScreen>
             icon: const Icon(Icons.save_outlined, size: 22),
             tooltip: t('save'),
             onPressed: () => _onSave(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.home_outlined, size: 22),
+            tooltip: t('tooltip_home'),
+            onPressed: () => _onHome(context),
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined, size: 22),

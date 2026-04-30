@@ -40,6 +40,19 @@
         border-radius: 8px 8px 0 0;
     }
     .group-row.header:hover { background: #1a1a3a; cursor: default; }
+    .sortable {
+        cursor: pointer;
+        user-select: none;
+        transition: color 0.12s;
+    }
+    .sortable:hover { color: #c9a84c; }
+    .sortable.active { color: #c9a84c; }
+    .sort-arrow {
+        display: inline-block;
+        margin-left: 4px;
+        font-size: 0.7rem;
+        opacity: 0.7;
+    }
     .rank { text-align: center; font-weight: 700; color: #7a6230; }
     .rank-1 { color: #ffd700; }
     .rank-2 { color: #aaaacc; }
@@ -143,11 +156,11 @@
     <div class="panel overflow-hidden">
         <div class="group-row header">
             <div class="rank">#</div>
-            <div>{{ _("lb_col_group", lang) }}</div>
-            <div class="group-num dim hide-sm">{{ _("lb_table_games", lang) }}</div>
-            <div class="group-num dim hide-sm">{{ _("lb_table_avg", lang) }}</div>
-            <div class="group-num dim">{{ _("lb_table_hit", lang) }}</div>
-            <div class="group-num dim">{{ _("lb_players_short", lang) }}</div>
+            <div class="sortable" data-sort="name">{{ _("lb_col_group", lang) }}<span class="sort-arrow"></span></div>
+            <div class="group-num dim hide-sm sortable" data-sort="total_games">{{ _("lb_table_games", lang) }}<span class="sort-arrow"></span></div>
+            <div class="group-num dim hide-sm sortable" data-sort="avg_score">{{ _("lb_table_avg", lang) }}<span class="sort-arrow"></span></div>
+            <div class="group-num dim sortable" data-sort="avg_hit_rate">{{ _("lb_table_hit", lang) }}<span class="sort-arrow"></span></div>
+            <div class="group-num dim sortable" data-sort="player_count">{{ _("lb_players_short", lang) }}<span class="sort-arrow"></span></div>
         </div>
         <div id="tbody">
             <div class="loading">{{ _("lb_loading", lang) }}</div>
@@ -178,6 +191,10 @@
     let allGroups = [];        // [{id, name, visibility, player_count, ...}]
     let leaderboardRows = [];  // global groups ranking rows
     let currentSearch = "";
+    // Default sort: total_games descending, mirroring the mobile leaderboard.
+    let sortKey = "total_games";
+    let sortAsc = false;
+    const NUMERIC_KEYS = new Set(["total_games", "avg_score", "avg_hit_rate", "player_count"]);
 
     async function loadLeaderboard() {
         const tbody = document.getElementById("tbody");
@@ -203,7 +220,7 @@
         // primary rows. Hidden (or unranked) groups from /api/groups that
         // match the search are appended beneath.
         const rankedIds = new Set(leaderboardRows.map(r => r.id));
-        const ranked = leaderboardRows.map((r, i) => ({ ...r, _rank: i + 1 }));
+        const ranked = sortRows(leaderboardRows.slice());
 
         const filteredRanked = q
             ? ranked.filter(r => (r.name || "").toLowerCase().includes(q))
@@ -215,14 +232,16 @@
                 (g.name || "").toLowerCase().includes(q))
             : [];
 
+        updateSortIndicators();
+
         if (filteredRanked.length === 0 && extra.length === 0) {
             tbody.innerHTML = '<div class="empty">{{ _("lb_no_groups_found", lang) }}</div>';
             return;
         }
 
         let html = "";
-        filteredRanked.forEach(g => {
-            html += rowHtml(g, g._rank, /*hidden=*/false);
+        filteredRanked.forEach((g, i) => {
+            html += rowHtml(g, i + 1, /*hidden=*/false);
         });
         extra.forEach(g => {
             html += rowHtml(g, null, g.visibility === "hidden");
@@ -236,6 +255,50 @@
                 openCodeModal(name);
             });
         });
+    }
+
+    function sortRows(rows) {
+        const isNumeric = NUMERIC_KEYS.has(sortKey);
+        const dir = sortAsc ? 1 : -1;
+        rows.sort((a, b) => {
+            let av = a[sortKey];
+            let bv = b[sortKey];
+            if (isNumeric) {
+                av = av == null ? -Infinity : Number(av);
+                bv = bv == null ? -Infinity : Number(bv);
+                return (av - bv) * dir;
+            }
+            av = (av || "").toString().toLowerCase();
+            bv = (bv || "").toString().toLowerCase();
+            if (av < bv) return -1 * dir;
+            if (av > bv) return 1 * dir;
+            return 0;
+        });
+        return rows;
+    }
+
+    function updateSortIndicators() {
+        document.querySelectorAll(".sortable").forEach(el => {
+            const arrow = el.querySelector(".sort-arrow");
+            if (el.dataset.sort === sortKey) {
+                el.classList.add("active");
+                if (arrow) arrow.textContent = sortAsc ? "▲" : "▼";
+            } else {
+                el.classList.remove("active");
+                if (arrow) arrow.textContent = "";
+            }
+        });
+    }
+
+    function setSort(key) {
+        if (sortKey === key) {
+            sortAsc = !sortAsc;
+        } else {
+            sortKey = key;
+            // Strings default to ascending (A→Z); numerics to descending (high→low).
+            sortAsc = !NUMERIC_KEYS.has(key);
+        }
+        render();
     }
 
     function rowHtml(g, rank, isHidden) {
@@ -328,6 +391,11 @@
     document.getElementById("searchInput").addEventListener("input", (e) => {
         currentSearch = e.target.value;
         render();
+    });
+
+    // Sortable headers
+    document.querySelectorAll(".sortable").forEach(el => {
+        el.addEventListener("click", () => setSort(el.dataset.sort));
     });
 
     loadLeaderboard();

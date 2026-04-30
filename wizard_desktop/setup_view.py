@@ -86,6 +86,7 @@ class SetupView(QtWidgets.QWidget):
 
     start_game = QtCore.pyqtSignal(list, str, object)  # players, mode, group dict or None
     load_game = QtCore.pyqtSignal(object)              # Path
+    resume_game = QtCore.pyqtSignal()
     settings_changed = QtCore.pyqtSignal()
 
     def __init__(self, save_manager: SaveManager, parent: Optional[QtWidgets.QWidget] = None):
@@ -183,6 +184,44 @@ class SetupView(QtWidgets.QWidget):
         self._sub_lbl.setObjectName("subtitle")
         self._sub_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         main.addWidget(self._sub_lbl)
+
+        # ── Resume-Banner (nur sichtbar, wenn ein pausiertes Spiel existiert) ─
+        self._resume_panel = self._make_panel()
+        self._resume_panel.setStyleSheet(
+            f"QFrame#panel {{ border: 2px solid {ACCENT}; }}"
+        )
+        resume_layout = QtWidgets.QHBoxLayout(self._resume_panel)
+        resume_layout.setContentsMargins(20, 14, 20, 14)
+        resume_layout.setSpacing(14)
+
+        resume_text_layout = QtWidgets.QVBoxLayout()
+        resume_text_layout.setSpacing(2)
+        self._resume_title_lbl = QtWidgets.QLabel(t("resume_game"))
+        self._resume_title_lbl.setStyleSheet(
+            f"color: {ACCENT}; font-size: 18px; font-weight: 700; background: transparent;"
+        )
+        self._resume_subtitle_lbl = QtWidgets.QLabel("")
+        self._resume_subtitle_lbl.setStyleSheet(
+            f"color: {TEXT_DIM}; font-size: 12px; background: transparent;"
+        )
+        resume_text_layout.addWidget(self._resume_title_lbl)
+        resume_text_layout.addWidget(self._resume_subtitle_lbl)
+        resume_layout.addLayout(resume_text_layout, 1)
+
+        self._btn_resume = QtWidgets.QPushButton(t("resume_game"))
+        self._btn_resume.setObjectName("primary")
+        self._btn_resume.setMinimumHeight(40)
+        self._btn_resume.setMinimumWidth(180)
+        self._btn_resume.clicked.connect(self.resume_game)
+        resume_layout.addWidget(self._btn_resume)
+
+        self._btn_resume_discard = QtWidgets.QPushButton(t("resume_discard"))
+        self._btn_resume_discard.setMinimumHeight(40)
+        self._btn_resume_discard.clicked.connect(self._on_resume_discard)
+        resume_layout.addWidget(self._btn_resume_discard)
+
+        main.addWidget(self._resume_panel)
+        self._resume_panel.setVisible(False)
 
         # ── Kombiniertes Setup-Panel (Gruppe + Spieler + Modus) ───────────
         combined_panel = self._make_panel()
@@ -396,6 +435,7 @@ class SetupView(QtWidgets.QWidget):
         self._current_bottom_tab = 0
         self._apply_tab_style()
         self._refresh_saved()
+        self.refresh_resume_state()
 
     # ── Group management ───────────────────────────────────────────────────────
 
@@ -662,6 +702,11 @@ class SetupView(QtWidgets.QWidget):
         self._btn_tab_mygroup.setText(t("tab_group_lb"))
         self._btn_join_group.setText(t("group_select_label"))
         self._btn_create_group.setText(t("group_create_btn"))
+        self._resume_title_lbl.setText(t("resume_game"))
+        self._btn_resume.setText(t("resume_game"))
+        self._btn_resume_discard.setText(t("resume_discard"))
+        # Re-render the subtitle based on the current paused payload (if any).
+        self.refresh_resume_state()
         if self._selected_group:
             self._group_status_lbl.setText(
                 t("group_selected",
@@ -700,6 +745,29 @@ class SetupView(QtWidgets.QWidget):
         game_meta = item.data(QtCore.Qt.ItemDataRole.UserRole)
         if game_meta:
             self.load_game.emit(game_meta["filepath"])
+
+    # ── Resume-Banner ─────────────────────────────────────────────────────────
+
+    def refresh_resume_state(self) -> None:
+        """Show / hide the resume panel based on whether a paused game exists."""
+        if not self._save_manager.has_paused():
+            self._resume_panel.setVisible(False)
+            return
+        data = self._save_manager.load_paused()
+        if not data:
+            self._resume_panel.setVisible(False)
+            return
+        game = data.get("game") or {}
+        players = ", ".join(p.get("name", "") for p in game.get("players", []))
+        self._resume_subtitle_lbl.setText(t("resume_game_subtitle", players=players))
+        self._resume_panel.setVisible(True)
+
+    def _on_resume_discard(self) -> None:
+        from dialogs import WarningDialog
+        dlg = WarningDialog(self, t("resume_discard_confirm"))
+        if dlg.exec():
+            self._save_manager.clear_paused()
+            self.refresh_resume_state()
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
