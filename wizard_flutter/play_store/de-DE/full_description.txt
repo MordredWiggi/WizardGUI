@@ -1,0 +1,25 @@
+Wizard ist der ideale Begleiter für das beliebte Stichspiel. Erfasse jede Runde, zähle jeden Stich und behalte die Regeln im Griff – damit du mehr Zeit zum Spielen hast und weniger Zeit mit Rechnen verbringst.
+
+FUNKTIONEN
+• Punkte zählen für 3 bis 6 Spielende über das komplette Spiel mit 20, 15, 12 oder 10 Runden (Rundenzahl passt sich automatisch der Spielerzahl an)
+• Zwei Wertungsmodi: Standard (klassisch +20/–10) oder Multiplikativ für kürzere, wechselhafte Partien
+• Ansagen und Stiche werden Runde für Runde erfasst, Zwischenstände live aktualisiert
+• Unbeendete Spiele speichern und später fortsetzen – auch nach App-Neustart
+• "Home"-Button mitten in der Runde, falls das Abendessen ruft
+
+GRUPPEN & BESTENLISTEN
+• Private Gruppen mit Beitrittscode anlegen und Freunde einladen
+• Beendete Spiele in die Gruppen-Bestenliste hochladen
+• Sortieren nach Gesamtpunkten, Spielen, Durchschnittsplatz, Siegquote und mehr
+• Öffentliche globale Bestenliste für lockeres Spielen
+
+OFFLINE ZUERST
+• Spiele komplett ohne Internetverbindung erfassen und speichern
+• Ausstehende Uploads werden synchronisiert, sobald du wieder online bist – kein Ergebnis geht verloren
+
+SCHLICHTES, FOKUSSIERTES DESIGN
+• Dunkles Design, optimiert für Karten, gedämpftes Licht und lange Abende
+• Verfügbar auf Deutsch, Englisch, Französisch und Hindi
+• Keine Werbung, kein Tracking, keine In-App-Käufe
+
+Das Kartenspiel Wizard selbst ist ein Produkt eines Drittanbieters – diese App ist ein unabhängiger Punktezähler und steht in keiner Verbindung mit dem Verlag.

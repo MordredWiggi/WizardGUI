@@ -1,0 +1,25 @@
+Wizard is the perfect companion for the trick-taking card game played around the world. Track every round, score every trick, and keep the rules straight — so you can spend more time playing and less time arguing about who got what.
+
+FEATURES
+• Score 3 to 6 players over the full 20-, 15-, 12-, or 10-round game (round count auto-adjusts to player count)
+• Two scoring modes: Standard (the classic +20/–10) and Multiplicative for shorter, swingier games
+• Predictions and tricks tracked round-by-round, with totals updated live
+• Save unfinished games and resume them later — even after closing the app
+• Quick "home" button mid-round in case dinner shows up
+
+GROUPS & LEADERBOARDS
+• Create private groups with a join code and invite friends
+• Upload finished games to your group's leaderboard
+• Sort players by total score, games played, average position, win rate, and more
+• Public global leaderboard for casual play
+
+OFFLINE FIRST
+• Score and save games entirely offline
+• Pending uploads sync the next time you open the app online — never lose a result
+
+CLEAN, FOCUSED DESIGN
+• Dark theme tuned for cards, dim rooms, and long evenings
+• Available in English, German, French, and Hindi
+• No ads, no tracking, no in-app purchases
+
+The Wizard card game itself is a third-party product — this app is an independent scoring companion, not affiliated with the publisher.

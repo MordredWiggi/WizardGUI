@@ -1,0 +1,5 @@
+Première version.
+• Comptage Wizard pour 3 à 6 joueurs avec deux modes de score
+• Sauvegarde, pause et reprise des parties
+• Classements en ligne avec groupes privés
+• Français, anglais, allemand et hindi

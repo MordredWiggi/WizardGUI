@@ -1,0 +1,25 @@
+Wizard est le compagnon idéal pour le célèbre jeu de levées. Notez chaque manche, comptez chaque pli et gardez les règles à l'œil – pour passer plus de temps à jouer et moins à compter.
+
+FONCTIONNALITÉS
+• Comptage pour 3 à 6 joueurs sur la partie complète de 20, 15, 12 ou 10 manches (le nombre de manches s'ajuste automatiquement au nombre de joueurs)
+• Deux modes de score : Standard (le classique +20/–10) et Multiplicatif pour des parties plus courtes et plus surprenantes
+• Annonces et plis suivis manche par manche, totaux mis à jour en direct
+• Sauvegardez les parties inachevées et reprenez-les plus tard – même après avoir fermé l'application
+• Bouton « Accueil » en pleine partie au cas où le dîner serait servi
+
+GROUPES ET CLASSEMENTS
+• Créez des groupes privés avec un code d'accès et invitez vos amis
+• Envoyez les parties terminées au classement de votre groupe
+• Triez les joueurs par score total, parties jouées, position moyenne, taux de victoire et plus
+• Classement mondial public pour les parties occasionnelles
+
+HORS LIGNE D'ABORD
+• Comptez et sauvegardez vos parties entièrement hors ligne
+• Les envois en attente se synchronisent à la prochaine ouverture en ligne – aucun résultat n'est perdu
+
+DESIGN ÉPURÉ
+• Thème sombre adapté aux cartes, aux pièces tamisées et aux longues soirées
+• Disponible en français, anglais, allemand et hindi
+• Pas de publicité, pas de pistage, pas d'achats intégrés
+
+Le jeu de cartes Wizard lui-même est un produit tiers – cette application est un compteur de points indépendant, sans lien avec l'éditeur.

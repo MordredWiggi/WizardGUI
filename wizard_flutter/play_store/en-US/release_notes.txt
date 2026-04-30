@@ -1,0 +1,5 @@
+First release.
+• 3–6 player Wizard scoring with two scoring modes
+• Save, pause, and resume games
+• Online leaderboards with private groups
+• English, German, French, and Hindi

@@ -1,0 +1,5 @@
+Erste Veröffentlichung.
+• Wizard-Punkte für 3–6 Spielende mit zwei Wertungsmodi
+• Spiele speichern, pausieren und fortsetzen
+• Online-Bestenlisten mit privaten Gruppen
+• Deutsch, Englisch, Französisch und Hindi

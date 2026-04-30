@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy – Wizard{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-10 text-wizard-text">
+
+    <h1 class="text-3xl font-bold tracking-wide text-wizard-gold border-b border-wizard-gold pb-3 mb-8">
+        Privacy Policy
+    </h1>
+
+    <p class="text-wizard-muted text-sm mb-8"><em>Last updated: 2026-04-30</em></p>
+
+    <p class="mb-6">
+        This privacy policy explains how the <strong class="text-wizard-gold">Wizard</strong>
+        mobile app and website ("the service") handles your data. The service is published by
+        <strong>Malik Jirasek</strong>. If you have any questions, contact
+        <a href="mailto:malikji@gmx.de" class="text-wizard-gold hover:underline">malikji@gmx.de</a>.
+    </p>
+
+    <section class="mb-8">
+        <h2 class="text-xl font-semibold text-wizard-gold mb-3">1. What we collect</h2>
+        <p class="mb-3">
+            The service only stores or transmits the following data, and only when you
+            actively use the corresponding feature:
+        </p>
+        <ul class="list-disc pl-6 space-y-2 text-wizard-text">
+            <li>
+                <strong>Player display names</strong> that you type into the app when
+                starting a game.
+            </li>
+            <li>
+                <strong>Game results</strong> – round predictions, tricks won, scores,
+                final placements.
+            </li>
+            <li>
+                <strong>Group code</strong>, if you choose to upload a finished game to a
+                private leaderboard.
+            </li>
+            <li>
+                <strong>Device language preference</strong>, used locally to pick the UI
+                language.
+            </li>
+        </ul>
+        <p class="mt-3">
+            We do <strong>not</strong> collect: contact lists, photos, messages,
+            location, microphone, advertising IDs, persistent device identifiers, crash
+            reports, or analytics events.
+        </p>
+    </section>
+
+    <section class="mb-8">
+        <h2 class="text-xl font-semibold text-wizard-gold mb-3">2. Where your data lives</h2>
+        <ul class="list-disc pl-6 space-y-2">
+            <li>
+                <strong>On your device.</strong> Saved games and the paused-game file are
+                stored only in the app's private files directory and never leave your device
+                unless you upload them.
+            </li>
+            <li>
+                <strong>On this server (<code class="bg-wizard-panel px-1 rounded">play-wizard.de</code>).</strong>
+                Only when you tap "upload" on a finished game, the player names and scores are
+                sent over HTTPS and stored so the group leaderboard can display them.
+            </li>
+        </ul>
+    </section>
+
+    <section class="mb-8">
+        <h2 class="text-xl font-semibold text-wizard-gold mb-3">3. Third parties</h2>
+        <p>
+            The app does not embed any third-party analytics, advertising, or tracking SDKs.
+            We do not sell or share your data with third parties.
+        </p>
+    </section>
+
+    <section class="mb-8">
+        <h2 class="text-xl font-semibold text-wizard-gold mb-3">4. Children</h2>
+        <p>
+            The service is not directed at children under 13 and does not knowingly collect
+            data from children. Player names are typed by users and may be anything; we
+            recommend not entering real surnames or other identifying information for minors.
+        </p>
+    </section>
+
+    <section class="mb-8">
+        <h2 class="text-xl font-semibold text-wizard-gold mb-3">5. Your choices</h2>
+        <ul class="list-disc pl-6 space-y-2">
+            <li>You can use the app entirely offline and never transmit any data.</li>
+            <li>You can delete saved games at any time from the in-app saved-games list.</li>
+            <li>
+                To delete uploaded leaderboard entries or remove a group, email
+                <a href="mailto:malikji@gmx.de" class="text-wizard-gold hover:underline">malikji@gmx.de</a>
+                with the relevant group code(s) and player name(s).
+            </li>
+        </ul>
+    </section>
+
+    <section class="mb-8">
+        <h2 class="text-xl font-semibold text-wizard-gold mb-3">6. Security</h2>
+        <p>
+            Data sent to
+            <code class="bg-wizard-panel px-1 rounded">play-wizard.de</code>
+            is transmitted over HTTPS. Locally saved game files are not encrypted at
+            rest; if your device is shared or compromised, those files can be read by
+            anyone with access to the device.
+        </p>
+    </section>
+
+    <section class="mb-8">
+        <h2 class="text-xl font-semibold text-wizard-gold mb-3">7. Changes</h2>
+        <p>
+            If we change this policy we will update the date above and, for substantial
+            changes, note it in the next app release.
+        </p>
+    </section>
+
+    <section class="mb-8">
+        <h2 class="text-xl font-semibold text-wizard-gold mb-3">8. Contact</h2>
+        <p>
+            Malik Jirasek<br>
+            <a href="mailto:malikji@gmx.de" class="text-wizard-gold hover:underline">malikji@gmx.de</a>
+        </p>
+    </section>
+
+</div>
+{% endblock %}

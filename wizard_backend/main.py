@@ -16,6 +16,7 @@ Endpoints:
   GET  /                                 – landing page
   GET  /leaderboard                      – HTML leaderboard page
   GET  /feedback                         – HTML feedback page
+  GET  /privacy                          – privacy policy page
 """
 from __future__ import annotations
 
@@ -318,4 +319,12 @@ def feedback_page(request: Request, lang: str = "en") -> HTMLResponse:
         request,
         "feedback.html",
         {"active_page": "feedback", "feedbacks": feedbacks, "lang": lang},
+    )
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+def privacy_page(request: Request, lang: str = "en") -> HTMLResponse:
+    """Render the privacy policy page (required for Play Store listing)."""
+    return templates.TemplateResponse(
+        request, "privacy_policy.html", {"active_page": "", "lang": lang}
     )
