@@ -37,6 +37,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         
         # Footer
         "footer_text": "Wizard Score Tracker",
+        "footer_privacy": "Privacy Policy",
         
         # Leaderboard specific (assuming minimal)
         "leaderboard_title": "Global Leaderboard",
@@ -119,6 +120,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         
         # Footer
         "footer_text": "Wizard Punkte-Tracker",
+        "footer_privacy": "Datenschutzerklärung",
         
         # Leaderboard specific
         "leaderboard_title": "Globale Bestenliste",
@@ -199,6 +201,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         
         # Footer
         "footer_text": "Suivi de Score Wizard",
+        "footer_privacy": "Politique de confidentialité",
         
         "leaderboard_title": "Classement mondial",
         "leaderboard_desc": "Voyez les meilleurs joueurs de Wizard du monde entier.",
@@ -277,6 +280,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         
         # Footer
         "footer_text": "विज़ार्ड स्कोर ट्रैकर",
+        "footer_privacy": "गोपनीयता नीति",
         
         "leaderboard_title": "ग्लोबल लीडरबोर्ड",
         "leaderboard_desc": "दुनिया भर के सर्वश्रेष्ठ विजार्ड खिलाड़ियों को देखें।",

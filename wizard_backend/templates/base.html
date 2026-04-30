@@ -83,7 +83,8 @@
 
     <footer class="max-w-5xl mx-auto px-4 py-8 text-center text-xs tracking-wider text-wizard-dim">
         {{ _("footer_text", lang) }} &middot;
-        <a href="https://github.com/MordredWiggi/WizardGUI" class="hover:text-wizard-gold" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/MordredWiggi/WizardGUI" class="hover:text-wizard-gold" target="_blank" rel="noopener">GitHub</a> &middot;
+        <a href="/privacy?lang={{ lang }}" class="hover:text-wizard-gold">{{ _("footer_privacy", lang) }}</a>
     </footer>
 
     {% block scripts %}{% endblock %}
