@@ -8,7 +8,9 @@
       "Bash(powershell.exe -NoProfile -Command \"Get-ChildItem 'C:\\\\Users\\\\Malik\\\\Documents\\\\Wizard-App\\\\WizardGUI\\\\wizard_flutter\\\\build' -Recurse -Filter '*.exe' 2>&1 | Select-Object -First 10\")",
       "Bash(powershell.exe -NoProfile -Command ':*)",
       "Bash(powershell.exe -NoProfile -Command \"Set-Location 'C:\\\\Users\\\\Malik\\\\Documents\\\\Wizard-App\\\\WizardGUI\\\\wizard_flutter'; flutter build apk --debug 2>&1\")",
-      "Bash(flutter analyze *)"
+      "Bash(flutter analyze *)",
+      "PowerShell(Get-ChildItem -Recurse -Force 'd:\\\\Dokumente\\\\GitHub\\\\Wizard\\\\wizard_flutter\\\\android\\\\app\\\\src\\\\main\\\\kotlin' | ForEach-Object { $_.FullName })",
+      "PowerShell(Remove-Item -Recurse -Force 'd:\\\\Dokumente\\\\GitHub\\\\Wizard\\\\wizard_flutter\\\\android\\\\app\\\\src\\\\main\\\\kotlin\\\\com\\\\wizard'; Get-ChildItem -Recurse 'd:\\\\Dokumente\\\\GitHub\\\\Wizard\\\\wizard_flutter\\\\android\\\\app\\\\src\\\\main\\\\kotlin' | ForEach-Object { $_.FullName })"
     ]
   }
 }

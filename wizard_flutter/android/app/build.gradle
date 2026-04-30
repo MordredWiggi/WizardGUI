@@ -20,7 +20,7 @@ if (hasReleaseKeystore) {
 }
 
 android {
-    namespace "com.wizard.app"
+    namespace "com.playwizard.app"
     compileSdk flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
 
@@ -34,7 +34,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.wizard.app"
+        applicationId "com.playwizard.app"
         minSdkVersion 26
         targetSdkVersion 35
         versionCode flutter.versionCode

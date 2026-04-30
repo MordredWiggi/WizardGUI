@@ -1,4 +1,4 @@
-package com.wizard.app
+package com.playwizard.app
 
 import io.flutter.embedding.android.FlutterActivity
 
