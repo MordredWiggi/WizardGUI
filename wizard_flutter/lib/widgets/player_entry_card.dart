@@ -102,39 +102,28 @@ class PlayerEntryCard extends StatelessWidget {
                   Text(player.avatar,
                       style: const TextStyle(fontSize: 26)),
                   const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Text(player.name,
-                              style: TextStyle(
-                                  color: color,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15)),
-                          if (isLeader) ...[
-                            const SizedBox(width: 4),
-                            _Badge('👑', kLeader),
-                          ],
-                        ]),
-                        const SizedBox(height: 2),
-                        Row(children: [
-                          Text(
-                            player.currentScore.toString(),
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: color,
-                            ),
-                          ),
-                          if (scoreDelta != 0) ...[
-                            const SizedBox(width: 8),
-                            _DeltaBadge(scoreDelta),
-                          ],
-                        ]),
-                      ],
+                  Text(player.name,
+                      style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15)),
+                  if (isLeader) ...[
+                    const SizedBox(width: 4),
+                    _Badge('👑', kLeader),
+                  ],
+                  const Spacer(),
+                  Text(
+                    player.currentScore.toString(),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: color,
                     ),
                   ),
+                  if (scoreDelta != 0) ...[
+                    const SizedBox(width: 8),
+                    _DeltaBadge(scoreDelta),
+                  ],
                 ]),
 
                 const SizedBox(height: 12),
