@@ -32,6 +32,10 @@ class _GameScreenState extends State<GameScreen>
   // recycling as cards scroll off-screen.
   final List<int> _bids = [];
   final List<int> _mades = [];
+  // Whether the top-bar menu (action buttons + round/dealer label) is
+  // collapsed to a slim row that only shows the tab icons. Defaults to
+  // expanded so first-time users can still discover undo/save/home/etc.
+  bool _menuCollapsed = false;
 
   @override
   void initState() {
@@ -482,65 +486,94 @@ class _GameScreenState extends State<GameScreen>
         .fold<int>(0, (s, b) => s + b);
     final bidWarning = bidSum == game.cardsThisRound;
 
+    final tabBar = TabBar(
+      controller: _tabController,
+      tabs: _menuCollapsed
+          ? const [
+              Tab(icon: Icon(Icons.people_outlined, size: 20)),
+              Tab(icon: Icon(Icons.show_chart, size: 20)),
+              Tab(icon: Icon(Icons.leaderboard, size: 20)),
+              Tab(icon: Icon(Icons.group, size: 20)),
+            ]
+          : [
+              Tab(icon: const Icon(Icons.people_outlined, size: 18), text: t('announced')),
+              Tab(icon: const Icon(Icons.show_chart, size: 18), text: t('tab_chart')),
+              Tab(icon: const Icon(Icons.leaderboard, size: 18), text: t('tab_groups_lb')),
+              Tab(icon: const Icon(Icons.group, size: 18), text: t('tab_group_lb')),
+            ],
+      labelColor: kAccent,
+      unselectedLabelColor: kTextDim,
+      indicatorColor: kAccent,
+      labelStyle: const TextStyle(fontSize: 11),
+    );
+
+    final toggleButton = IconButton(
+      icon: Icon(
+        _menuCollapsed ? Icons.expand_more : Icons.expand_less,
+        size: 22,
+      ),
+      tooltip: _menuCollapsed ? t('expand_menu') : t('collapse_menu'),
+      onPressed: () => setState(() => _menuCollapsed = !_menuCollapsed),
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+    );
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(t('round_header', {
-              'n': game.currentRoundDisplay.toString(),
-              'total': game.totalRounds.toString(),
-            })),
-            Text(
-              '${t('dealer_badge', {'n': game.cardsThisRound.toString()})}  —  ${game.currentDealer?.name ?? ''}',
-              style: const TextStyle(fontSize: 12, color: kAccentDim),
-            ),
-          ],
+        // Collapsed mode hides the main toolbar entirely; the slim row
+        // with toggle + tab icons lives in the bottom slot.
+        toolbarHeight: _menuCollapsed ? 0 : kToolbarHeight,
+        title: _menuCollapsed
+            ? null
+            : Align(
+                alignment: Alignment.centerLeft,
+                child: toggleButton,
+              ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: _menuCollapsed
+              ? Row(
+                  children: [
+                    toggleButton,
+                    Expanded(child: tabBar),
+                  ],
+                )
+              : tabBar,
         ),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(icon: const Icon(Icons.people_outlined, size: 18), text: t('announced')),
-            Tab(icon: const Icon(Icons.show_chart, size: 18), text: t('tab_chart')),
-            Tab(icon: const Icon(Icons.leaderboard, size: 18), text: t('tab_groups_lb')),
-            Tab(icon: const Icon(Icons.group, size: 18), text: t('tab_group_lb')),
-          ],
-          labelColor: kAccent,
-          unselectedLabelColor: kTextDim,
-          indicatorColor: kAccent,
-          labelStyle: const TextStyle(fontSize: 11),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.undo, size: 22),
-            tooltip: t('undo'),
-            onPressed: game.roundNumber > 0 ? _onUndo : null,
-          ),
-          IconButton(
-            icon: const Icon(Icons.save_outlined, size: 22),
-            tooltip: t('save'),
-            onPressed: _onSave,
-          ),
-          IconButton(
-            icon: const Icon(Icons.home_outlined, size: 22),
-            tooltip: t('tooltip_home'),
-            onPressed: _onHome,
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, size: 22),
-            tooltip: t('settings_title'),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh, size: 22),
-            tooltip: t('new'),
-            onPressed: _onNewGame,
-          ),
-        ],
+        actions: _menuCollapsed
+            ? null
+            : [
+                IconButton(
+                  icon: const Icon(Icons.undo, size: 22),
+                  tooltip: t('undo'),
+                  onPressed: game.roundNumber > 0 ? _onUndo : null,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.save_outlined, size: 22),
+                  tooltip: t('save'),
+                  onPressed: _onSave,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.home_outlined, size: 22),
+                  tooltip: t('tooltip_home'),
+                  onPressed: _onHome,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.settings_outlined, size: 22),
+                  tooltip: t('settings_title'),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh, size: 22),
+                  tooltip: t('new'),
+                  onPressed: _onNewGame,
+                ),
+              ],
       ),
       body: TabBarView(
         controller: _tabController,
