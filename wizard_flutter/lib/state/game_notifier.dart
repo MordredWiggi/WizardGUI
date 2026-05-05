@@ -141,6 +141,13 @@ class GameNotifier extends ChangeNotifier {
     await _saveManager.savePaused(_game!.toJson(), group: _activeGroup);
   }
 
+  /// Synchronous backup save for app-lifecycle callbacks. Writes atomically
+  /// and blocks until flushed so the data survives an immediate process kill.
+  void savePausedSync() {
+    if (_game == null) return;
+    _saveManager.savePausedSync(_game!.toJson(), group: _activeGroup);
+  }
+
   Future<bool> hasPaused() => _saveManager.hasPaused();
 
   /// Returns the raw paused payload (`{'game': ..., 'group': ...}`) without

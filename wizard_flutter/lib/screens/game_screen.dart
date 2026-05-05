@@ -49,14 +49,22 @@ class _GameScreenState extends State<GameScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Save on inactive (earliest signal — before the app is even off-screen)
-    // and on paused/detached as belt-and-suspenders. This is a backup; the
-    // primary persistence happens in submitRound() and startGame().
+    // Save on every backgrounding signal. `inactive` is the earliest hint
+    // (before the app is even off-screen); `hidden`/`paused`/`detached`
+    // follow as the OS escalates. Sync write so the data is on disk before
+    // the OS kills the process — the async fire-and-forget version was
+    // racing the killer.
+    //
+    // Skip when the round is the final one: submitRound() has already
+    // cleared the paused file, and re-creating it now would offer the user
+    // a "resume" of an already-finished game on next launch.
     if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       final notifier = context.read<GameNotifier>();
-      if (notifier.game != null) notifier.savePaused();
+      final game = notifier.game;
+      if (game != null && !game.isGameOver) notifier.savePausedSync();
     }
   }
 

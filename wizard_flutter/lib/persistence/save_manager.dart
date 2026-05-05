@@ -50,13 +50,41 @@ class PendingSyncGame {
 }
 
 class SaveManager {
+  /// Cached so [savePausedSync] can run without async path lookup. Filled the
+  /// first time [_saveDir] is awaited (e.g. on app launch from listSavedGames
+  /// or on startGame).
+  Directory? _cachedSaveDir;
+
   Future<Directory> get _saveDir async {
+    if (_cachedSaveDir != null) return _cachedSaveDir!;
     final docs = await getApplicationDocumentsDirectory();
     final dir = Directory('${docs.path}/wizard_gui/games');
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
+    _cachedSaveDir = dir;
     return dir;
+  }
+
+  /// Atomic write: write to a sibling .tmp file, fsync, then rename over the
+  /// target. Prevents the destination from being left half-written if the OS
+  /// kills the process mid-write (common on Android backgrounding).
+  Future<void> _writeAtomic(File target, String contents) async {
+    final tmp = File('${target.path}.tmp');
+    await tmp.writeAsString(contents, encoding: utf8, flush: true);
+    if (await target.exists()) {
+      await target.delete();
+    }
+    await tmp.rename(target.path);
+  }
+
+  void _writeAtomicSync(File target, String contents) {
+    final tmp = File('${target.path}.tmp');
+    tmp.writeAsStringSync(contents, encoding: utf8, flush: true);
+    if (target.existsSync()) {
+      target.deleteSync();
+    }
+    tmp.renameSync(target.path);
   }
 
   // ---------------------------------------------------------------- save
@@ -92,9 +120,9 @@ class SaveManager {
       'game': gameData,
     };
 
-    await File(filepath).writeAsString(
+    await _writeAtomic(
+      File(filepath),
       const JsonEncoder.withIndent('  ').convert(payload),
-      encoding: utf8,
     );
     return filepath;
   }
@@ -124,35 +152,71 @@ class SaveManager {
     return File('${dir.path}/$_pausedFilename');
   }
 
+  Map<String, dynamic> _pausedPayload(
+    Map<String, dynamic> gameData,
+    Map<String, dynamic>? group,
+  ) =>
+      {
+        'schema_version': _schemaVersion,
+        'meta': {
+          'saved_at': DateTime.now().toIso8601String(),
+          'paused': true,
+          'group': group,
+        },
+        'game': gameData,
+      };
+
   /// Persist the in-progress game so it can be resumed from the menu.
   Future<String> savePaused(
     Map<String, dynamic> gameData, {
     Map<String, dynamic>? group,
   }) async {
-    final payload = {
-      'schema_version': _schemaVersion,
-      'meta': {
-        'saved_at': DateTime.now().toIso8601String(),
-        'paused': true,
-        'group': group,
-      },
-      'game': gameData,
-    };
     final file = await _pausedFile();
-    await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(payload),
-      encoding: utf8,
+    await _writeAtomic(
+      file,
+      const JsonEncoder.withIndent('  ').convert(_pausedPayload(gameData, group)),
     );
     return file.path;
   }
 
+  /// Synchronous variant for use from app-lifecycle callbacks where the OS
+  /// may kill the process before any async Future completes. Requires
+  /// [_cachedSaveDir] to be populated; if it isn't, falls back to scheduling
+  /// the async write (best-effort).
+  void savePausedSync(
+    Map<String, dynamic> gameData, {
+    Map<String, dynamic>? group,
+  }) {
+    final dir = _cachedSaveDir;
+    if (dir == null) {
+      savePaused(gameData, group: group);
+      return;
+    }
+    final file = File('${dir.path}/$_pausedFilename');
+    try {
+      _writeAtomicSync(
+        file,
+        const JsonEncoder.withIndent('  ').convert(_pausedPayload(gameData, group)),
+      );
+    } catch (_) {/* best-effort during shutdown */}
+  }
+
   /// Returns `{'game': ..., 'group': ...}` or `null` when nothing is paused.
+  ///
+  /// If the canonical file is missing but a `.tmp` sibling exists (write was
+  /// interrupted *after* deleting the target but *before* the rename), we
+  /// recover from the temp file rather than reporting "no paused game".
   Future<Map<String, dynamic>?> loadPaused() async {
     final file = await _pausedFile();
-    if (!await file.exists()) return null;
+    File source = file;
+    if (!await source.exists()) {
+      final tmp = File('${file.path}.tmp');
+      if (!await tmp.exists()) return null;
+      source = tmp;
+    }
     try {
       final payload =
-          jsonDecode(await file.readAsString(encoding: utf8)) as Map<String, dynamic>;
+          jsonDecode(await source.readAsString(encoding: utf8)) as Map<String, dynamic>;
       final meta = (payload['meta'] as Map?) ?? const {};
       return {
         'game': Map<String, dynamic>.from(payload['game'] as Map? ?? {}),
@@ -167,13 +231,17 @@ class SaveManager {
 
   Future<bool> hasPaused() async {
     final file = await _pausedFile();
-    return file.exists();
+    if (await file.exists()) return true;
+    final tmp = File('${file.path}.tmp');
+    return tmp.exists();
   }
 
   Future<void> clearPaused() async {
     try {
       final file = await _pausedFile();
       if (await file.exists()) await file.delete();
+      final tmp = File('${file.path}.tmp');
+      if (await tmp.exists()) await tmp.delete();
     } catch (_) {/* ignore */}
   }
 
@@ -187,6 +255,7 @@ class SaveManager {
         .whereType<File>()
         .where((f) => f.path.endsWith('.json'))
         .where((f) => f.uri.pathSegments.last != _pausedFilename)
+        .where((f) => !f.path.endsWith('.tmp'))
         .toList()
       ..sort((a, b) => b.path.compareTo(a.path)); // reverse alphabetical ≈ newest first
 
@@ -227,6 +296,7 @@ class SaveManager {
         .whereType<File>()
         .where((f) => f.path.endsWith('.json'))
         .where((f) => f.uri.pathSegments.last != _pausedFilename)
+        .where((f) => !f.path.endsWith('.tmp'))
         .toList();
 
     final result = <PendingSyncGame>[];
