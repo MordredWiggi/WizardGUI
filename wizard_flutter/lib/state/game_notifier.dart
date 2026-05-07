@@ -15,6 +15,9 @@ class GameNotifier extends ChangeNotifier {
   /// The currently selected group dict (id, name, code, visibility), or null.
   Map<String, dynamic>? _activeGroup;
 
+  /// Name of the active save slot — set on manual save or load, used by autoSave.
+  String? _currentSaveName;
+
   GameNotifier({SaveManager? saveManager})
       : _saveManager = saveManager ?? SaveManager();
 
@@ -44,6 +47,9 @@ class GameNotifier extends ChangeNotifier {
           : GameMode.standard,
     );
     notifyListeners();
+    // Persist immediately so the game is recoverable even if the app is
+    // killed before the first round completes — no lifecycle event needed.
+    savePaused();
   }
 
   void loadGame(GameControl game) {
@@ -64,6 +70,13 @@ class GameNotifier extends ChangeNotifier {
     final (:game, :events) = _game!.submitRound(results);
     _game = game;
     notifyListeners();
+    // Keep the paused snapshot current after every round so a force-kill
+    // never loses more than the current unsubmitted round's bids.
+    if (_game!.isGameOver) {
+      clearPaused();
+    } else {
+      savePaused();
+    }
     return events;
   }
 
@@ -78,7 +91,14 @@ class GameNotifier extends ChangeNotifier {
 
   Future<String> saveGame({String? name}) async {
     assert(_game != null);
-    return _saveManager.saveGame(_game!.toJson(), gameName: name);
+    final path = await _saveManager.saveGame(_game!.toJson(), gameName: name);
+    _currentSaveName = name ?? path.split('/').last.replaceAll('.json', '');
+    return path;
+  }
+
+  Future<void> autoSave() async {
+    if (_currentSaveName == null) return;
+    await saveGame(name: _currentSaveName);
   }
 
   /// Persist the current finished game with pending_sync=true so it can be
@@ -95,6 +115,7 @@ class GameNotifier extends ChangeNotifier {
   Future<void> loadFromFile(String filePath) async {
     final data = await _saveManager.loadGame(filePath);
     _game = GameControl.fromJson(data);
+    _currentSaveName = filePath.split('/').last.replaceAll('.json', '');
     notifyListeners();
   }
 
@@ -118,6 +139,13 @@ class GameNotifier extends ChangeNotifier {
   Future<void> savePaused() async {
     if (_game == null) return;
     await _saveManager.savePaused(_game!.toJson(), group: _activeGroup);
+  }
+
+  /// Synchronous backup save for app-lifecycle callbacks. Writes atomically
+  /// and blocks until flushed so the data survives an immediate process kill.
+  void savePausedSync() {
+    if (_game == null) return;
+    _saveManager.savePausedSync(_game!.toJson(), group: _activeGroup);
   }
 
   Future<bool> hasPaused() => _saveManager.hasPaused();

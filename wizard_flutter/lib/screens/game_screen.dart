@@ -26,28 +26,55 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   // Per-player bid/made values, owned by the parent so they survive ListView
   // recycling as cards scroll off-screen.
   final List<int> _bids = [];
   final List<int> _mades = [];
+  // Whether the top-bar menu (action buttons + round/dealer label) is
+  // collapsed to a slim row that only shows the tab icons. Defaults to
+  // expanded so first-time users can still discover undo/save/home/etc.
+  bool _menuCollapsed = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Save on every backgrounding signal. `inactive` is the earliest hint
+    // (before the app is even off-screen); `hidden`/`paused`/`detached`
+    // follow as the OS escalates. Sync write so the data is on disk before
+    // the OS kills the process — the async fire-and-forget version was
+    // racing the killer.
+    //
+    // Skip when the round is the final one: submitRound() has already
+    // cleared the paused file, and re-creating it now would offer the user
+    // a "resume" of an already-finished game on next launch.
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      final notifier = context.read<GameNotifier>();
+      final game = notifier.game;
+      if (game != null && !game.isGameOver) notifier.savePausedSync();
+    }
+  }
+
   void _ensureCapacity(int n) {
-    while (_bids.length < n) _bids.add(0);
-    while (_mades.length < n) _mades.add(0);
+    while (_bids.length < n) { _bids.add(0); }
+    while (_mades.length < n) { _mades.add(0); }
   }
 
   void _resetEntries() {
@@ -59,7 +86,7 @@ class _GameScreenState extends State<GameScreen>
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
-  void _completeRound(BuildContext context, GameControl game) {
+  void _completeRound(GameControl game) {
     final settings = context.read<AppSettings>();
     final t = settings.t;
     _ensureCapacity(game.numPlayers);
@@ -73,7 +100,6 @@ class _GameScreenState extends State<GameScreen>
     // Validate: sum of made == cards this round
     final madeTot = results.fold(0, (s, r) => s + r.achieved);
     if (madeTot != game.cardsThisRound) {
-      final settings = context.read<AppSettings>();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(t('made_tricks_warning', {
           'made': madeTot.toString(),
@@ -85,14 +111,15 @@ class _GameScreenState extends State<GameScreen>
       return;
     }
 
-    final events = context.read<GameNotifier>().submitRound(results);
+    final notifier = context.read<GameNotifier>();
+    final events = notifier.submitRound(results);
+    notifier.autoSave();
     _resetEntries();
-    _handleEvents(context, events);
+    _handleEvents(events);
   }
 
-  void _handleEvents(BuildContext context, RoundEvents events) {
+  void _handleEvents(RoundEvents events) {
     final settings = context.read<AppSettings>();
-    final t = settings.t;
     final game = context.read<GameNotifier>().game!;
 
     // ── Evaluate Custom Rules (Highest Priority) ──
@@ -132,12 +159,12 @@ class _GameScreenState extends State<GameScreen>
         color: pick.$4,
         duration: settings.messageDuration,
       );
-      if (events.gameOver) _scheduleGameOver(context);
+      if (events.gameOver) _scheduleGameOver();
       return;
     }
 
     // Tobi easter egg
-    if (_checkTobi(context, game)) return;
+    if (_checkTobi(game)) return;
 
     // Huge loss (priority 2)
     if (events.hugeLossPlayer != null) {
@@ -151,7 +178,7 @@ class _GameScreenState extends State<GameScreen>
         color: kDanger,
         duration: settings.messageDuration,
       );
-      if (events.gameOver) _scheduleGameOver(context);
+      if (events.gameOver) _scheduleGameOver();
       return;
     }
 
@@ -212,10 +239,10 @@ class _GameScreenState extends State<GameScreen>
       );
     }
 
-    if (events.gameOver) _scheduleGameOver(context);
+    if (events.gameOver) _scheduleGameOver();
   }
 
-  bool _checkTobi(BuildContext context, GameControl game) {
+  bool _checkTobi(GameControl game) {
     final roundsAt60 = (game.totalRounds * 0.6).toInt();
     if (game.roundNumber != roundsAt60) return false;
 
@@ -240,12 +267,12 @@ class _GameScreenState extends State<GameScreen>
     return true;
   }
 
-  void _scheduleGameOver(BuildContext context) {
+  void _scheduleGameOver() {
     // Kick off leaderboard submission in parallel with the podium delay —
     // mirrors the desktop flow where the QThread worker runs alongside the
     // UI transition. Result is surfaced via a global SnackBar so it still
     // appears after we've navigated to the podium screen.
-    _submitToLeaderboard(context);
+    _submitToLeaderboard();
 
     Future.delayed(const Duration(milliseconds: 3200), () {
       if (!mounted) return;
@@ -268,7 +295,7 @@ class _GameScreenState extends State<GameScreen>
     });
   }
 
-  void _submitToLeaderboard(BuildContext context) {
+  void _submitToLeaderboard() {
     final notifier = context.read<GameNotifier>();
     final settings = context.read<AppSettings>();
     final game = notifier.game;
@@ -307,7 +334,7 @@ class _GameScreenState extends State<GameScreen>
     });
   }
 
-  Future<void> _onUndo(BuildContext context) async {
+  Future<void> _onUndo() async {
     final settings = context.read<AppSettings>();
     final confirmed = await showDialog<bool>(
       context: context,
@@ -330,7 +357,7 @@ class _GameScreenState extends State<GameScreen>
     }
   }
 
-  Future<void> _onSave(BuildContext context) async {
+  Future<void> _onSave() async {
     final settings = context.read<AppSettings>();
     final notifier = context.read<GameNotifier>();
     final game = notifier.game;
@@ -389,7 +416,7 @@ class _GameScreenState extends State<GameScreen>
     }
   }
 
-  Future<void> _onNewGame(BuildContext context) async {
+  Future<void> _onNewGame() async {
     final settings = context.read<AppSettings>();
     final confirmed = await showDialog<bool>(
       context: context,
@@ -420,7 +447,7 @@ class _GameScreenState extends State<GameScreen>
     }
   }
 
-  Future<void> _onHome(BuildContext context) async {
+  Future<void> _onHome() async {
     final notifier = context.read<GameNotifier>();
     if (notifier.game == null) return;
     try {
@@ -459,69 +486,94 @@ class _GameScreenState extends State<GameScreen>
         .fold<int>(0, (s, b) => s + b);
     final bidWarning = bidSum == game.cardsThisRound;
 
+    final tabBar = TabBar(
+      controller: _tabController,
+      tabs: _menuCollapsed
+          ? const [
+              Tab(icon: Icon(Icons.people_outlined, size: 20)),
+              Tab(icon: Icon(Icons.show_chart, size: 20)),
+              Tab(icon: Icon(Icons.leaderboard, size: 20)),
+              Tab(icon: Icon(Icons.group, size: 20)),
+            ]
+          : [
+              Tab(icon: const Icon(Icons.people_outlined, size: 18), text: t('announced')),
+              Tab(icon: const Icon(Icons.show_chart, size: 18), text: t('tab_chart')),
+              Tab(icon: const Icon(Icons.leaderboard, size: 18), text: t('tab_groups_lb')),
+              Tab(icon: const Icon(Icons.group, size: 18), text: t('tab_group_lb')),
+            ],
+      labelColor: kAccent,
+      unselectedLabelColor: kTextDim,
+      indicatorColor: kAccent,
+      labelStyle: const TextStyle(fontSize: 11),
+    );
+
+    final toggleButton = IconButton(
+      icon: Icon(
+        _menuCollapsed ? Icons.expand_more : Icons.expand_less,
+        size: 22,
+      ),
+      tooltip: _menuCollapsed ? t('expand_menu') : t('collapse_menu'),
+      onPressed: () => setState(() => _menuCollapsed = !_menuCollapsed),
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+    );
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(t('round_header', {
-              'n': game.currentRoundDisplay.toString(),
-              'total': game.totalRounds.toString(),
-            })),
-            Text(
-              t('dealer_badge', {
-                'n': game.cardsThisRound.toString(),
-              }) + '  —  ${game.currentDealer?.name ?? ''}',
-              style: const TextStyle(fontSize: 12, color: kAccentDim),
-            ),
-          ],
+        // Collapsed mode hides the main toolbar entirely; the slim row
+        // with toggle + tab icons lives in the bottom slot.
+        toolbarHeight: _menuCollapsed ? 0 : kToolbarHeight,
+        title: _menuCollapsed
+            ? null
+            : Align(
+                alignment: Alignment.centerLeft,
+                child: toggleButton,
+              ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: _menuCollapsed
+              ? Row(
+                  children: [
+                    toggleButton,
+                    Expanded(child: tabBar),
+                  ],
+                )
+              : tabBar,
         ),
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          tabs: [
-            Tab(icon: const Icon(Icons.people_outlined, size: 18), text: t('announced')),
-            Tab(icon: const Icon(Icons.show_chart, size: 18), text: t('tab_chart')),
-            Tab(icon: const Icon(Icons.leaderboard, size: 18), text: t('tab_groups_lb')),
-            Tab(icon: const Icon(Icons.group, size: 18), text: t('tab_group_lb')),
-          ],
-          labelColor: kAccent,
-          unselectedLabelColor: kTextDim,
-          indicatorColor: kAccent,
-          labelStyle: const TextStyle(fontSize: 11),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.undo, size: 22),
-            tooltip: t('undo'),
-            onPressed: game.roundNumber > 0 ? () => _onUndo(context) : null,
-          ),
-          IconButton(
-            icon: const Icon(Icons.save_outlined, size: 22),
-            tooltip: t('save'),
-            onPressed: () => _onSave(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.home_outlined, size: 22),
-            tooltip: t('tooltip_home'),
-            onPressed: () => _onHome(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, size: 22),
-            tooltip: t('settings_title'),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh, size: 22),
-            tooltip: t('new'),
-            onPressed: () => _onNewGame(context),
-          ),
-        ],
+        actions: _menuCollapsed
+            ? null
+            : [
+                IconButton(
+                  icon: const Icon(Icons.undo, size: 22),
+                  tooltip: t('undo'),
+                  onPressed: game.roundNumber > 0 ? _onUndo : null,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.save_outlined, size: 22),
+                  tooltip: t('save'),
+                  onPressed: _onSave,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.home_outlined, size: 22),
+                  tooltip: t('tooltip_home'),
+                  onPressed: _onHome,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.settings_outlined, size: 22),
+                  tooltip: t('settings_title'),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh, size: 22),
+                  tooltip: t('new'),
+                  onPressed: _onNewGame,
+                ),
+              ],
       ),
       body: TabBarView(
         controller: _tabController,
@@ -542,7 +594,7 @@ class _GameScreenState extends State<GameScreen>
                 }
               });
             },
-            onCompleteRound: () => _completeRound(context, game),
+            onCompleteRound: () => _completeRound(game),
             onEntryChanged: (index, bid, made) {
               setState(() {
                 _bids[index] = bid;
@@ -601,7 +653,7 @@ class _Layer1 extends StatelessWidget {
       children: [
         // Bid counter banner
         Container(
-          color: bidWarning ? kDanger.withOpacity(0.15) : Colors.transparent,
+          color: bidWarning ? kDanger.withValues(alpha: 0.15) : Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Row(
             children: [
@@ -666,7 +718,7 @@ class _Layer1 extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: bidWarning ? null : onCompleteRound,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: bidWarning ? kDanger.withOpacity(0.3) : null,
+                  backgroundColor: bidWarning ? kDanger.withValues(alpha: 0.3) : null,
                 ),
                 child: Text(t('complete_round'),
                     style: const TextStyle(fontSize: 16)),

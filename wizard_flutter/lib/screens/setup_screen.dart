@@ -809,6 +809,13 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
   bool _loading = false;
   bool _connectionFailed = false;
   String? _codeStatus; // null | 'checking' | 'ok' | 'error'
+  // The group the user picked from the list. The user MUST pick a group
+  // before typing a code — otherwise people could brute-force codes and
+  // discover any group on the server. The entered code must match this
+  // picked group, not just *some* group.
+  Map<String, dynamic>? _pickedGroup;
+  // The group the server returned for the entered code. Only meaningful
+  // when its id matches _pickedGroup's id; otherwise the code is invalid.
   Map<String, dynamic>? _validatedGroup;
   Timer? _codeDebounce;
   int _codeRequestSeq = 0;
@@ -843,22 +850,35 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
     }
   }
 
+  bool _sameGroup(Map<String, dynamic>? a, Map<String, dynamic>? b) {
+    if (a == null || b == null) return false;
+    final ai = a['id'];
+    final bi = b['id'];
+    if (ai != null && bi != null) return ai == bi;
+    return (a['name'] as String?) == (b['name'] as String?);
+  }
+
   /// Called when the user taps a group in the search results. If they have
   /// previously joined the same group (by id, falling back to name) and we
   /// remembered its code, autofill the 4-digit code field and validate it
   /// straight away. Otherwise just focus the field so they can type.
   void _onPickGroup(Map<String, dynamic> g) {
-    final name = g['name'] as String? ?? '';
-    _searchController.text = name;
-    _doSearch(name);
+    setState(() {
+      _pickedGroup = g;
+      // Picking a different group invalidates any previous code state.
+      _codeStatus = null;
+      _validatedGroup = null;
+    });
 
     final settings = context.read<AppSettings>();
     final known = settings.findKnownGroupById(g['id'] as int?) ??
-        settings.findKnownGroupByName(name);
+        settings.findKnownGroupByName(g['name'] as String? ?? '');
     final savedCode = known?['code'] as String?;
     if (savedCode != null && savedCode.length == 4) {
       _codeController.text = savedCode;
       _onCodeChanged(savedCode);
+    } else {
+      _codeController.clear();
     }
     _codeFocusNode.requestFocus();
   }
@@ -866,6 +886,12 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
   void _onCodeChanged(String value) {
     _codeDebounce?.cancel();
     final code = value.trim();
+    if (_pickedGroup == null) {
+      // No group picked — never validate. The user has to choose a group
+      // from the list first.
+      setState(() { _codeStatus = null; _validatedGroup = null; });
+      return;
+    }
     if (code.isEmpty) {
       setState(() { _codeStatus = null; _validatedGroup = null; });
       return;
@@ -883,15 +909,20 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
 
   Future<void> _validateCode(String code) async {
     final mySeq = ++_codeRequestSeq;
+    final picked = _pickedGroup;
+    if (picked == null) return;
     setState(() {
       _codeStatus = 'checking';
       _validatedGroup = null;
     });
     final group = await widget.service.getGroupByCode(code);
     if (!mounted || mySeq != _codeRequestSeq) return;
+    // Only accept the code when it actually unlocks the picked group —
+    // otherwise it's the same brute-force leak we're trying to close.
+    final matches = _sameGroup(group, picked);
     setState(() {
-      _validatedGroup = group;
-      _codeStatus = group != null ? 'ok' : 'error';
+      _validatedGroup = matches ? group : null;
+      _codeStatus = matches ? 'ok' : 'error';
     });
   }
 
@@ -941,10 +972,23 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
                   itemBuilder: (_, i) {
                     final g = _groups[i];
                     final n = (g['player_count'] as num?)?.toInt() ?? 0;
+                    final isPicked = _sameGroup(g, _pickedGroup);
                     return ListTile(
                       dense: true,
-                      leading: const Icon(Icons.group_outlined, size: 20),
-                      title: Text(g['name'] as String),
+                      selected: isPicked,
+                      selectedTileColor:
+                          theme.colorScheme.primary.withOpacity(0.12),
+                      leading: Icon(
+                        isPicked ? Icons.check_circle : Icons.group_outlined,
+                        size: 20,
+                        color: isPicked ? kSuccess : null,
+                      ),
+                      title: Text(
+                        g['name'] as String,
+                        style: isPicked
+                            ? const TextStyle(fontWeight: FontWeight.w700)
+                            : null,
+                      ),
                       subtitle: Text(
                           t('group_players_count', {'n': n.toString()}),
                           style: theme.textTheme.bodySmall),
@@ -960,6 +1004,16 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
             Text(t('group_code_label'),
                 style: theme.textTheme.bodySmall
                     ?.copyWith(fontWeight: FontWeight.w600)),
+            if (_pickedGroup == null) ...[
+              const SizedBox(height: 4),
+              Text(
+                t('group_pick_first'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+            ],
             const SizedBox(height: 6),
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -968,6 +1022,7 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
                   child: TextField(
                     controller: _codeController,
                     focusNode: _codeFocusNode,
+                    enabled: _pickedGroup != null,
                     decoration: InputDecoration(
                       hintText: t('group_code_placeholder'),
                       counterText: '',

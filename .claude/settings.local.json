@@ -10,7 +10,8 @@
       "Bash(powershell.exe -NoProfile -Command \"Set-Location 'C:\\\\Users\\\\Malik\\\\Documents\\\\Wizard-App\\\\WizardGUI\\\\wizard_flutter'; flutter build apk --debug 2>&1\")",
       "Bash(flutter analyze *)",
       "PowerShell(Get-ChildItem -Recurse -Force 'd:\\\\Dokumente\\\\GitHub\\\\Wizard\\\\wizard_flutter\\\\android\\\\app\\\\src\\\\main\\\\kotlin' | ForEach-Object { $_.FullName })",
-      "PowerShell(Remove-Item -Recurse -Force 'd:\\\\Dokumente\\\\GitHub\\\\Wizard\\\\wizard_flutter\\\\android\\\\app\\\\src\\\\main\\\\kotlin\\\\com\\\\wizard'; Get-ChildItem -Recurse 'd:\\\\Dokumente\\\\GitHub\\\\Wizard\\\\wizard_flutter\\\\android\\\\app\\\\src\\\\main\\\\kotlin' | ForEach-Object { $_.FullName })"
+      "PowerShell(Remove-Item -Recurse -Force 'd:\\\\Dokumente\\\\GitHub\\\\Wizard\\\\wizard_flutter\\\\android\\\\app\\\\src\\\\main\\\\kotlin\\\\com\\\\wizard'; Get-ChildItem -Recurse 'd:\\\\Dokumente\\\\GitHub\\\\Wizard\\\\wizard_flutter\\\\android\\\\app\\\\src\\\\main\\\\kotlin' | ForEach-Object { $_.FullName })",
+      "PowerShell(\\(Get-Content d:\\\\Dokumente\\\\GitHub\\\\Wizard\\\\wizard_flutter\\\\lib\\\\i18n\\\\translations.dart | Measure-Object -Line\\).Lines)"
     ]
   }
 }
