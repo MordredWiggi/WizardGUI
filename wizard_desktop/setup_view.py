@@ -597,9 +597,7 @@ class SetupView(QtWidgets.QWidget):
         avatar = self._avatar_combo.currentText()
         if not name or any(p["name"] == name for p in self._players):
             return
-        if len(self._players) >= len(PLAYER_COLORS):
-            return
-        color = PLAYER_COLORS[len(self._players)]
+        color = PLAYER_COLORS[len(self._players) % len(PLAYER_COLORS)]
         self._players.append({"name": name, "avatar": avatar})
         chip = PlayerChip(name, color, self._chips_container, display=f"{avatar}  {name}")
         chip.removed.connect(self._remove_player)
@@ -627,7 +625,7 @@ class SetupView(QtWidgets.QWidget):
                 if isinstance(self._chips_layout.itemAt(j).widget(), PlayerChip)
             ]
         ):
-            color = PLAYER_COLORS[i]
+            color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
             item_i.setStyleSheet(
                 f"""
                 QFrame {{
