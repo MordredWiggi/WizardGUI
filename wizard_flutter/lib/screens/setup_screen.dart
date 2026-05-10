@@ -89,11 +89,26 @@ class _SetupScreenState extends State<SetupScreen> {
       return;
     }
     final game = data['game'] as Map?;
-    final players = (game?['players'] as List?)
-            ?.map((p) => (p as Map)['name'] as String? ?? '')
-            .where((s) => s.isNotEmpty)
-            .join(', ') ??
-        '';
+    final playersList = (game?['players'] as List?) ?? const [];
+    final numPlayers = playersList.length;
+    final roundNumber = (game?['round_number'] as int?) ?? 0;
+    final totalRounds = numPlayers == 0 ? 0 : 60 ~/ numPlayers;
+    // Defensive: never offer to resume a finished game — that snapshot
+    // should have been cleared when the last round was submitted, but old
+    // files (or a process killed mid-cleanup) can leave one behind.
+    if (numPlayers > 0 && roundNumber >= totalRounds) {
+      await notifier.clearPaused();
+      if (!mounted) return;
+      setState(() {
+        _hasPaused = false;
+        _pausedPlayers = '';
+      });
+      return;
+    }
+    final players = playersList
+        .map((p) => (p as Map)['name'] as String? ?? '')
+        .where((s) => s.isNotEmpty)
+        .join(', ');
     setState(() {
       _hasPaused = true;
       _pausedPlayers = players;
@@ -108,9 +123,13 @@ class _SetupScreenState extends State<SetupScreen> {
       await _refreshResumeState();
       return;
     }
-    // Group state was restored inside resumePaused(). Mirror it locally so
-    // the setup UI shows the right banner if the user comes back here.
+    // resumePaused() already restored both the game and the saved group
+    // into the notifier. Mirror the group locally so the setup UI shows
+    // the right banner if the user comes back here, and re-broadcast it
+    // via setGroup() so leaderboard widgets that just mounted (e.g. the
+    // "My group" tab on GameScreen) see it on their first build.
     final group = notifier.activeGroup;
+    notifier.setGroup(group);
     setState(() {
       _selectedGroup = group;
     });

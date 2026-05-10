@@ -6,6 +6,7 @@ import '../persistence/app_settings.dart';
 import '../persistence/save_manager.dart';
 import '../services/leaderboard_service.dart';
 import '../state/game_notifier.dart';
+import '../theme/app_theme.dart';
 
 /// Top-level entry point: shows the pending-sync dialog as a bottom sheet.
 ///
@@ -47,13 +48,17 @@ class _PendingSyncSheetState extends State<_PendingSyncSheet> {
   }
 
   Future<void> _pickGroup(PendingSyncGame p) async {
-    final code = await showDialog<String?>(
+    // Show the picker as another bottom sheet on top of this one. Nesting a
+    // dialog over a modal bottom sheet was unreliable on some devices — taps
+    // on the group list never reached the ListTile callback. Bottom sheets
+    // stack predictably and accept input from the user.
+    final code = await showModalBottomSheet<String?>(
       context: context,
-      builder: (_) => _GroupPickerDialog(service: widget.service),
+      isScrollControlled: true,
+      builder: (_) => const _GroupPickerSheet(),
     );
-    if (code != null) {
-      setState(() => _assignments[p.filePath] = code.isEmpty ? null : code);
-    }
+    if (!mounted || code == null) return;
+    setState(() => _assignments[p.filePath] = code.isEmpty ? null : code);
   }
 
   Future<void> _uploadAll() async {
@@ -178,24 +183,27 @@ class _PendingSyncSheetState extends State<_PendingSyncSheet> {
   }
 }
 
-class _GroupPickerDialog extends StatefulWidget {
-  final LeaderboardService service;
-  const _GroupPickerDialog({required this.service});
+/// Bottom-sheet group picker for the pending-sync flow.
+///
+/// Pops with:
+///   • a 4-digit group code (group selected),
+///   • an empty string (user explicitly chose "no group"),
+///   • null (user dismissed without choosing).
+///
+/// The list of selectable groups comes from [AppSettings.knownGroups] — the
+/// groups the user has previously joined or created on this device. The
+/// public `/api/groups` endpoint deliberately strips the 4-digit `code` from
+/// its response (it's a shared secret), so the only reliable place to look
+/// up codes for the upload payload is the local known-groups cache.
+class _GroupPickerSheet extends StatefulWidget {
+  const _GroupPickerSheet();
 
   @override
-  State<_GroupPickerDialog> createState() => _GroupPickerDialogState();
+  State<_GroupPickerSheet> createState() => _GroupPickerSheetState();
 }
 
-class _GroupPickerDialogState extends State<_GroupPickerDialog> {
+class _GroupPickerSheetState extends State<_GroupPickerSheet> {
   final _codeController = TextEditingController();
-  List<Map<String, dynamic>> _groups = [];
-  bool _loading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _search('');
-  }
 
   @override
   void dispose() {
@@ -203,76 +211,128 @@ class _GroupPickerDialogState extends State<_GroupPickerDialog> {
     super.dispose();
   }
 
-  Future<void> _search(String q) async {
-    setState(() => _loading = true);
-    final res = await widget.service.listGroups(search: q);
-    if (mounted) {
-      setState(() {
-        _groups = res ?? [];
-        _loading = false;
-      });
-    }
+  bool get _codeValid {
+    final s = _codeController.text.trim();
+    return s.length == 4 && int.tryParse(s) != null;
   }
 
   @override
   Widget build(BuildContext context) {
-    final t = context.read<AppSettings>().t;
+    final settings = context.watch<AppSettings>();
+    final t = settings.t;
     final theme = Theme.of(context);
-    return AlertDialog(
-      title: Text(t('pending_sync_assign_group')),
-      content: SizedBox(
-        width: 360,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              decoration:
-                  InputDecoration(hintText: t('group_search_placeholder')),
-              onChanged: _search,
-            ),
-            const SizedBox(height: 8),
-            if (_loading)
-              const LinearProgressIndicator()
-            else if (_groups.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text(t('no_groups'),
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(fontStyle: FontStyle.italic)),
-              )
-            else
-              SizedBox(
-                height: 180,
-                child: ListView.builder(
-                  itemCount: _groups.length,
-                  itemBuilder: (_, i) {
-                    final g = _groups[i];
-                    return ListTile(
-                      dense: true,
-                      leading: const Icon(Icons.group_outlined, size: 20),
-                      title: Text(g['name'] as String),
-                      subtitle: Text('#${g['code']}',
-                          style: theme.textTheme.bodySmall),
-                      onTap: () => Navigator.pop(context, g['code'] as String),
-                    );
-                  },
+    final mq = MediaQuery.of(context);
+    final groups = settings.knownGroups;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: mq.size.height * 0.8),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(children: [
+                Icon(Icons.group_outlined,
+                    size: 22, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(t('pending_sync_assign_group'),
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold)),
                 ),
-              ),
-          ],
+              ]),
+              const SizedBox(height: 12),
+
+              // Known groups list — these have codes locally, so tapping one
+              // is sufficient to assign the upload.
+              if (groups.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(t('no_groups'),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(fontStyle: FontStyle.italic)),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: groups.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (_, i) {
+                      final g = groups[i];
+                      final name = (g['name'] as String?) ?? '';
+                      final code = (g['code'] as String?) ?? '';
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading:
+                            const Icon(Icons.group_outlined, size: 20),
+                        title: Text(name,
+                            style: theme.textTheme.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.w600)),
+                        subtitle: Text('#$code',
+                            style: theme.textTheme.bodySmall),
+                        onTap: code.isEmpty
+                            ? null
+                            : () => Navigator.pop(context, code),
+                      );
+                    },
+                  ),
+                ),
+
+              const Divider(height: 24),
+
+              // Manual code entry — for groups the user knows the code for
+              // but hasn't joined on this device. We don't validate against
+              // the server here; the upload itself will succeed or fail.
+              Text(t('group_code_label'),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: _codeController,
+                    decoration: InputDecoration(
+                      hintText: t('group_code_placeholder'),
+                      counterText: '',
+                    ),
+                    keyboardType: TextInputType.number,
+                    maxLength: 4,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _codeValid
+                      ? () => Navigator.pop(
+                          context, _codeController.text.trim())
+                      : null,
+                  child: Text(t('btn_add')),
+                ),
+              ]),
+
+              const SizedBox(height: 12),
+              Row(children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(t('cancel')),
+                ),
+                const Spacer(),
+                TextButton(
+                  // Empty string = explicit "no group" choice.
+                  onPressed: () => Navigator.pop(context, ''),
+                  child: Text(t('pending_sync_no_group'),
+                      style: const TextStyle(color: kTextDim)),
+                ),
+              ]),
+            ],
+          ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(t('cancel')),
-        ),
-        TextButton(
-          // empty string = explicit "no group"
-          onPressed: () => Navigator.pop(context, ''),
-          child: Text(t('pending_sync_no_group')),
-        ),
-      ],
     );
   }
 }

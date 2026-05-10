@@ -72,8 +72,13 @@ class GameNotifier extends ChangeNotifier {
     notifyListeners();
     // Keep the paused snapshot current after every round so a force-kill
     // never loses more than the current unsubmitted round's bids.
+    //
+    // On the *final* round we clear synchronously so the file is gone
+    // before this function returns. Otherwise a process kill during the
+    // post-game UI delay would leave a paused snapshot of a finished game,
+    // and the next launch would offer to resume it.
     if (_game!.isGameOver) {
-      clearPaused();
+      _saveManager.clearPausedSync();
     } else {
       savePaused();
     }
@@ -138,6 +143,13 @@ class GameNotifier extends ChangeNotifier {
 
   Future<void> savePaused() async {
     if (_game == null) return;
+    // A finished game is never resumeable — make sure no caller (e.g. the
+    // Home button after the last round) can accidentally write a paused
+    // snapshot for one. Clear instead, so any stale file is also removed.
+    if (_game!.isGameOver) {
+      await _saveManager.clearPaused();
+      return;
+    }
     await _saveManager.savePaused(_game!.toJson(), group: _activeGroup);
   }
 
@@ -145,6 +157,10 @@ class GameNotifier extends ChangeNotifier {
   /// and blocks until flushed so the data survives an immediate process kill.
   void savePausedSync() {
     if (_game == null) return;
+    if (_game!.isGameOver) {
+      _saveManager.clearPausedSync();
+      return;
+    }
     _saveManager.savePausedSync(_game!.toJson(), group: _activeGroup);
   }
 

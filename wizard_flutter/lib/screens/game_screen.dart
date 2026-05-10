@@ -89,6 +89,9 @@ class _GameScreenState extends State<GameScreen>
   void _completeRound(GameControl game) {
     final settings = context.read<AppSettings>();
     final t = settings.t;
+    // A finished game is read-only — submitting more rounds would push the
+    // round counter past totalRounds and corrupt the leaderboard payload.
+    if (game.isGameOver) return;
     _ensureCapacity(game.numPlayers);
 
     // Gather results
@@ -449,9 +452,17 @@ class _GameScreenState extends State<GameScreen>
 
   Future<void> _onHome() async {
     final notifier = context.read<GameNotifier>();
-    if (notifier.game == null) return;
+    final game = notifier.game;
+    if (game == null) return;
     try {
-      await notifier.savePaused();
+      // Finished games must never be resumeable. notifier.savePaused()
+      // already guards against this, but skip explicitly so a stale paused
+      // file from an earlier session is also cleared on the way out.
+      if (game.isGameOver) {
+        await notifier.clearPaused();
+      } else {
+        await notifier.savePaused();
+      }
     } catch (_) {/* ignore – fall through to navigation */}
     notifier.endGame();
     if (!mounted) return;
@@ -709,16 +720,21 @@ class _Layer1 extends StatelessWidget {
           ),
         ),
 
-        // Complete round button
+        // Complete round button — disabled once the game has ended so a
+        // loaded finished game can't be played past its final round.
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: bidWarning ? null : onCompleteRound,
+                onPressed: (bidWarning || game.isGameOver)
+                    ? null
+                    : onCompleteRound,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: bidWarning ? kDanger.withValues(alpha: 0.3) : null,
+                  backgroundColor: bidWarning
+                      ? kDanger.withValues(alpha: 0.3)
+                      : null,
                 ),
                 child: Text(t('complete_round'),
                     style: const TextStyle(fontSize: 16)),

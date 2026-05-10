@@ -245,6 +245,25 @@ class SaveManager {
     } catch (_) {/* ignore */}
   }
 
+  /// Synchronous variant of [clearPaused], for use after a final-round
+  /// submission where we want the file gone before the function returns
+  /// (so a process kill during the post-game UI delay can't leave a
+  /// resumeable snapshot of an already-finished game). Falls back to the
+  /// async version when the save dir hasn't been resolved yet.
+  void clearPausedSync() {
+    final dir = _cachedSaveDir;
+    if (dir == null) {
+      clearPaused();
+      return;
+    }
+    try {
+      final file = File('${dir.path}/$_pausedFilename');
+      if (file.existsSync()) file.deleteSync();
+      final tmp = File('${file.path}.tmp');
+      if (tmp.existsSync()) tmp.deleteSync();
+    } catch (_) {/* ignore */}
+  }
+
   // ----------------------------------------------------------- list games
 
   /// Return metadata for all saved games, newest first.
