@@ -123,8 +123,8 @@ class LoginDialog(QtWidgets.QDialog):
 
         # Hint footer
         hint = QtWidgets.QLabel(
-            "If you have not set a password yet, close this dialog and run "
-            "'python setup_admin.py' inside the admin_tool folder."
+            "The password is shared by all developers and set by the project "
+            "maintainer. If yours does not work, ask for the current value."
         )
         hint.setStyleSheet(f"color: {TEXT_DIM}; font-size: 11px;")
         hint.setWordWrap(True)
@@ -140,16 +140,17 @@ class LoginDialog(QtWidgets.QDialog):
     # -- login flow ---------------------------------------------------------
 
     def _on_login(self) -> None:
-        if not auth.password_configured(self._cfg):
+        if not auth.password_configured():
             self._status.setText(
-                "No password configured. Please run setup_admin.py first."
+                "No shared password found (admin_password.json). "
+                "Run 'git pull' or contact the maintainer."
             )
             return
         pw = self._pw_edit.text()
         if not pw:
             self._status.setText("Please enter a password.")
             return
-        if not auth.verify_password(pw, self._cfg):
+        if not auth.verify_password(pw):
             self._attempts_left -= 1
             if self._attempts_left <= 0:
                 QtWidgets.QMessageBox.critical(

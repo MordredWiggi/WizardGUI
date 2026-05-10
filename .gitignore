@@ -14,7 +14,8 @@ wizard_backend/leaderboard.db
 # Backend deployment config (enthaelt lokalen SSH-Key-Pfad)
 wizard_backend/deploy.config.json
 
-# Admin-Tool Config (enthaelt Passwort-Hash und SSH-Pfade)
+# Admin-Tool: per-developer connection config (SSH key path etc.)
+# admin_password.json IS committed -- it contains the shared developer password.
 wizard_backend/admin_tool/admin_config.json
 wizard_backend/admin_tool/.tmp_db/
 wizard_backend/admin_tool/backups/

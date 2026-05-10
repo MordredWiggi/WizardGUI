@@ -26,15 +26,11 @@ from login_dialog import LoginDialog
 from style import STYLESHEET, apply_dark_palette
 
 
-def _show_setup_hint(app: QtWidgets.QApplication) -> int:
+def _show_message(title: str, text: str) -> int:
     box = QtWidgets.QMessageBox()
     box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
-    box.setWindowTitle("Setup required")
-    box.setText(
-        "No configuration has been created yet.\n\n"
-        "Please run this once inside the admin_tool folder:\n"
-        "    python setup_admin.py"
-    )
+    box.setWindowTitle(title)
+    box.setText(text)
     box.exec()
     return 1
 
@@ -54,8 +50,23 @@ def main() -> int:
     app.setStyleSheet(STYLESHEET)
     app.setApplicationName("Wizard DB Admin")
 
-    if not auth.config_exists() or not auth.password_configured():
-        return _show_setup_hint(app)
+    if not auth.password_configured():
+        return _show_message(
+            "Shared password missing",
+            "admin_password.json does not contain a password hash.\n\n"
+            "If you cloned this repo: run 'git pull' to receive the latest "
+            "shared password, or ask the maintainer.\n\n"
+            "If you ARE the maintainer: run 'python set_shared_password.py' "
+            "to set the shared password, then commit & push.",
+        )
+
+    if not auth.config_exists():
+        return _show_message(
+            "Connection setup required",
+            "No connections configured for this machine.\n\n"
+            "Please run this once inside the admin_tool folder:\n"
+            "    python setup_admin.py",
+        )
 
     login = LoginDialog()
     if args.connection:

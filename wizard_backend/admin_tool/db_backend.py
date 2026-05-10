@@ -15,10 +15,27 @@ import json
 import shutil
 import sqlite3
 import subprocess
+import sys
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Optional
+
+# Suppress the brief console window that pops up for every child process
+# when the GUI is launched via pythonw on Windows.
+CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
+
+
+def _run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
+    """subprocess.run wrapper that hides the console flash on Windows."""
+    return subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        creationflags=CREATE_NO_WINDOW,
+        **kwargs,
+    )
+
 
 # -- Common abstraction -------------------------------------------------------
 
@@ -215,16 +232,28 @@ class RemoteSshBackend(DbBackend):
         # `sqlite3 -version` returns instantly when the binary exists.
         cmd = self._ssh_args() + ["sqlite3 -version"]
         try:
-            res = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=20
-            )
+            res = _run(cmd, timeout=20)
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise DbError(f"SSH connection failed: {exc}") from exc
         if res.returncode != 0:
+            stderr = (res.stderr or "").strip()
+            if "command not found" in stderr.lower() or "not found" in stderr.lower():
+                raise DbError(self._sqlite3_missing_message(stderr))
             raise DbError(
                 "SSH / sqlite3 sanity check failed.\n"
-                f"stderr: {res.stderr.strip()}"
+                f"stderr: {stderr}"
             )
+
+    def _sqlite3_missing_message(self, stderr: str) -> str:
+        return (
+            "sqlite3 is NOT installed on the remote VM.\n\n"
+            f"stderr: {stderr}\n\n"
+            "Quickest fix - run this once from your machine:\n"
+            "    python setup_admin.py --install-sqlite3\n\n"
+            "Or do it yourself via SSH:\n"
+            f"    ssh -i {self._key} {self._user}@{self._host}\n"
+            "    sudo apt-get update && sudo apt-get install -y sqlite3\n"
+        )
 
     # -- Execution helpers ------------------------------------------------
 
@@ -246,19 +275,16 @@ class RemoteSshBackend(DbBackend):
         )
         cmd = self._ssh_args() + [remote_cmd]
         try:
-            res = subprocess.run(
-                cmd,
-                input=sql,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-            )
+            res = _run(cmd, input=sql, timeout=timeout)
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise DbError(f"SSH call failed: {exc}") from exc
         if res.returncode != 0:
+            stderr = (res.stderr or "").strip()
+            if "command not found" in stderr.lower() or "sqlite3" in stderr.lower() and "not found" in stderr.lower():
+                raise DbError(self._sqlite3_missing_message(stderr))
             raise DbError(
                 f"Remote sqlite3 returned code {res.returncode}.\n"
-                f"stderr: {res.stderr.strip()}"
+                f"stderr: {stderr}"
             )
         return res.stdout, res.stderr
 
@@ -314,9 +340,7 @@ class RemoteSshBackend(DbBackend):
             str(dest_path),
         ]
         try:
-            res = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=300
-            )
+            res = _run(cmd, timeout=300)
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise DbError(f"scp failed: {exc}") from exc
         if res.returncode != 0:
