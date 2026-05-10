@@ -4,31 +4,32 @@ style.py – Zentrales Design-System für Wizard GUI.
 Farbpalette: dunkles Midnight-Navy mit Goldakzenten (Karten-Spieltisch-Ästhetik).
 Enthält Dark Mode (Standard) und Light Mode Varianten.
 """
+
 import os
 import sys
 
 # ── Farb-Tokens (Dark Mode) ───────────────────────────────────────────────────
-BG_DEEP    = "#0d0d1a"   # tiefstes Schwarz-Blau
-BG_BASE    = "#12122b"   # Haupthintergrund
-BG_PANEL   = "#1a1a3a"   # Karten / Panels
-BG_CARD    = "#20204a"   # Input-Felder, Listenelemente
-ACCENT     = "#c9a84c"   # Gold
-ACCENT_DIM = "#7a6230"   # gedämpftes Gold
-TEXT_MAIN  = "#e8e8f0"   # Haupttext
-TEXT_DIM   = "#888aaa"   # Nebentext
-SUCCESS    = "#4ade80"   # Grün
-DANGER     = "#f87171"   # Rot
-LEADER     = "#ffd700"   # Anführer-Highlight
+BG_DEEP = "#0d0d1a"  # tiefstes Schwarz-Blau
+BG_BASE = "#12122b"  # Haupthintergrund
+BG_PANEL = "#1a1a3a"  # Karten / Panels
+BG_CARD = "#20204a"  # Input-Felder, Listenelemente
+ACCENT = "#c9a84c"  # Gold
+ACCENT_DIM = "#7a6230"  # gedämpftes Gold
+TEXT_MAIN = "#e8e8f0"  # Haupttext
+TEXT_DIM = "#888aaa"  # Nebentext
+SUCCESS = "#4ade80"  # Grün
+DANGER = "#f87171"  # Rot
+LEADER = "#ffd700"  # Anführer-Highlight
 
 # ── Farb-Tokens (Light Mode) ──────────────────────────────────────────────────
-BG_DEEP_L    = "#ffffff"   # reines Weiß
-BG_BASE_L    = "#f0f0f5"   # heller Hintergrund
-BG_PANEL_L   = "#e4e4ee"   # Panels
-BG_CARD_L    = "#f8f8ff"   # Karten / Eingabefelder
-ACCENT_L     = "#9b7a1e"   # dunkles Gold (für helle Flächen)
-ACCENT_DIM_L = "#c9a84c"   # helles Gold
-TEXT_MAIN_L  = "#1a1a2e"   # dunkler Haupttext
-TEXT_DIM_L   = "#555577"   # dunkler Nebentext
+BG_DEEP_L = "#ffffff"  # reines Weiß
+BG_BASE_L = "#f0f0f5"  # heller Hintergrund
+BG_PANEL_L = "#e4e4ee"  # Panels
+BG_CARD_L = "#f8f8ff"  # Karten / Eingabefelder
+ACCENT_L = "#9b7a1e"  # dunkles Gold (für helle Flächen)
+ACCENT_DIM_L = "#c9a84c"  # helles Gold
+TEXT_MAIN_L = "#1a1a2e"  # dunkler Haupttext
+TEXT_DIM_L = "#555577"  # dunkler Nebentext
 
 # ── Matplotlib-Farben für Spieler ────────────────────────────────────────────
 PLAYER_COLORS = [
@@ -40,18 +41,20 @@ PLAYER_COLORS = [
     "#f48fb1",  # Pink
 ]
 
+
 # ── Icon-Pfade für SpinBox-Pfeile ─────────────────────────────────────────────
 def _get_base_dir() -> str:
     """Return base directory for assets, supporting PyInstaller frozen executables."""
-    meipass = getattr(sys, '_MEIPASS', None)
-    if getattr(sys, 'frozen', False) and meipass:
+    meipass = getattr(sys, "_MEIPASS", None)
+    if getattr(sys, "frozen", False) and meipass:
         return meipass
     return os.path.dirname(os.path.abspath(__file__))
 
+
 _ICONS_DIR = os.path.join(_get_base_dir(), "icons")
-_UP_DARK   = os.path.join(_ICONS_DIR, "up_arrow_dark.svg").replace("\\", "/")
+_UP_DARK = os.path.join(_ICONS_DIR, "up_arrow_dark.svg").replace("\\", "/")
 _DOWN_DARK = os.path.join(_ICONS_DIR, "down_arrow_dark.svg").replace("\\", "/")
-_UP_LIGHT  = os.path.join(_ICONS_DIR, "up_arrow_light.svg").replace("\\", "/")
+_UP_LIGHT = os.path.join(_ICONS_DIR, "up_arrow_light.svg").replace("\\", "/")
 _DOWN_LIGHT = os.path.join(_ICONS_DIR, "down_arrow_light.svg").replace("\\", "/")
 
 # ── QSS Stylesheet ───────────────────────────────────────────────────────────
@@ -752,9 +755,11 @@ def apply_titlebar_theme(widget, theme: str = None) -> None:
         return
     if theme is None:
         from app_settings import get_theme
+
         theme = get_theme()
     try:
         import ctypes
+
         DWMWA_USE_IMMERSIVE_DARK_MODE = 20
         DWMWA_CAPTION_COLOR = 35
         hwnd = int(widget.winId())
@@ -762,30 +767,37 @@ def apply_titlebar_theme(widget, theme: str = None) -> None:
             # Enable immersive dark mode
             value = ctypes.c_int(1)
             ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
-                ctypes.byref(value), ctypes.sizeof(value),
+                hwnd,
+                DWMWA_USE_IMMERSIVE_DARK_MODE,
+                ctypes.byref(value),
+                ctypes.sizeof(value),
             )
             # Set caption colour to the dark-blue app background (#12122b)
             # COLORREF format is 0x00BBGGRR: R=0x12, G=0x12, B=0x2b
-            color = ctypes.c_uint32(0x002b1212)
+            color = ctypes.c_uint32(0x002B1212)
             ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                hwnd, DWMWA_CAPTION_COLOR,
-                ctypes.byref(color), ctypes.sizeof(color),
+                hwnd,
+                DWMWA_CAPTION_COLOR,
+                ctypes.byref(color),
+                ctypes.sizeof(color),
             )
         else:
             # Disable immersive dark mode
             value = ctypes.c_int(0)
             ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
-                ctypes.byref(value), ctypes.sizeof(value),
+                hwnd,
+                DWMWA_USE_IMMERSIVE_DARK_MODE,
+                ctypes.byref(value),
+                ctypes.sizeof(value),
             )
             # Reset caption colour to system default (white title bar)
             DWMWA_COLOR_DEFAULT = 0xFFFFFFFF
             color = ctypes.c_uint32(DWMWA_COLOR_DEFAULT)
             ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                hwnd, DWMWA_CAPTION_COLOR,
-                ctypes.byref(color), ctypes.sizeof(color),
+                hwnd,
+                DWMWA_CAPTION_COLOR,
+                ctypes.byref(color),
+                ctypes.sizeof(color),
             )
     except Exception:
         pass
-

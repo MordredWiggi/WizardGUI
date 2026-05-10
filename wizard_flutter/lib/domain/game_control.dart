@@ -16,16 +16,19 @@ class GameControl {
     required List<Map<String, dynamic>> playerData,
     int? initialDealerIndex,
     this.gameMode = GameMode.standard,
-  })  : roundNumber = 0,
-        initialDealerIndex = initialDealerIndex ??
-            (playerData.isEmpty ? 0 : Random().nextInt(playerData.length)),
-        players = playerData
-            .map((p) => Player(
-                  name: p['name'] as String,
-                  avatar: (p['avatar'] as String?) ?? '🧙‍♂️',
-                  initialScore: gameMode == GameMode.multiplicative ? 100 : 0,
-                ))
-            .toList();
+  }) : roundNumber = 0,
+       initialDealerIndex =
+           initialDealerIndex ??
+           (playerData.isEmpty ? 0 : Random().nextInt(playerData.length)),
+       players = playerData
+           .map(
+             (p) => Player(
+               name: p['name'] as String,
+               avatar: (p['avatar'] as String?) ?? '🧙‍♂️',
+               initialScore: gameMode == GameMode.multiplicative ? 100 : 0,
+             ),
+           )
+           .toList();
 
   GameControl._raw({
     required this.gameMode,
@@ -57,17 +60,16 @@ class GameControl {
   /// Equals `roundNumber + 1` while the game is active (players are entering
   /// bids for the next round), and `totalRounds` once the last round has been
   /// submitted — so the UI never shows a round number greater than the total.
-  int get currentRoundDisplay =>
-      isGameOver ? totalRounds : roundNumber + 1;
+  int get currentRoundDisplay => isGameOver ? totalRounds : roundNumber + 1;
 
   List<int> get roundIndices => List.generate(roundNumber + 1, (i) => i);
 
   List<List<int>> get allScores => players.map((p) => p.scores).toList();
 
   List<double> get averages => List.generate(roundNumber + 1, (r) {
-        final total = players.fold(0, (sum, p) => sum + p.scores[r]);
-        return total / numPlayers;
-      });
+    final total = players.fold(0, (sum, p) => sum + p.scores[r]);
+    return total / numPlayers;
+  });
 
   Player? get leader => players.isEmpty
       ? null
@@ -81,14 +83,17 @@ class GameControl {
 
   List<int> lastDeltas() {
     if (roundNumber == 0) return List.filled(numPlayers, 0);
-    return players.map((p) => p.scores.last - p.scores[p.scores.length - 2]).toList();
+    return players
+        .map((p) => p.scores.last - p.scores[p.scores.length - 2])
+        .toList();
   }
 
   // --- game actions --------------------------------------------------------
 
   /// Apply round results; returns event info so the UI can show effects.
   ({GameControl game, RoundEvents events}) submitRound(
-      List<RoundResult> results) {
+    List<RoundResult> results,
+  ) {
     final oldLeader = leader;
 
     var newPlayers = <Player>[];
@@ -127,12 +132,8 @@ class GameControl {
           .firstOrNull,
       negativePlayer: minDelta < 0 ? minPlayer : null,
       gameOver: updated.isGameOver,
-      bowPlayers: newPlayers
-          .where((p) => p.consecutiveLosses == 3)
-          .toList(),
-      revengePlayers: newPlayers
-          .where((p) => p.revengeTriggered)
-          .toList(),
+      bowPlayers: newPlayers.where((p) => p.consecutiveLosses == 3).toList(),
+      revengePlayers: newPlayers.where((p) => p.revengeTriggered).toList(),
       hugeLossPlayer: hugeLossPlayer,
       hugeLossDelta: hugeLossPlayer != null ? minDelta : 0,
     );
@@ -154,19 +155,22 @@ class GameControl {
   // --- serialisation -------------------------------------------------------
 
   Map<String, dynamic> toJson() => {
-        'players': players.map((p) => p.toJson()).toList(),
-        'round_number': roundNumber,
-        'initial_dealer_index': initialDealerIndex,
-        'game_mode': gameMode.toJson(),
-      };
+    'players': players.map((p) => p.toJson()).toList(),
+    'round_number': roundNumber,
+    'initial_dealer_index': initialDealerIndex,
+    'game_mode': gameMode.toJson(),
+  };
 
   factory GameControl.fromJson(Map<String, dynamic> json) {
-    final gameMode =
-        GameMode.fromJson((json['game_mode'] as String?) ?? 'standard');
+    final gameMode = GameMode.fromJson(
+      (json['game_mode'] as String?) ?? 'standard',
+    );
     final playersJson = json['players'] as List;
 
     final loadedPlayers = playersJson
-        .map((p) => Player.fromJson(p as Map<String, dynamic>, gameMode: gameMode))
+        .map(
+          (p) => Player.fromJson(p as Map<String, dynamic>, gameMode: gameMode),
+        )
         .toList();
 
     return GameControl._raw(

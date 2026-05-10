@@ -19,7 +19,7 @@ class GameNotifier extends ChangeNotifier {
   String? _currentSaveName;
 
   GameNotifier({SaveManager? saveManager})
-      : _saveManager = saveManager ?? SaveManager();
+    : _saveManager = saveManager ?? SaveManager();
 
   GameControl? get game => _game;
   bool get hasGame => _game != null;
@@ -124,14 +124,12 @@ class GameNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<List<SavedGameMeta>> listSavedGames() =>
-      _saveManager.listSavedGames();
+  Future<List<SavedGameMeta>> listSavedGames() => _saveManager.listSavedGames();
 
   Future<List<PendingSyncGame>> listPendingSyncGames() =>
       _saveManager.listPendingSyncGames();
 
-  Future<void> markSynced(String filePath) =>
-      _saveManager.markSynced(filePath);
+  Future<void> markSynced(String filePath) => _saveManager.markSynced(filePath);
 
   Future<void> updatePendingGroupCode(String filePath, String? groupCode) =>
       _saveManager.updatePendingGroupCode(filePath, groupCode);

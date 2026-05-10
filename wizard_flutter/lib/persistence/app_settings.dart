@@ -31,10 +31,10 @@ class CustomMessageRule {
   });
 
   Map<String, dynamic> toJson() => {
-        'type': type,
-        'value': value,
-        'message': message,
-      };
+    'type': type,
+    'value': value,
+    'message': message,
+  };
 
   factory CustomMessageRule.fromJson(Map<String, dynamic> json) =>
       CustomMessageRule(
@@ -66,9 +66,7 @@ class AppSettings extends ChangeNotifier {
   String _language = 'de';
   String _theme = 'dark'; // 'dark' | 'light'
   int _messageDurationMs = _kDefaultMessageDurationMs;
-  Map<String, String> _customMessages = {
-    for (final k in kEventKeys) k: '',
-  };
+  Map<String, String> _customMessages = {for (final k in kEventKeys) k: ''};
   List<CustomMessageRule> _customRules = [];
   // Most-recent-first list of groups the user has previously joined or
   // created. Each entry is a map with at least {id, name, code, visibility}.
@@ -89,8 +87,7 @@ class AppSettings extends ChangeNotifier {
   /// The setup screen does NOT auto-restore these on startup — they're only
   /// used by the join dialog to autofill the 4-digit code when the user
   /// reselects a group they've played in before.
-  List<Map<String, dynamic>> get knownGroups =>
-      List.unmodifiable(_knownGroups);
+  List<Map<String, dynamic>> get knownGroups => List.unmodifiable(_knownGroups);
 
   /// Look up a previously-joined group by name (case-insensitive). Returns
   /// null if the user has never played in a group with that name.
@@ -119,7 +116,10 @@ class AppSettings extends ChangeNotifier {
 
   /// Returns the override (with {placeholders} substituted) if set,
   /// otherwise falls back to the translated default for ``key``.
-  String resolveEventMessage(String key, [Map<String, String> args = const {}]) {
+  String resolveEventMessage(
+    String key, [
+    Map<String, String> args = const {},
+  ]) {
     final override = _customMessages[key] ?? '';
     if (override.isNotEmpty) {
       return _format(override, args);
@@ -148,13 +148,14 @@ class AppSettings extends ChangeNotifier {
         final decoded = jsonDecode(raw);
         if (decoded is Map) {
           _customMessages = {
-            for (final k in kEventKeys)
-              k: (decoded[k] ?? '').toString(),
+            for (final k in kEventKeys) k: (decoded[k] ?? '').toString(),
           };
         }
-      } catch (_) {/* ignore malformed */}
+      } catch (_) {
+        /* ignore malformed */
+      }
     }
-    
+
     final rawRules = prefs.getString(_keyCustomRules);
     if (rawRules != null && rawRules.isNotEmpty) {
       try {
@@ -164,7 +165,9 @@ class AppSettings extends ChangeNotifier {
               .map((e) => CustomMessageRule.fromJson(e as Map<String, dynamic>))
               .toList();
         }
-      } catch (_) {/* ignore malformed */}
+      } catch (_) {
+        /* ignore malformed */
+      }
     }
 
     final rawKnown = prefs.getString(_keyKnownGroups);
@@ -177,7 +180,9 @@ class AppSettings extends ChangeNotifier {
               .map((e) => Map<String, dynamic>.from(e))
               .toList();
         }
-      } catch (_) {/* ignore malformed */}
+      } catch (_) {
+        /* ignore malformed */
+      }
     }
 
     // One-shot migration from the previous `last_group` single-entry key.
@@ -190,7 +195,9 @@ class AppSettings extends ChangeNotifier {
             _knownGroups = [Map<String, dynamic>.from(decoded)];
             await prefs.setString(_keyKnownGroups, jsonEncode(_knownGroups));
           }
-        } catch (_) {/* ignore malformed */}
+        } catch (_) {
+          /* ignore malformed */
+        }
         await prefs.remove(_keyLastGroup);
       }
     }
@@ -226,8 +233,7 @@ class AppSettings extends ChangeNotifier {
   /// Remove a saved group code (e.g. if the server reports the group
   /// no longer exists). No-op if the code wasn't known.
   Future<void> forgetKnownGroupByCode(String code) async {
-    final filtered =
-        _knownGroups.where((g) => g['code'] != code).toList();
+    final filtered = _knownGroups.where((g) => g['code'] != code).toList();
     if (filtered.length == _knownGroups.length) return;
     _knownGroups = filtered;
     final prefs = await SharedPreferences.getInstance();

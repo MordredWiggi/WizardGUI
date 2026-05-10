@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 // ── Colour palette (mirrors desktop style.py) ─────────────────────────────────
-const Color kAccent = Color(0xFFC9A84C);       // gold
+const Color kAccent = Color(0xFFC9A84C); // gold
 const Color kAccentDim = Color(0xFF8A6E30);
 const Color kBgBase = Color(0xFF0D0D1A);
 const Color kBgPanel = Color(0xFF12122B);
@@ -84,7 +84,10 @@ final ThemeData darkTheme = ThemeData(
     bodyLarge: TextStyle(color: kTextMain),
     bodyMedium: TextStyle(color: kTextMain),
     titleLarge: TextStyle(
-        color: kAccent, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+      color: kAccent,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 1.5,
+    ),
     titleMedium: TextStyle(color: kTextMain, fontWeight: FontWeight.w600),
     labelSmall: TextStyle(color: kTextDim),
   ),

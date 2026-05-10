@@ -6,12 +6,14 @@ Starten:
 oder (wenn als Paket installiert):
     python -m wizard_gui
 """
+
 import sys
 import os
 from PyQt6 import QtWidgets, QtGui, QtCore
 from app_settings import load_settings, get_theme
 from style import STYLESHEET, STYLESHEET_LIGHT, apply_titlebar_theme
 from main_window import MainWindow
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -38,8 +40,10 @@ def _build_app_icon() -> QtGui.QIcon:
     painter.setBrush(QtGui.QColor("#C9A84C"))
     painter.setPen(QtCore.Qt.PenStyle.NoPen)
     path = QtGui.QPainterPath()
+
     def p(x, y):
         return QtCore.QPointF(x / 108.0 * size, y / 108.0 * size)
+
     path.moveTo(p(54, 22))
     path.cubicTo(p(54, 22), p(30, 44), p(30, 58))
     path.cubicTo(p(30, 67), p(37, 72), p(45, 70))
@@ -71,7 +75,9 @@ def main() -> None:
         palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor("#12122b"))
         palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtGui.QColor("#e8e8f0"))
         palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor("#20204a"))
-        palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor("#1a1a3a"))
+        palette.setColor(
+            QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor("#1a1a3a")
+        )
         palette.setColor(QtGui.QPalette.ColorRole.ToolTipBase, QtGui.QColor("#20204a"))
         palette.setColor(QtGui.QPalette.ColorRole.ToolTipText, QtGui.QColor("#e8e8f0"))
         palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor("#e8e8f0"))
@@ -80,7 +86,9 @@ def main() -> None:
         palette.setColor(QtGui.QPalette.ColorRole.BrightText, QtGui.QColor("#ffffff"))
         palette.setColor(QtGui.QPalette.ColorRole.Link, QtGui.QColor("#c9a84c"))
         palette.setColor(QtGui.QPalette.ColorRole.Highlight, QtGui.QColor("#7a6230"))
-        palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, QtGui.QColor("#ffffff"))
+        palette.setColor(
+            QtGui.QPalette.ColorRole.HighlightedText, QtGui.QColor("#ffffff")
+        )
         app.setPalette(palette)
 
     app.setStyleSheet(STYLESHEET_LIGHT if get_theme() == "light" else STYLESHEET)
@@ -94,6 +102,7 @@ def main() -> None:
     if sys.platform == "win32":
         try:
             import ctypes
+
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
                 "WizardGUI.Desktop"
             )

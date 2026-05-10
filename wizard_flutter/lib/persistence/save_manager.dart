@@ -129,7 +129,8 @@ class SaveManager {
 
   String _defaultName(DateTime now, Map<String, dynamic> gameData) {
     final ts = DateFormat('yyyyMMdd_HHmmss').format(now);
-    final players = (gameData['players'] as List?)
+    final players =
+        (gameData['players'] as List?)
             ?.map((p) => (p as Map)['name'] as String)
             .join('_') ??
         '';
@@ -155,16 +156,15 @@ class SaveManager {
   Map<String, dynamic> _pausedPayload(
     Map<String, dynamic> gameData,
     Map<String, dynamic>? group,
-  ) =>
-      {
-        'schema_version': _schemaVersion,
-        'meta': {
-          'saved_at': DateTime.now().toIso8601String(),
-          'paused': true,
-          'group': group,
-        },
-        'game': gameData,
-      };
+  ) => {
+    'schema_version': _schemaVersion,
+    'meta': {
+      'saved_at': DateTime.now().toIso8601String(),
+      'paused': true,
+      'group': group,
+    },
+    'game': gameData,
+  };
 
   /// Persist the in-progress game so it can be resumed from the menu.
   Future<String> savePaused(
@@ -174,7 +174,9 @@ class SaveManager {
     final file = await _pausedFile();
     await _writeAtomic(
       file,
-      const JsonEncoder.withIndent('  ').convert(_pausedPayload(gameData, group)),
+      const JsonEncoder.withIndent(
+        '  ',
+      ).convert(_pausedPayload(gameData, group)),
     );
     return file.path;
   }
@@ -196,9 +198,13 @@ class SaveManager {
     try {
       _writeAtomicSync(
         file,
-        const JsonEncoder.withIndent('  ').convert(_pausedPayload(gameData, group)),
+        const JsonEncoder.withIndent(
+          '  ',
+        ).convert(_pausedPayload(gameData, group)),
       );
-    } catch (_) {/* best-effort during shutdown */}
+    } catch (_) {
+      /* best-effort during shutdown */
+    }
   }
 
   /// Returns `{'game': ..., 'group': ...}` or `null` when nothing is paused.
@@ -216,7 +222,8 @@ class SaveManager {
     }
     try {
       final payload =
-          jsonDecode(await source.readAsString(encoding: utf8)) as Map<String, dynamic>;
+          jsonDecode(await source.readAsString(encoding: utf8))
+              as Map<String, dynamic>;
       final meta = (payload['meta'] as Map?) ?? const {};
       return {
         'game': Map<String, dynamic>.from(payload['game'] as Map? ?? {}),
@@ -242,7 +249,9 @@ class SaveManager {
       if (await file.exists()) await file.delete();
       final tmp = File('${file.path}.tmp');
       if (await tmp.exists()) await tmp.delete();
-    } catch (_) {/* ignore */}
+    } catch (_) {
+      /* ignore */
+    }
   }
 
   /// Synchronous variant of [clearPaused], for use after a final-round
@@ -261,7 +270,9 @@ class SaveManager {
       if (file.existsSync()) file.deleteSync();
       final tmp = File('${file.path}.tmp');
       if (tmp.existsSync()) tmp.deleteSync();
-    } catch (_) {/* ignore */}
+    } catch (_) {
+      /* ignore */
+    }
   }
 
   // ----------------------------------------------------------- list games
@@ -269,14 +280,17 @@ class SaveManager {
   /// Return metadata for all saved games, newest first.
   Future<List<SavedGameMeta>> listSavedGames() async {
     final dir = await _saveDir;
-    final files = dir
-        .listSync()
-        .whereType<File>()
-        .where((f) => f.path.endsWith('.json'))
-        .where((f) => f.uri.pathSegments.last != _pausedFilename)
-        .where((f) => !f.path.endsWith('.tmp'))
-        .toList()
-      ..sort((a, b) => b.path.compareTo(a.path)); // reverse alphabetical ≈ newest first
+    final files =
+        dir
+            .listSync()
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.json'))
+            .where((f) => f.uri.pathSegments.last != _pausedFilename)
+            .where((f) => !f.path.endsWith('.tmp'))
+            .toList()
+          ..sort(
+            (a, b) => b.path.compareTo(a.path),
+          ); // reverse alphabetical ≈ newest first
 
     final result = <SavedGameMeta>[];
     for (final file in files) {
@@ -285,19 +299,22 @@ class SaveManager {
         final payload = jsonDecode(content) as Map<String, dynamic>;
         final meta = (payload['meta'] as Map?) ?? {};
         final game = (payload['game'] as Map?) ?? {};
-        final players = (game['players'] as List?)
+        final players =
+            (game['players'] as List?)
                 ?.map((p) => (p as Map)['name'] as String)
                 .toList() ??
             [];
-        result.add(SavedGameMeta(
-          name: (meta['name'] as String?) ?? file.uri.pathSegments.last,
-          savedAt: (meta['saved_at'] as String?) ?? '',
-          players: players,
-          rounds: (game['round_number'] as int?) ?? 0,
-          filePath: file.path,
-          pendingSync: (meta['pending_sync'] as bool?) ?? false,
-          groupCode: meta['group_code'] as String?,
-        ));
+        result.add(
+          SavedGameMeta(
+            name: (meta['name'] as String?) ?? file.uri.pathSegments.last,
+            savedAt: (meta['saved_at'] as String?) ?? '',
+            players: players,
+            rounds: (game['round_number'] as int?) ?? 0,
+            filePath: file.path,
+            pendingSync: (meta['pending_sync'] as bool?) ?? false,
+            groupCode: meta['group_code'] as String?,
+          ),
+        );
       } catch (_) {
         // skip corrupt files
       }
@@ -325,13 +342,15 @@ class SaveManager {
         final payload = jsonDecode(content) as Map<String, dynamic>;
         final meta = (payload['meta'] as Map?) ?? {};
         if ((meta['pending_sync'] as bool?) != true) continue;
-        result.add(PendingSyncGame(
-          filePath: file.path,
-          name: (meta['name'] as String?) ?? file.uri.pathSegments.last,
-          savedAt: (meta['saved_at'] as String?) ?? '',
-          groupCode: meta['group_code'] as String?,
-          game: Map<String, dynamic>.from(payload['game'] as Map? ?? {}),
-        ));
+        result.add(
+          PendingSyncGame(
+            filePath: file.path,
+            name: (meta['name'] as String?) ?? file.uri.pathSegments.last,
+            savedAt: (meta['saved_at'] as String?) ?? '',
+            groupCode: meta['group_code'] as String?,
+            game: Map<String, dynamic>.from(payload['game'] as Map? ?? {}),
+          ),
+        );
       } catch (_) {
         // skip corrupt files
       }
@@ -345,7 +364,8 @@ class SaveManager {
     if (!await file.exists()) return;
     try {
       final payload =
-          jsonDecode(await file.readAsString(encoding: utf8)) as Map<String, dynamic>;
+          jsonDecode(await file.readAsString(encoding: utf8))
+              as Map<String, dynamic>;
       final meta = Map<String, dynamic>.from(payload['meta'] as Map? ?? {});
       meta['pending_sync'] = false;
       payload['meta'] = meta;
@@ -353,16 +373,22 @@ class SaveManager {
         const JsonEncoder.withIndent('  ').convert(payload),
         encoding: utf8,
       );
-    } catch (_) {/* ignore */}
+    } catch (_) {
+      /* ignore */
+    }
   }
 
   /// Attach / update the group code on a pending-sync game.
-  Future<void> updatePendingGroupCode(String filePath, String? groupCode) async {
+  Future<void> updatePendingGroupCode(
+    String filePath,
+    String? groupCode,
+  ) async {
     final file = File(filePath);
     if (!await file.exists()) return;
     try {
       final payload =
-          jsonDecode(await file.readAsString(encoding: utf8)) as Map<String, dynamic>;
+          jsonDecode(await file.readAsString(encoding: utf8))
+              as Map<String, dynamic>;
       final meta = Map<String, dynamic>.from(payload['meta'] as Map? ?? {});
       meta['group_code'] = groupCode;
       payload['meta'] = meta;
@@ -370,7 +396,9 @@ class SaveManager {
         const JsonEncoder.withIndent('  ').convert(payload),
         encoding: utf8,
       );
-    } catch (_) {/* ignore */}
+    } catch (_) {
+      /* ignore */
+    }
   }
 
   // ---------------------------------------------------------------- delete

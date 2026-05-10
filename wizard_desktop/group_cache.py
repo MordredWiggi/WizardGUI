@@ -4,6 +4,7 @@ group_cache.py – Local persistence of known group codes.
 Stores a mapping of group-code → group-info so that users can opt in to
 having codes auto-filled the next time they join a group.
 """
+
 from __future__ import annotations
 
 import json

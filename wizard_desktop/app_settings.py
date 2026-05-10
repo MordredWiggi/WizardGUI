@@ -6,6 +6,7 @@ Verwaltet:
   • Theme (dark/light)
   • Persistenz in ~/.wizard_gui_settings.json
 """
+
 from __future__ import annotations
 
 import json
@@ -103,10 +104,13 @@ def get_leaderboard_url() -> str:
 
 # ── Message display duration ────────────────────────────────────────────────
 
+
 def get_message_display_duration_ms() -> int:
     """Return the current event-overlay display duration in milliseconds."""
     try:
-        v = int(_settings.get("message_display_duration_ms", _DEFAULT_MESSAGE_DURATION_MS))
+        v = int(
+            _settings.get("message_display_duration_ms", _DEFAULT_MESSAGE_DURATION_MS)
+        )
     except (TypeError, ValueError):
         v = _DEFAULT_MESSAGE_DURATION_MS
     return max(_MIN_MESSAGE_DURATION_MS, min(_MAX_MESSAGE_DURATION_MS, v))
@@ -120,6 +124,7 @@ def set_message_display_duration_ms(ms: int) -> None:
 
 
 # ── Custom event messages ───────────────────────────────────────────────────
+
 
 def get_custom_event_messages() -> dict:
     """Return a copy of the custom-event-message overrides (key → string)."""
@@ -195,6 +200,7 @@ def t(key: str, **kwargs) -> str:
     Beispiel: t("round_header", n=3)  →  "Runde 3" / "Round 3"
     """
     from translations import TRANSLATIONS
+
     lang = get_language()
     lang_dict = TRANSLATIONS.get(lang, TRANSLATIONS.get(_DEFAULT_LANGUAGE, {}))
     text = lang_dict.get(key, TRANSLATIONS.get(_DEFAULT_LANGUAGE, {}).get(key, key))

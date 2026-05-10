@@ -4,6 +4,7 @@ sowie Export von Plots als Bilddatei.
 
 Speicherort: ~/.wizard_gui/games/
 """
+
 from __future__ import annotations
 
 import json
@@ -185,7 +186,9 @@ class SaveManager:
         except Exception:
             pass
 
-    def update_pending_group_code(self, filepath: Path, group_code: Optional[str]) -> None:
+    def update_pending_group_code(
+        self, filepath: Path, group_code: Optional[str]
+    ) -> None:
         """Update the stored group_code on a pending game (useful if assigned later)."""
         try:
             with open(filepath, "r", encoding="utf-8") as fh:
@@ -201,4 +204,6 @@ class SaveManager:
 
     def save_plot(self, fig, filepath: Path) -> None:
         """Export matplotlib figure to image."""
-        fig.savefig(filepath, dpi=150, bbox_inches="tight", facecolor=fig.get_facecolor())
+        fig.savefig(
+            filepath, dpi=150, bbox_inches="tight", facecolor=fig.get_facecolor()
+        )

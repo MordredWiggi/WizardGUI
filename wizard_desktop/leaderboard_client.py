@@ -4,6 +4,7 @@ leaderboard_client.py – HTTP client for the Wizard Leaderboard API.
 Provides synchronous helpers and QThread workers so the UI never blocks.
 Uses only urllib (stdlib) to avoid extra dependencies.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -15,7 +16,6 @@ from datetime import datetime
 from typing import Optional
 
 from PyQt6 import QtCore
-
 
 # ── Submission builder ───────────────────────────────────────────────────────
 
@@ -108,7 +108,9 @@ def build_game_submission(
 def _post_json(url: str, payload: dict, timeout: int = 10) -> Optional[dict]:
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
-        url, data=data, method="POST",
+        url,
+        data=data,
+        method="POST",
         headers={"Content-Type": "application/json"},
     )
     try:
@@ -156,7 +158,9 @@ class LeaderboardClient:
 
     # ── Group methods ────────────────────────────────────────────────────────
 
-    def create_group(self, name: str, code: str, visibility: str = "public") -> Optional[dict]:
+    def create_group(
+        self, name: str, code: str, visibility: str = "public"
+    ) -> Optional[dict]:
         """Create a new group. Returns group dict on success, None on failure."""
         url = f"{self.base_url}/api/groups"
         result = _post_json(url, {"name": name, "code": code, "visibility": visibility})
@@ -178,7 +182,9 @@ class LeaderboardClient:
         url = f"{self.base_url}/api/leaderboard/groups"
         return _get_json(url, timeout=5)
 
-    def get_group_player_leaderboard(self, code: str, mode: str = "standard") -> Optional[list]:
+    def get_group_player_leaderboard(
+        self, code: str, mode: str = "standard"
+    ) -> Optional[list]:
         """Fetch player leaderboard for a specific group."""
         url = (
             f"{self.base_url}/api/leaderboard/group/{urllib.parse.quote(code)}"
@@ -331,7 +337,9 @@ class GroupCreateWorker(QtCore.QThread):
 
     result = QtCore.pyqtSignal(object)  # dict (group) or None
 
-    def __init__(self, client: LeaderboardClient, name: str, code: str, visibility: str) -> None:
+    def __init__(
+        self, client: LeaderboardClient, name: str, code: str, visibility: str
+    ) -> None:
         super().__init__()
         self._client = client
         self._name = name

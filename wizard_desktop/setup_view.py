@@ -8,6 +8,7 @@ Zeigt:
   • Liste gespeicherter Spiele, globales Gruppen-Leaderboard, Gruppen-Leaderboard
   • „Spiel starten"-Button
 """
+
 from __future__ import annotations
 
 from typing import List, Optional, Dict
@@ -15,15 +16,33 @@ from typing import List, Optional, Dict
 from PyQt6 import QtCore, QtWidgets, QtGui
 
 from style import (
-    ACCENT, ACCENT_DIM, BG_BASE, BG_PANEL, BG_CARD,
-    TEXT_MAIN, TEXT_DIM, PLAYER_COLORS, SUCCESS, DANGER,
+    ACCENT,
+    ACCENT_DIM,
+    BG_BASE,
+    BG_PANEL,
+    BG_CARD,
+    TEXT_MAIN,
+    TEXT_DIM,
+    PLAYER_COLORS,
+    SUCCESS,
+    DANGER,
 )
 from save_manager import SaveManager
 from app_settings import t, get_leaderboard_url
 from game_control import GAME_MODE_STANDARD, GAME_MODE_MULTIPLICATIVE
 
-
-AVATARS = ["🧙‍♂️", "🧙‍♀️", "🧚‍♂️", "🧚‍♀️", "🧞‍♂️", "🧞‍♀️", "🧝‍♂️", "🧝‍♀️", "🧛‍♂️", "🧛‍♀️"]
+AVATARS = [
+    "🧙‍♂️",
+    "🧙‍♀️",
+    "🧚‍♂️",
+    "🧚‍♀️",
+    "🧞‍♂️",
+    "🧞‍♀️",
+    "🧝‍♂️",
+    "🧝‍♀️",
+    "🧛‍♂️",
+    "🧛‍♀️",
+]
 
 
 class PlayerChip(QtWidgets.QFrame):
@@ -31,30 +50,35 @@ class PlayerChip(QtWidgets.QFrame):
 
     removed = QtCore.pyqtSignal(str)
 
-    def __init__(self, name: str, color: str, parent: Optional[QtWidgets.QWidget] = None, display: Optional[str] = None):
+    def __init__(
+        self,
+        name: str,
+        color: str,
+        parent: Optional[QtWidgets.QWidget] = None,
+        display: Optional[str] = None,
+    ):
         super().__init__(parent)
         self.name = name
-        self.setStyleSheet(
-            f"""
+        self.setStyleSheet(f"""
             QFrame {{
                 background-color: transparent;
                 border: 1px solid {color};
                 border-radius: 14px;
                 padding: 2px 10px;
             }}
-            """
-        )
+            """)
         row = QtWidgets.QHBoxLayout(self)
         row.setContentsMargins(6, 3, 3, 3)
         row.setSpacing(4)
 
         lbl = QtWidgets.QLabel(display if display is not None else name)
-        lbl.setStyleSheet(f"color: {color}; font-weight: 600; font-size: 12px; background: transparent; border: none;")
+        lbl.setStyleSheet(
+            f"color: {color}; font-weight: 600; font-size: 12px; background: transparent; border: none;"
+        )
 
         btn_x = QtWidgets.QPushButton("✕")
         btn_x.setFixedSize(18, 18)
-        btn_x.setStyleSheet(
-            f"""
+        btn_x.setStyleSheet(f"""
             QPushButton {{
                 background: transparent;
                 color: {color};
@@ -64,8 +88,7 @@ class PlayerChip(QtWidgets.QFrame):
                 padding: 0;
             }}
             QPushButton:hover {{ color: white; }}
-            """
-        )
+            """)
         btn_x.clicked.connect(lambda: self.removed.emit(self.name))
 
         row.addWidget(lbl)
@@ -84,12 +107,16 @@ class SetupView(QtWidgets.QWidget):
     settings_changed()
     """
 
-    start_game = QtCore.pyqtSignal(list, str, object)  # players, mode, group dict or None
-    load_game = QtCore.pyqtSignal(object)              # Path
+    start_game = QtCore.pyqtSignal(
+        list, str, object
+    )  # players, mode, group dict or None
+    load_game = QtCore.pyqtSignal(object)  # Path
     resume_game = QtCore.pyqtSignal()
     settings_changed = QtCore.pyqtSignal()
 
-    def __init__(self, save_manager: SaveManager, parent: Optional[QtWidgets.QWidget] = None):
+    def __init__(
+        self, save_manager: SaveManager, parent: Optional[QtWidgets.QWidget] = None
+    ):
         super().__init__(parent)
         self._save_manager = save_manager
         self._players: List[dict] = []
@@ -113,6 +140,7 @@ class SetupView(QtWidgets.QWidget):
         if not url:
             return None
         from leaderboard_client import LeaderboardClient
+
         return LeaderboardClient(url)
 
     # ── UI-Aufbau ─────────────────────────────────────────────────────────────
@@ -125,7 +153,9 @@ class SetupView(QtWidgets.QWidget):
         # Äußerer Scrollbereich
         scroll = QtWidgets.QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
         root.addWidget(scroll)
 
         container = QtWidgets.QWidget()
@@ -162,7 +192,11 @@ class SetupView(QtWidgets.QWidget):
             "QPushButton { font-size: 28px; padding: 1px; background: transparent; border: none; }"
             "QPushButton:hover { background-color: #1a1a3a; border-radius: 4px; }"
         )
-        self._btn_leaderboard_web.clicked.connect(lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://play-wizard.de")))
+        self._btn_leaderboard_web.clicked.connect(
+            lambda: QtGui.QDesktopServices.openUrl(
+                QtCore.QUrl("https://play-wizard.de")
+            )
+        )
         right_layout.addWidget(self._btn_leaderboard_web)
 
         self._btn_settings = QtWidgets.QPushButton("⚙")
@@ -303,7 +337,9 @@ class SetupView(QtWidgets.QWidget):
 
         self._name_status = QtWidgets.QLabel()
         self._name_status.setFixedWidth(160)
-        self._name_status.setStyleSheet("font-size: 11px; background: transparent; border: none;")
+        self._name_status.setStyleSheet(
+            "font-size: 11px; background: transparent; border: none;"
+        )
 
         self._btn_add = QtWidgets.QPushButton(t("btn_add"))
         self._btn_add.clicked.connect(self._add_player)
@@ -422,7 +458,11 @@ class SetupView(QtWidgets.QWidget):
         self._bottom_stack.addWidget(saved_page)  # index 0
 
         # Page 1: Global groups ranking
-        from leaderboard_widget import GroupsLeaderboardWidget, GroupPlayerLeaderboardWidget
+        from leaderboard_widget import (
+            GroupsLeaderboardWidget,
+            GroupPlayerLeaderboardWidget,
+        )
+
         self._groups_lb_widget = GroupsLeaderboardWidget()
         self._bottom_stack.addWidget(self._groups_lb_widget)  # index 1
 
@@ -443,11 +483,13 @@ class SetupView(QtWidgets.QWidget):
         client = self._get_client()
         if client is None:
             QtWidgets.QMessageBox.information(
-                self, t("warning_title"),
-                "Please configure a leaderboard URL in Settings first."
+                self,
+                t("warning_title"),
+                "Please configure a leaderboard URL in Settings first.",
             )
             return
         from dialogs import GroupSelectDialog
+
         dlg = GroupSelectDialog(self, client)
         if dlg.exec() and dlg.selected_group:
             self._set_group(dlg.selected_group)
@@ -456,11 +498,13 @@ class SetupView(QtWidgets.QWidget):
         client = self._get_client()
         if client is None:
             QtWidgets.QMessageBox.information(
-                self, t("warning_title"),
-                "Please configure a leaderboard URL in Settings first."
+                self,
+                t("warning_title"),
+                "Please configure a leaderboard URL in Settings first.",
             )
             return
         from dialogs import GroupCreateDialog
+
         dlg = GroupCreateDialog(self, client)
         if dlg.exec() and dlg.created_group:
             self._set_group(dlg.created_group)
@@ -512,10 +556,11 @@ class SetupView(QtWidgets.QWidget):
 
     def _apply_tab_style(self) -> None:
         from app_settings import get_theme
+
         dark = get_theme() != "light"
         tabs = [self._btn_tab_saved, self._btn_tab_groups, self._btn_tab_mygroup]
         for i, btn in enumerate(tabs):
-            active = (i == self._current_bottom_tab)
+            active = i == self._current_bottom_tab
             if dark:
                 if active:
                     btn.setStyleSheet(
@@ -599,7 +644,9 @@ class SetupView(QtWidgets.QWidget):
             return
         color = PLAYER_COLORS[len(self._players) % len(PLAYER_COLORS)]
         self._players.append({"name": name, "avatar": avatar})
-        chip = PlayerChip(name, color, self._chips_container, display=f"{avatar}  {name}")
+        chip = PlayerChip(
+            name, color, self._chips_container, display=f"{avatar}  {name}"
+        )
         chip.removed.connect(self._remove_player)
         idx = self._chips_layout.count() - 1
         self._chips_layout.insertWidget(idx, chip)
@@ -626,16 +673,14 @@ class SetupView(QtWidgets.QWidget):
             ]
         ):
             color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
-            item_i.setStyleSheet(
-                f"""
+            item_i.setStyleSheet(f"""
                 QFrame {{
                     background-color: transparent;
                     border: 1px solid {color};
                     border-radius: 14px;
                     padding: 2px 10px;
                 }}
-                """
-            )
+                """)
         self._update_state()
 
     def _update_state(self) -> None:
@@ -659,6 +704,7 @@ class SetupView(QtWidgets.QWidget):
             for game in self._saved_games:
                 try:
                     from datetime import datetime
+
                     dt = datetime.fromisoformat(game.get("saved_at", ""))
                     date_str = dt.strftime("%d.%m.%Y %H:%M")
                 except Exception:
@@ -675,6 +721,7 @@ class SetupView(QtWidgets.QWidget):
 
     def _on_settings(self) -> None:
         from dialogs import SettingsDialog
+
         dlg = SettingsDialog(self)
         dlg.exec()
         self.retranslate_ui()
@@ -707,9 +754,11 @@ class SetupView(QtWidgets.QWidget):
         self.refresh_resume_state()
         if self._selected_group:
             self._group_status_lbl.setText(
-                t("group_selected",
-                  name=self._selected_group["name"],
-                  code=self._selected_group["code"])
+                t(
+                    "group_selected",
+                    name=self._selected_group["name"],
+                    code=self._selected_group["code"],
+                )
             )
         else:
             self._group_status_lbl.setText(t("group_not_selected"))
@@ -728,7 +777,11 @@ class SetupView(QtWidgets.QWidget):
     def _on_start(self) -> None:
         if len(self._players) < 2:
             return
-        game_mode = GAME_MODE_MULTIPLICATIVE if self._radio_multi.isChecked() else GAME_MODE_STANDARD
+        game_mode = (
+            GAME_MODE_MULTIPLICATIVE
+            if self._radio_multi.isChecked()
+            else GAME_MODE_STANDARD
+        )
         # With no group selected the game runs offline (emits None for the group).
         self.start_game.emit(list(self._players), game_mode, self._selected_group)
 
@@ -762,6 +815,7 @@ class SetupView(QtWidgets.QWidget):
 
     def _on_resume_discard(self) -> None:
         from dialogs import WarningDialog
+
         dlg = WarningDialog(self, t("resume_discard_confirm"))
         if dlg.exec():
             self._save_manager.clear_paused()

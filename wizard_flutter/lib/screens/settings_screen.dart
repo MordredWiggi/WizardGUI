@@ -26,10 +26,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showAddRuleDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => const _AddRuleDialog(),
-    );
+    showDialog(context: context, builder: (ctx) => const _AddRuleDialog());
   }
 
   @override
@@ -43,15 +40,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         children: [
           // ── Theme ──────────────────────────────────────────────────────
-          Text(t('settings_theme'),
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            t('settings_theme'),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           SegmentedButton<String>(
             segments: [
               ButtonSegment(
-                  value: 'dark', label: Text(t('settings_theme_dark'))),
+                value: 'dark',
+                label: Text(t('settings_theme_dark')),
+              ),
               ButtonSegment(
-                  value: 'light', label: Text(t('settings_theme_light'))),
+                value: 'light',
+                label: Text(t('settings_theme_light')),
+              ),
             ],
             selected: {settings.theme},
             onSelectionChanged: (s) => settings.setTheme(s.first),
@@ -60,35 +63,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 28),
 
           // ── Language ───────────────────────────────────────────────────
-          Text(t('settings_language'),
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            t('settings_language'),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           RadioGroup<String>(
             groupValue: settings.language,
             onChanged: (v) => settings.setLanguage(v!),
             child: Column(
-              children: kLanguageNames.entries.map(
-                (e) => RadioListTile<String>(
-                  value: e.key,
-                  title: Text(e.value),
-                  activeColor: Theme.of(context).colorScheme.primary,
-                  dense: true,
-                ),
-              ).toList(),
+              children: kLanguageNames.entries
+                  .map(
+                    (e) => RadioListTile<String>(
+                      value: e.key,
+                      title: Text(e.value),
+                      activeColor: Theme.of(context).colorScheme.primary,
+                      dense: true,
+                    ),
+                  )
+                  .toList(),
             ),
           ),
 
           const SizedBox(height: 28),
 
           // ── Messages ───────────────────────────────────────────────────
-          Text(t('settings_messages'),
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            t('settings_messages'),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(
-                child: Text(t('settings_message_duration')),
-              ),
+              Expanded(child: Text(t('settings_message_duration'))),
               SizedBox(
                 width: 60,
                 child: Text(
@@ -133,8 +140,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Text(
             t('settings_custom_messages_hint'),
             style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).textTheme.bodySmall?.color),
+              fontSize: 12,
+              color: Theme.of(context).textTheme.bodySmall?.color,
+            ),
           ),
           const SizedBox(height: 12),
           ...settings.customRules.asMap().entries.map((req) {
@@ -193,14 +201,19 @@ class _AddRuleDialogState extends State<_AddRuleDialog> {
             items: const [
               DropdownMenuItem(value: 'points', child: Text('Points in Round')),
               DropdownMenuItem(value: 'win_streak', child: Text('Win Streak')),
-              DropdownMenuItem(value: 'loss_streak', child: Text('Loss Streak')),
+              DropdownMenuItem(
+                value: 'loss_streak',
+                child: Text('Loss Streak'),
+              ),
             ],
             onChanged: (v) => setState(() => _type = v!),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _amountController,
-            decoration: const InputDecoration(labelText: 'Amount / Target Value'),
+            decoration: const InputDecoration(
+              labelText: 'Amount / Target Value',
+            ),
             keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 8),
@@ -223,11 +236,9 @@ class _AddRuleDialogState extends State<_AddRuleDialog> {
             final val = int.tryParse(_amountController.text) ?? 0;
             final msg = _messageController.text.trim();
             if (msg.isEmpty) return;
-            context.read<AppSettings>().addCustomRule(CustomMessageRule(
-                  type: _type,
-                  value: val,
-                  message: msg,
-                ));
+            context.read<AppSettings>().addCustomRule(
+              CustomMessageRule(type: _type, value: val, message: msg),
+            );
             Navigator.pop(context);
           },
           child: Text(t('btn_add')),

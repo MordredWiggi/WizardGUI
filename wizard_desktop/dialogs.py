@@ -11,6 +11,7 @@ dialogs.py – Alle Dialog-Klassen des Wizard-GUI
 • GroupCreateDialog          – Create a new group (name + visibility)
 • MigrationGroupDialog       – Assign groups to imported legacy games
 """
+
 from __future__ import annotations
 
 import webbrowser
@@ -21,14 +22,23 @@ from typing import List, Dict, Optional
 from PyQt6 import QtCore, QtWidgets, QtGui
 
 from style import (
-    BG_PANEL, BG_CARD, BG_DEEP,
-    ACCENT, ACCENT_DIM, TEXT_MAIN, TEXT_DIM, TEXT_MAIN_L,
-    SUCCESS, DANGER, LEADER, apply_titlebar_theme,
+    BG_PANEL,
+    BG_CARD,
+    BG_DEEP,
+    ACCENT,
+    ACCENT_DIM,
+    TEXT_MAIN,
+    TEXT_DIM,
+    TEXT_MAIN_L,
+    SUCCESS,
+    DANGER,
+    LEADER,
+    apply_titlebar_theme,
 )
 from app_settings import t, get_theme
 
-
 # ── Hilfsfunktion ─────────────────────────────────────────────────────────────
+
 
 def _sep() -> QtWidgets.QFrame:
     line = QtWidgets.QFrame()
@@ -38,6 +48,7 @@ def _sep() -> QtWidgets.QFrame:
 
 
 # ── Basis-Klasse für alle Dialoge mit Theme-Titelleiste ───────────────────────
+
 
 class ThemedDialog(QtWidgets.QDialog):
     """Base dialog that applies the current theme to the OS title bar."""
@@ -50,6 +61,7 @@ class ThemedDialog(QtWidgets.QDialog):
 # ─────────────────────────────────────────────────────────────────────────────
 # WarningDialog
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class WarningDialog(ThemedDialog):
     def __init__(self, parent: QtWidgets.QWidget, message: str) -> None:
@@ -66,7 +78,9 @@ class WarningDialog(ThemedDialog):
         icon_lbl.setStyleSheet("font-size: 32px; background: transparent;")
         msg_lbl = QtWidgets.QLabel(message)
         msg_lbl.setWordWrap(True)
-        msg_lbl.setStyleSheet(f"color: {TEXT_MAIN}; font-size: 15px; line-height: 1.5; background: transparent;")
+        msg_lbl.setStyleSheet(
+            f"color: {TEXT_MAIN}; font-size: 15px; line-height: 1.5; background: transparent;"
+        )
         icon_row.addWidget(icon_lbl, 0, QtCore.Qt.AlignmentFlag.AlignTop)
         icon_row.addWidget(msg_lbl, 1)
         layout.addLayout(icon_row)
@@ -89,6 +103,7 @@ class WarningDialog(ThemedDialog):
 # SaveGameDialog
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class SaveGameDialog(ThemedDialog):
     def __init__(self, parent: QtWidgets.QWidget, default_name: str = "") -> None:
         super().__init__(parent)
@@ -100,7 +115,9 @@ class SaveGameDialog(ThemedDialog):
         layout.setContentsMargins(24, 24, 24, 20)
 
         title = QtWidgets.QLabel(f"💾  {t('save_game_title')}")
-        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;")
+        title.setStyleSheet(
+            f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;"
+        )
         layout.addWidget(title)
         layout.addWidget(_sep())
 
@@ -132,6 +149,7 @@ class SaveGameDialog(ThemedDialog):
 # LoadGameDialog
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class LoadGameDialog(ThemedDialog):
     def __init__(self, parent: QtWidgets.QWidget, saved_games: List[Dict]) -> None:
         super().__init__(parent)
@@ -145,13 +163,17 @@ class LoadGameDialog(ThemedDialog):
         layout.setContentsMargins(24, 24, 24, 20)
 
         title = QtWidgets.QLabel(f"📂  {t('load_game_title')}")
-        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;")
+        title.setStyleSheet(
+            f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;"
+        )
         layout.addWidget(title)
         layout.addWidget(_sep())
 
         if not saved_games:
             empty = QtWidgets.QLabel(t("load_game_empty"))
-            empty.setStyleSheet(f"color: {TEXT_DIM}; font-size: 15px; font-style: italic; padding: 20px; background: transparent;")
+            empty.setStyleSheet(
+                f"color: {TEXT_DIM}; font-size: 15px; font-style: italic; padding: 20px; background: transparent;"
+            )
             empty.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(empty)
         else:
@@ -224,6 +246,7 @@ class SettingsDialog(ThemedDialog):
     def __init__(self, parent: QtWidgets.QWidget) -> None:
         super().__init__(parent)
         import app_settings as _as
+
         self._as = _as
         self.setWindowTitle(t("settings_title"))
         self.setMinimumWidth(400)
@@ -235,13 +258,17 @@ class SettingsDialog(ThemedDialog):
 
         # ── Titel ──────────────────────────────────────────────────────────
         title_lbl = QtWidgets.QLabel(f"⚙  {t('settings_title')}")
-        title_lbl.setStyleSheet(f"font-size: 20px; font-weight: 700; color: {ACCENT}; background: transparent;")
+        title_lbl.setStyleSheet(
+            f"font-size: 20px; font-weight: 700; color: {ACCENT}; background: transparent;"
+        )
         layout.addWidget(title_lbl)
         layout.addWidget(_sep())
 
         # ── Theme ──────────────────────────────────────────────────────────
         theme_lbl = QtWidgets.QLabel(t("settings_theme"))
-        theme_lbl.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_DIM}; background: transparent;")
+        theme_lbl.setStyleSheet(
+            f"font-size: 14px; font-weight: 600; color: {TEXT_DIM}; background: transparent;"
+        )
         layout.addWidget(theme_lbl)
 
         theme_row = QtWidgets.QHBoxLayout()
@@ -260,10 +287,13 @@ class SettingsDialog(ThemedDialog):
 
         # ── Sprache ────────────────────────────────────────────────────────
         lang_lbl = QtWidgets.QLabel(t("settings_language"))
-        lang_lbl.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_DIM}; background: transparent;")
+        lang_lbl.setStyleSheet(
+            f"font-size: 14px; font-weight: 600; color: {TEXT_DIM}; background: transparent;"
+        )
         layout.addWidget(lang_lbl)
 
         from translations import LANGUAGE_NAMES
+
         self._lang_combo = QtWidgets.QComboBox()
         self._lang_code_map: list[str] = []
         current_lang = _as.get_language()
@@ -280,7 +310,9 @@ class SettingsDialog(ThemedDialog):
 
         # ── Meldungen & Animationen ───────────────────────────────────────
         msg_header = QtWidgets.QLabel(t("settings_messages_header"))
-        msg_header.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_DIM}; background: transparent;")
+        msg_header.setStyleSheet(
+            f"font-size: 14px; font-weight: 600; color: {TEXT_DIM}; background: transparent;"
+        )
         layout.addWidget(msg_header)
 
         dur_row = QtWidgets.QHBoxLayout()
@@ -298,18 +330,22 @@ class SettingsDialog(ThemedDialog):
 
         # Custom event messages
         ce_header = QtWidgets.QLabel(t("settings_custom_messages"))
-        ce_header.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {TEXT_DIM}; background: transparent;")
-        
+        ce_header.setStyleSheet(
+            f"font-size: 13px; font-weight: 600; color: {TEXT_DIM}; background: transparent;"
+        )
+
         ce_row = QtWidgets.QHBoxLayout()
         ce_row.addWidget(ce_header)
-        
+
         btn_add_rule = QtWidgets.QPushButton(t("btn_add"))
         btn_add_rule.clicked.connect(self._add_rule_dialog)
         ce_row.addWidget(btn_add_rule, 0, QtCore.Qt.AlignmentFlag.AlignRight)
         layout.addLayout(ce_row)
 
         ce_hint = QtWidgets.QLabel(t("settings_custom_message_hint"))
-        ce_hint.setStyleSheet(f"font-size: 11px; color: {TEXT_DIM}; background: transparent;")
+        ce_hint.setStyleSheet(
+            f"font-size: 11px; color: {TEXT_DIM}; background: transparent;"
+        )
         ce_hint.setWordWrap(True)
         layout.addWidget(ce_hint)
 
@@ -350,18 +386,22 @@ class SettingsDialog(ThemedDialog):
             row.setStyleSheet("background: transparent;")
             layout = QtWidgets.QHBoxLayout(row)
             layout.setContentsMargins(0, 0, 0, 0)
-            
-            label = QtWidgets.QLabel(f"• {rule.get('message')} ({rule.get('type')}: {rule.get('value')})")
+
+            label = QtWidgets.QLabel(
+                f"• {rule.get('message')} ({rule.get('type')}: {rule.get('value')})"
+            )
             label.setStyleSheet("font-size: 12px; background: transparent;")
             layout.addWidget(label)
-            
+
             btn_del = QtWidgets.QPushButton("✕")
             btn_del.setFixedSize(24, 24)
-            btn_del.setStyleSheet("padding: 0px; background: transparent; border: none; color: #ff4444; font-weight: bold;")
+            btn_del.setStyleSheet(
+                "padding: 0px; background: transparent; border: none; color: #ff4444; font-weight: bold;"
+            )
             # Capture idx by value
             btn_del.clicked.connect(lambda _, i=idx: self._remove_rule(i))
             layout.addWidget(btn_del)
-            
+
             self._rules_layout.addWidget(row)
             self._rules_widgets.append(row)
 
@@ -419,53 +459,58 @@ class SettingsDialog(ThemedDialog):
 # Add Rule Dialog
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class _AddRuleDialog(ThemedDialog):
     def __init__(self, parent: QtWidgets.QWidget) -> None:
         super().__init__(parent)
         import app_settings as _as
+
         self._as = _as
         self.setWindowTitle(t("settings_custom_messages"))
         self.setMinimumWidth(300)
 
         layout = QtWidgets.QVBoxLayout(self)
-        
+
         self.type_combo = QtWidgets.QComboBox()
         self.type_combo.addItems(["points", "win_streak", "loss_streak"])
         layout.addWidget(QtWidgets.QLabel("Rule Type:"))
         layout.addWidget(self.type_combo)
-        
+
         self.val_spin = QtWidgets.QSpinBox()
         self.val_spin.setRange(-1000, 1000)
         layout.addWidget(QtWidgets.QLabel("Amount / Target Value:"))
         layout.addWidget(self.val_spin)
-        
+
         self.msg_edit = QtWidgets.QLineEdit()
         self.msg_edit.setPlaceholderText("e.g. {name} got totally crushed")
         layout.addWidget(QtWidgets.QLabel("Message Template:"))
         layout.addWidget(self.msg_edit)
-        
+
         btn_layout = QtWidgets.QHBoxLayout()
         btn_add = QtWidgets.QPushButton(t("apply"))
         btn_add.clicked.connect(self._add_rule)
         btn_layout.addStretch()
         btn_layout.addWidget(btn_add)
         layout.addLayout(btn_layout)
-        
+
     def _add_rule(self):
         msg = self.msg_edit.text().strip()
         if not msg:
             return
-        self._as.add_custom_rule({
-            "type": self.type_combo.currentText(),
-            "value": self.val_spin.value(),
-            "message": msg
-        })
+        self._as.add_custom_rule(
+            {
+                "type": self.type_combo.currentText(),
+                "value": self.val_spin.value(),
+                "message": msg,
+            }
+        )
         self.accept()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PodiumDialog
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class PodiumDialog(ThemedDialog):
     """
@@ -491,12 +536,16 @@ class PodiumDialog(ThemedDialog):
 
         # Title
         title = QtWidgets.QLabel(t("podium_title"))
-        title.setStyleSheet(f"font-size: 24px; font-weight: 800; color: {ACCENT}; letter-spacing: 2px; background: transparent;")
+        title.setStyleSheet(
+            f"font-size: 24px; font-weight: 800; color: {ACCENT}; letter-spacing: 2px; background: transparent;"
+        )
         title.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
         subtitle = QtWidgets.QLabel(t("game_over_title"))
-        subtitle.setStyleSheet(f"font-size: 15px; color: {TEXT_DIM}; letter-spacing: 1px; background: transparent;")
+        subtitle.setStyleSheet(
+            f"font-size: 15px; color: {TEXT_DIM}; letter-spacing: 1px; background: transparent;"
+        )
         subtitle.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle)
 
@@ -507,7 +556,9 @@ class PodiumDialog(ThemedDialog):
         place_colors = [LEADER, "#aaaacc", "#c9a84c"]  # gold, silver, bronze
         place_sizes = ["22px", "19px", "17px"]
 
-        for rank, (place_key, color, size) in enumerate(zip(place_keys, place_colors, place_sizes)):
+        for rank, (place_key, color, size) in enumerate(
+            zip(place_keys, place_colors, place_sizes)
+        ):
             if rank >= len(players_sorted):
                 break
             name, score = players_sorted[rank]
@@ -528,7 +579,10 @@ class PodiumDialog(ThemedDialog):
             score_lbl.setStyleSheet(
                 f"font-size: {size}; font-weight: 600; color: {color}; background: transparent;"
             )
-            score_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
+            score_lbl.setAlignment(
+                QtCore.Qt.AlignmentFlag.AlignRight
+                | QtCore.Qt.AlignmentFlag.AlignVCenter
+            )
 
             row.addWidget(place_lbl)
             row.addWidget(name_lbl, 1)
@@ -547,7 +601,9 @@ class PodiumDialog(ThemedDialog):
                 name, score = players_sorted[rank]
                 lines.append(f"{rank + 1}. {name}  –  {t('podium_points', pts=score)}")
             others_lbl.setText("\n".join(lines))
-            others_lbl.setStyleSheet(f"color: {TEXT_DIM}; font-size: 14px; background: transparent;")
+            others_lbl.setStyleSheet(
+                f"color: {TEXT_DIM}; font-size: 14px; background: transparent;"
+            )
             layout.addWidget(others_lbl)
 
         layout.addWidget(_sep())
@@ -566,6 +622,7 @@ class PodiumDialog(ThemedDialog):
 # MigrationDialog
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class MigrationDialog(ThemedDialog):
     """Asks the user whether to upload old games to the leaderboard."""
 
@@ -580,15 +637,19 @@ class MigrationDialog(ThemedDialog):
 
         # Title
         title = QtWidgets.QLabel(f"📊  {t('migration_title')}")
-        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;")
+        title.setStyleSheet(
+            f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;"
+        )
         layout.addWidget(title)
         layout.addWidget(_sep())
 
         # Message
         msg = QtWidgets.QLabel(t("migration_message", n=count))
         msg.setWordWrap(True)
-        text_color = TEXT_MAIN_L if get_theme() == 'light' else TEXT_MAIN
-        msg.setStyleSheet(f"font-size: 14px; color: {text_color}; line-height: 1.5; background: transparent;")
+        text_color = TEXT_MAIN_L if get_theme() == "light" else TEXT_MAIN
+        msg.setStyleSheet(
+            f"font-size: 14px; color: {text_color}; line-height: 1.5; background: transparent;"
+        )
         layout.addWidget(msg)
 
         layout.addWidget(_sep())
@@ -624,7 +685,9 @@ class MigrationProgressDialog(ThemedDialog):
         layout.setContentsMargins(28, 24, 28, 20)
 
         self._label = QtWidgets.QLabel(t("migration_progress", done=0, total=total))
-        self._label.setStyleSheet(f"font-size: 14px; color: {TEXT_MAIN}; background: transparent;")
+        self._label.setStyleSheet(
+            f"font-size: 14px; color: {TEXT_MAIN}; background: transparent;"
+        )
         layout.addWidget(self._label)
 
         self._progress = QtWidgets.QProgressBar()
@@ -660,6 +723,7 @@ class MigrationProgressDialog(ThemedDialog):
 # GroupSelectDialog  – join an existing group with code validation
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class GroupSelectDialog(ThemedDialog):
     """
     Shows a searchable list of public groups.
@@ -684,7 +748,9 @@ class GroupSelectDialog(ThemedDialog):
         layout.setContentsMargins(24, 20, 24, 18)
 
         title = QtWidgets.QLabel(f"👥  {t('group_select_label')}")
-        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;")
+        title.setStyleSheet(
+            f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;"
+        )
         layout.addWidget(title)
         layout.addWidget(_sep())
 
@@ -704,7 +770,9 @@ class GroupSelectDialog(ThemedDialog):
         layout.addWidget(self._group_list)
 
         self._no_groups_lbl = QtWidgets.QLabel(t("no_groups"))
-        self._no_groups_lbl.setStyleSheet(f"color: {TEXT_DIM}; font-style: italic; font-size: 13px; background: transparent;")
+        self._no_groups_lbl.setStyleSheet(
+            f"color: {TEXT_DIM}; font-style: italic; font-size: 13px; background: transparent;"
+        )
         self._no_groups_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self._no_groups_lbl.hide()
         layout.addWidget(self._no_groups_lbl)
@@ -713,7 +781,9 @@ class GroupSelectDialog(ThemedDialog):
 
         # ── Code validation ──────────────────────────────────────────────────
         code_lbl = QtWidgets.QLabel(t("group_code_label"))
-        code_lbl.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {TEXT_DIM}; background: transparent;")
+        code_lbl.setStyleSheet(
+            f"font-size: 13px; font-weight: 600; color: {TEXT_DIM}; background: transparent;"
+        )
         layout.addWidget(code_lbl)
 
         code_row = QtWidgets.QHBoxLayout()
@@ -771,7 +841,10 @@ class GroupSelectDialog(ThemedDialog):
         if not self._client:
             return
         from leaderboard_client import GroupsListWorker
-        self._list_worker = GroupsListWorker(self._client, self._search_edit.text().strip())
+
+        self._list_worker = GroupsListWorker(
+            self._client, self._search_edit.text().strip()
+        )
         self._list_worker.result.connect(self._on_groups_received)
         self._list_worker.start()
 
@@ -801,6 +874,7 @@ class GroupSelectDialog(ThemedDialog):
         if not group:
             return
         from group_cache import lookup_code_by_name
+
         cached = lookup_code_by_name(group.get("name", ""))
         if cached:
             self._code_edit.setText(cached)
@@ -816,11 +890,14 @@ class GroupSelectDialog(ThemedDialog):
         code = self._code_edit.text().strip()
         if len(code) != 4 or not code.isdigit():
             self._code_status.setText(t("group_code_invalid"))
-            self._code_status.setStyleSheet(f"font-size: 12px; color: {DANGER}; background: transparent;")
+            self._code_status.setStyleSheet(
+                f"font-size: 12px; color: {DANGER}; background: transparent;"
+            )
             return
         if not self._client:
             return
         from leaderboard_client import GroupCodeCheckWorker
+
         self._check_worker = GroupCodeCheckWorker(self._client, code)
         self._check_worker.result.connect(self._on_code_checked)
         self._check_worker.start()
@@ -828,13 +905,17 @@ class GroupSelectDialog(ThemedDialog):
     def _on_code_checked(self, group: object) -> None:
         if group is None:
             self._code_status.setText(t("group_code_invalid"))
-            self._code_status.setStyleSheet(f"font-size: 12px; color: {DANGER}; background: transparent;")
+            self._code_status.setStyleSheet(
+                f"font-size: 12px; color: {DANGER}; background: transparent;"
+            )
             self._validated_group = None
             self._btn_join.setEnabled(False)
         else:
             self._validated_group = group
             self._code_status.setText(t("group_code_correct", name=group["name"]))
-            self._code_status.setStyleSheet(f"font-size: 12px; color: {SUCCESS}; background: transparent;")
+            self._code_status.setStyleSheet(
+                f"font-size: 12px; color: {SUCCESS}; background: transparent;"
+            )
             self._btn_join.setEnabled(True)
 
     def _on_join(self) -> None:
@@ -842,6 +923,7 @@ class GroupSelectDialog(ThemedDialog):
             self.selected_group = self._validated_group
             if self._chk_remember.isChecked():
                 from group_cache import remember_group
+
                 remember_group(self._validated_group)
             self.accept()
 
@@ -849,6 +931,7 @@ class GroupSelectDialog(ThemedDialog):
 # ─────────────────────────────────────────────────────────────────────────────
 # GroupCreateDialog  – create a new group
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class GroupCreateDialog(ThemedDialog):
     """
@@ -871,13 +954,17 @@ class GroupCreateDialog(ThemedDialog):
         layout.setContentsMargins(24, 20, 24, 18)
 
         title = QtWidgets.QLabel(f"✚  {t('group_create_label')}")
-        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;")
+        title.setStyleSheet(
+            f"font-size: 18px; font-weight: 700; color: {ACCENT}; background: transparent;"
+        )
         layout.addWidget(title)
         layout.addWidget(_sep())
 
         # Name
         name_lbl = QtWidgets.QLabel(t("group_name_placeholder"))
-        name_lbl.setStyleSheet(f"font-size: 13px; color: {TEXT_DIM}; background: transparent;")
+        name_lbl.setStyleSheet(
+            f"font-size: 13px; color: {TEXT_DIM}; background: transparent;"
+        )
         layout.addWidget(name_lbl)
         self._name_edit = QtWidgets.QLineEdit()
         self._name_edit.setPlaceholderText(t("group_name_placeholder"))
@@ -886,7 +973,9 @@ class GroupCreateDialog(ThemedDialog):
 
         # Code
         code_lbl = QtWidgets.QLabel(t("group_code_label"))
-        code_lbl.setStyleSheet(f"font-size: 13px; color: {TEXT_DIM}; background: transparent;")
+        code_lbl.setStyleSheet(
+            f"font-size: 13px; color: {TEXT_DIM}; background: transparent;"
+        )
         layout.addWidget(code_lbl)
         self._code_edit = QtWidgets.QLineEdit()
         self._code_edit.setPlaceholderText(t("group_code_placeholder"))
@@ -897,7 +986,9 @@ class GroupCreateDialog(ThemedDialog):
 
         # Visibility
         vis_lbl = QtWidgets.QLabel()
-        vis_lbl.setStyleSheet(f"font-size: 13px; color: {TEXT_DIM}; background: transparent;")
+        vis_lbl.setStyleSheet(
+            f"font-size: 13px; color: {TEXT_DIM}; background: transparent;"
+        )
         layout.addWidget(vis_lbl)
 
         self._radio_public = QtWidgets.QRadioButton(t("group_visibility_public"))
@@ -938,16 +1029,21 @@ class GroupCreateDialog(ThemedDialog):
         code = self._code_edit.text().strip()
         if not name:
             self._status_lbl.setText(t("group_name_placeholder") + " – required")
-            self._status_lbl.setStyleSheet(f"font-size: 12px; color: {DANGER}; background: transparent;")
+            self._status_lbl.setStyleSheet(
+                f"font-size: 12px; color: {DANGER}; background: transparent;"
+            )
             return
         if len(code) != 4 or not code.isdigit():
             self._status_lbl.setText(t("group_code_invalid"))
-            self._status_lbl.setStyleSheet(f"font-size: 12px; color: {DANGER}; background: transparent;")
+            self._status_lbl.setStyleSheet(
+                f"font-size: 12px; color: {DANGER}; background: transparent;"
+            )
             return
         visibility = "hidden" if self._radio_hidden.isChecked() else "public"
         if not self._client:
             return
         from leaderboard_client import GroupCreateWorker
+
         self._btn_create.setEnabled(False)
         self._create_worker = GroupCreateWorker(self._client, name, code, visibility)
         self._create_worker.result.connect(self._on_created)
@@ -958,20 +1054,28 @@ class GroupCreateDialog(ThemedDialog):
         if group is None:
             code = self._code_edit.text().strip()
             self._status_lbl.setText(t("group_code_taken", code=code))
-            self._status_lbl.setStyleSheet(f"font-size: 12px; color: {DANGER}; background: transparent;")
+            self._status_lbl.setStyleSheet(
+                f"font-size: 12px; color: {DANGER}; background: transparent;"
+            )
         else:
             self.created_group = group
             if self._chk_remember.isChecked():
                 from group_cache import remember_group
+
                 remember_group(group)
-            self._status_lbl.setText(t("group_created_ok", name=group["name"], code=group["code"]))
-            self._status_lbl.setStyleSheet(f"font-size: 12px; color: {SUCCESS}; background: transparent;")
+            self._status_lbl.setText(
+                t("group_created_ok", name=group["name"], code=group["code"])
+            )
+            self._status_lbl.setStyleSheet(
+                f"font-size: 12px; color: {SUCCESS}; background: transparent;"
+            )
             QtCore.QTimer.singleShot(800, self.accept)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MigrationGroupDialog  – assign groups to imported legacy games
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class MigrationGroupDialog(ThemedDialog):
     """
@@ -1001,11 +1105,15 @@ class MigrationGroupDialog(ThemedDialog):
         layout.setContentsMargins(22, 18, 22, 16)
 
         title = QtWidgets.QLabel(f"📊  {t('migration_group_header')}")
-        title.setStyleSheet(f"font-size: 17px; font-weight: 700; color: {ACCENT}; background: transparent;")
+        title.setStyleSheet(
+            f"font-size: 17px; font-weight: 700; color: {ACCENT}; background: transparent;"
+        )
         layout.addWidget(title)
 
         info = QtWidgets.QLabel(t("migration_assign_group"))
-        info.setStyleSheet(f"font-size: 13px; color: {TEXT_DIM}; background: transparent;")
+        info.setStyleSheet(
+            f"font-size: 13px; color: {TEXT_DIM}; background: transparent;"
+        )
         info.setWordWrap(True)
         layout.addWidget(info)
         layout.addWidget(_sep())
@@ -1013,7 +1121,9 @@ class MigrationGroupDialog(ThemedDialog):
         # ── Quick-assign section ─────────────────────────────────────────────
         quick_row = QtWidgets.QHBoxLayout()
         quick_lbl = QtWidgets.QLabel(t("migration_assign_group") + " (all):")
-        quick_lbl.setStyleSheet(f"font-size: 12px; color: {TEXT_DIM}; background: transparent;")
+        quick_lbl.setStyleSheet(
+            f"font-size: 12px; color: {TEXT_DIM}; background: transparent;"
+        )
         quick_row.addWidget(quick_lbl)
         quick_row.addStretch()
         btn_join_all = QtWidgets.QPushButton(t("group_select_label"))
@@ -1031,7 +1141,9 @@ class MigrationGroupDialog(ThemedDialog):
         # ── Per-game list ────────────────────────────────────────────────────
         scroll = QtWidgets.QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
         container = QtWidgets.QWidget()
         self._games_layout = QtWidgets.QVBoxLayout(container)
         self._games_layout.setSpacing(8)
@@ -1047,9 +1159,13 @@ class MigrationGroupDialog(ThemedDialog):
             row_layout.setContentsMargins(10, 6, 10, 6)
 
             name_lbl = QtWidgets.QLabel(game.get("name", "?"))
-            name_lbl.setStyleSheet(f"font-size: 13px; font-weight: 600; background: transparent;")
+            name_lbl.setStyleSheet(
+                f"font-size: 13px; font-weight: 600; background: transparent;"
+            )
             group_lbl = QtWidgets.QLabel(t("migration_no_group"))
-            group_lbl.setStyleSheet(f"font-size: 12px; color: {TEXT_DIM}; background: transparent;")
+            group_lbl.setStyleSheet(
+                f"font-size: 12px; color: {TEXT_DIM}; background: transparent;"
+            )
 
             btn_pick = QtWidgets.QPushButton(t("group_select_label"))
             btn_pick.setMinimumHeight(35)
@@ -1066,8 +1182,12 @@ class MigrationGroupDialog(ThemedDialog):
             entry = {"game": game, "label": group_lbl, "group": None}
             self._game_rows.append(entry)
 
-            btn_pick.clicked.connect(lambda _, e=entry: self._pick_group_for_game(e, create=False))
-            btn_create.clicked.connect(lambda _, e=entry: self._pick_group_for_game(e, create=True))
+            btn_pick.clicked.connect(
+                lambda _, e=entry: self._pick_group_for_game(e, create=False)
+            )
+            btn_create.clicked.connect(
+                lambda _, e=entry: self._pick_group_for_game(e, create=True)
+            )
 
         self._games_layout.addStretch()
 
@@ -1110,8 +1230,12 @@ class MigrationGroupDialog(ThemedDialog):
 
     def _assign_group(self, entry: Dict, group: Dict) -> None:
         entry["group"] = group
-        entry["label"].setText(t("group_selected", name=group["name"], code=group["code"]))
-        entry["label"].setStyleSheet(f"font-size: 12px; color: {SUCCESS}; background: transparent;")
+        entry["label"].setText(
+            t("group_selected", name=group["name"], code=group["code"])
+        )
+        entry["label"].setStyleSheet(
+            f"font-size: 12px; color: {SUCCESS}; background: transparent;"
+        )
 
     def _on_ok(self) -> None:
         # Require all games to have a group assignment
@@ -1132,6 +1256,7 @@ class MigrationGroupDialog(ThemedDialog):
 # ─────────────────────────────────────────────────────────────────────────────
 # PendingSyncAssignDialog  – assign groups to offline-queued games on launch
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class PendingSyncAssignDialog(ThemedDialog):
     """
@@ -1162,18 +1287,24 @@ class PendingSyncAssignDialog(ThemedDialog):
         layout.setContentsMargins(22, 18, 22, 16)
 
         title = QtWidgets.QLabel(f"📡  {t('pending_sync_assign_title')}")
-        title.setStyleSheet(f"font-size: 17px; font-weight: 700; color: {ACCENT}; background: transparent;")
+        title.setStyleSheet(
+            f"font-size: 17px; font-weight: 700; color: {ACCENT}; background: transparent;"
+        )
         layout.addWidget(title)
 
         info = QtWidgets.QLabel(t("pending_sync_assign_hint"))
-        info.setStyleSheet(f"font-size: 13px; color: {TEXT_DIM}; background: transparent;")
+        info.setStyleSheet(
+            f"font-size: 13px; color: {TEXT_DIM}; background: transparent;"
+        )
         info.setWordWrap(True)
         layout.addWidget(info)
         layout.addWidget(_sep())
 
         scroll = QtWidgets.QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
         container = QtWidgets.QWidget()
         rows = QtWidgets.QVBoxLayout(container)
         rows.setSpacing(8)
@@ -1189,9 +1320,13 @@ class PendingSyncAssignDialog(ThemedDialog):
             row_layout.setContentsMargins(10, 6, 10, 6)
 
             name_lbl = QtWidgets.QLabel(game.get("name", "?"))
-            name_lbl.setStyleSheet("font-size: 13px; font-weight: 600; background: transparent;")
+            name_lbl.setStyleSheet(
+                "font-size: 13px; font-weight: 600; background: transparent;"
+            )
             group_lbl = QtWidgets.QLabel(t("migration_no_group"))
-            group_lbl.setStyleSheet(f"font-size: 12px; color: {TEXT_DIM}; background: transparent;")
+            group_lbl.setStyleSheet(
+                f"font-size: 12px; color: {TEXT_DIM}; background: transparent;"
+            )
 
             btn_pick = QtWidgets.QPushButton(t("group_select_label"))
             btn_pick.setMinimumHeight(35)
@@ -1207,8 +1342,12 @@ class PendingSyncAssignDialog(ThemedDialog):
 
             entry = {"game": game, "label": group_lbl, "group": None}
             self._game_rows.append(entry)
-            btn_pick.clicked.connect(lambda _, e=entry: self._pick_group(e, create=False))
-            btn_create.clicked.connect(lambda _, e=entry: self._pick_group(e, create=True))
+            btn_pick.clicked.connect(
+                lambda _, e=entry: self._pick_group(e, create=False)
+            )
+            btn_create.clicked.connect(
+                lambda _, e=entry: self._pick_group(e, create=True)
+            )
 
         rows.addStretch()
         layout.addWidget(_sep())
@@ -1236,8 +1375,12 @@ class PendingSyncAssignDialog(ThemedDialog):
 
     def _assign(self, entry: Dict, group: Dict) -> None:
         entry["group"] = group
-        entry["label"].setText(t("group_selected", name=group["name"], code=group["code"]))
-        entry["label"].setStyleSheet(f"font-size: 12px; color: {SUCCESS}; background: transparent;")
+        entry["label"].setText(
+            t("group_selected", name=group["name"], code=group["code"])
+        )
+        entry["label"].setStyleSheet(
+            f"font-size: 12px; color: {SUCCESS}; background: transparent;"
+        )
 
     def _on_ok(self) -> None:
         for entry in self._game_rows:
@@ -1265,23 +1408,20 @@ class CelebrationOverlay(QtWidgets.QWidget):
         # Opacity-Effekt – so bleibt der Text immer fully contrasted.
         self._panel = QtWidgets.QFrame(self)
         self._panel.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self._panel.setStyleSheet(
-            f"""
+        self._panel.setStyleSheet(f"""
             QFrame {{
                 background-color: #141232;
                 border: 2px solid {ACCENT};
                 border-radius: 18px;
             }}
-            """
-        )
+            """)
         panel_layout = QtWidgets.QVBoxLayout(self._panel)
         panel_layout.setContentsMargins(18, 18, 18, 18)
 
         self._label = QtWidgets.QLabel(self._panel)
         self._label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self._label.setWordWrap(True)
-        self._label.setStyleSheet(
-            """
+        self._label.setStyleSheet("""
             QLabel {
                 color: white;
                 font-size: 32px;
@@ -1289,8 +1429,7 @@ class CelebrationOverlay(QtWidgets.QWidget):
                 letter-spacing: 1px;
                 background: transparent;
             }
-            """
-        )
+            """)
         panel_layout.addWidget(self._label)
 
         self._opacity_effect = QtWidgets.QGraphicsOpacityEffect(self._panel)
@@ -1321,6 +1460,7 @@ class CelebrationOverlay(QtWidgets.QWidget):
         if hold_ms is None:
             try:
                 from app_settings import get_message_display_duration_ms
+
                 hold_ms = get_message_display_duration_ms()
             except Exception:
                 hold_ms = 2200
@@ -1329,8 +1469,7 @@ class CelebrationOverlay(QtWidgets.QWidget):
         if subline:
             text += f"\n{subline}"
         self._label.setText(text)
-        self._label.setStyleSheet(
-            f"""
+        self._label.setStyleSheet(f"""
             QLabel {{
                 color: {color};
                 font-size: 30px;
@@ -1338,16 +1477,19 @@ class CelebrationOverlay(QtWidgets.QWidget):
                 letter-spacing: 1px;
                 background: transparent;
             }}
-            """
-        )
+            """)
 
         self._resize_to_parent()
         self._opacity_effect.setOpacity(0.0)
         self.show()
         self.raise_()
 
-        self._fade(target=1.0, step=0.08, interval=20,
-                   callback=lambda: self._start_hold(hold_ms))
+        self._fade(
+            target=1.0,
+            step=0.08,
+            interval=20,
+            callback=lambda: self._start_hold(hold_ms),
+        )
 
     # ── private helpers ───────────────────────────────────────────────────────
 
@@ -1393,6 +1535,7 @@ class CelebrationOverlay(QtWidgets.QWidget):
 # ─────────────────────────────────────────────────────────────────────────────
 # OfflineGameReminderDialog – end-of-game reminder when no group is bound
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class OfflineGameReminderDialog(ThemedDialog):
     """Shown after a game ends without a group. Offers to save locally.

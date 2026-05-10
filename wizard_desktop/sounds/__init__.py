@@ -4,6 +4,7 @@ sounds/__init__.py – Sound utilities for Wizard GUI.
 Provides a cross-platform function to play the Windows XP shutdown sound.
 The WAV file is generated on first use using Python's standard library only.
 """
+
 from __future__ import annotations
 
 import math
@@ -13,7 +14,6 @@ import sys
 import wave
 from pathlib import Path
 from typing import Optional
-
 
 _SOUNDS_DIR = Path(__file__).parent
 _XP_SHUTDOWN_WAV = _SOUNDS_DIR / "xp_shutdown.wav"
@@ -30,12 +30,12 @@ def _generate_xp_shutdown_wav(path: Path) -> None:
     # Notes: (frequency_hz, duration_s, amplitude)
     # Approximation of the classic XP shutdown melody
     notes = [
-        (659.25, 0.10, 0.75),   # E5
-        (554.37, 0.10, 0.70),   # C#5 / Db5
-        (493.88, 0.12, 0.65),   # B4
-        (392.00, 0.10, 0.65),   # G4
-        (329.63, 0.10, 0.70),   # E4
-        (261.63, 0.25, 0.75),   # C4 (held)
+        (659.25, 0.10, 0.75),  # E5
+        (554.37, 0.10, 0.70),  # C#5 / Db5
+        (493.88, 0.12, 0.65),  # B4
+        (392.00, 0.10, 0.65),  # G4
+        (329.63, 0.10, 0.70),  # E4
+        (261.63, 0.25, 0.75),  # C4 (held)
     ]
 
     all_samples: list[int] = []
@@ -77,6 +77,7 @@ def play_xp_shutdown() -> None:
     try:
         from PyQt6.QtMultimedia import QSoundEffect  # type: ignore
         from PyQt6.QtCore import QUrl
+
         global _sound_effect
         _sound_effect = QSoundEffect()
         _sound_effect.setSource(QUrl.fromLocalFile(str(path)))
@@ -90,6 +91,7 @@ def play_xp_shutdown() -> None:
     try:
         if sys.platform == "win32":
             import winsound  # type: ignore
+
             winsound.PlaySound(str(path), winsound.SND_FILENAME | winsound.SND_ASYNC)
         elif sys.platform == "darwin":
             subprocess.Popen(["afplay", str(path)], stderr=subprocess.DEVNULL)

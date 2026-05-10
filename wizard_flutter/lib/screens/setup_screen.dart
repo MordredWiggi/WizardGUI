@@ -16,9 +16,16 @@ import 'settings_screen.dart';
 import 'pending_sync_dialog.dart';
 
 const List<String> _kAvatars = [
-  '🧙‍♂️', '🧙‍♀️', '🧚‍♂️', '🧚‍♀️',
-  '🧞‍♂️', '🧞‍♀️', '🧝‍♂️', '🧝‍♀️',
-  '🧛‍♂️', '🧛‍♀️',
+  '🧙‍♂️',
+  '🧙‍♀️',
+  '🧚‍♂️',
+  '🧚‍♀️',
+  '🧞‍♂️',
+  '🧞‍♀️',
+  '🧝‍♂️',
+  '🧝‍♀️',
+  '🧛‍♂️',
+  '🧛‍♀️',
 ];
 
 class SetupScreen extends StatefulWidget {
@@ -133,9 +140,9 @@ class _SetupScreenState extends State<SetupScreen> {
     setState(() {
       _selectedGroup = group;
     });
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const GameScreen()),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const GameScreen()));
   }
 
   Future<void> _onDiscardPaused() async {
@@ -148,11 +155,13 @@ class _SetupScreenState extends State<SetupScreen> {
         content: Text(t('resume_discard_confirm')),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(t('cancel'))),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(t('cancel')),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(t('resume_discard'))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(t('resume_discard')),
+          ),
         ],
       ),
     );
@@ -232,7 +241,11 @@ class _SetupScreenState extends State<SetupScreen> {
     setState(() => _loadingSaved = true);
     final notifier = context.read<GameNotifier>();
     final games = await notifier.listSavedGames();
-    if (mounted) setState(() { _savedGames = games; _loadingSaved = false; });
+    if (mounted)
+      setState(() {
+        _savedGames = games;
+        _loadingSaved = false;
+      });
   }
 
   // ── Group actions ──────────────────────────────────────────────────────────
@@ -293,7 +306,11 @@ class _SetupScreenState extends State<SetupScreen> {
   void _showNoUrlSnackbar() {
     final t = context.read<AppSettings>().t;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(t('leaderboard_url_label') + ' – not configured in Settings')),
+      SnackBar(
+        content: Text(
+          t('leaderboard_url_label') + ' – not configured in Settings',
+        ),
+      ),
     );
   }
 
@@ -330,11 +347,13 @@ class _SetupScreenState extends State<SetupScreen> {
           content: Text(t('start_overrides_pause')),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(t('cancel'))),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(t('cancel')),
+            ),
             TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(t('proceed'))),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(t('proceed')),
+            ),
           ],
         ),
       );
@@ -346,9 +365,9 @@ class _SetupScreenState extends State<SetupScreen> {
     }
     // No group selected is a valid, offline-by-default way to play.
     notifier.startGame(List.from(_players), _gameMode);
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const GameScreen()),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const GameScreen()));
   }
 
   Future<void> _loadGame(SavedGameMeta meta) async {
@@ -364,8 +383,7 @@ class _SetupScreenState extends State<SetupScreen> {
         final settings = context.read<AppSettings>();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                settings.t('load_failed', {'error': e.toString()})),
+            content: Text(settings.t('load_failed', {'error': e.toString()})),
             duration: settings.messageDuration,
           ),
         );
@@ -373,7 +391,11 @@ class _SetupScreenState extends State<SetupScreen> {
     }
   }
 
-  Widget _buildSavedGames(BuildContext context, String Function(String, [Map<String, String>]) t, ThemeData theme) {
+  Widget _buildSavedGames(
+    BuildContext context,
+    String Function(String, [Map<String, String>]) t,
+    ThemeData theme,
+  ) {
     if (_loadingSaved) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -395,7 +417,9 @@ class _SetupScreenState extends State<SetupScreen> {
             child: Text(
               t('no_saved_games'),
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ),
         ],
@@ -426,12 +450,16 @@ class _SetupScreenState extends State<SetupScreen> {
               } catch (_) {}
               return ListTile(
                 dense: true,
-                title: Text(g.name,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w600)),
+                title: Text(
+                  g.name,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 subtitle: Text(
-                    '$dateStr  ·  ${g.players.join(', ')}  ·  ${t('saved_round')} ${g.rounds}',
-                    style: theme.textTheme.bodySmall),
+                  '$dateStr  ·  ${g.players.join(', ')}  ·  ${t('saved_round')} ${g.rounds}',
+                  style: theme.textTheme.bodySmall,
+                ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -466,11 +494,13 @@ class _SetupScreenState extends State<SetupScreen> {
         content: Text(t('delete_game_confirm')),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(t('cancel'))),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(t('cancel')),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(t('delete_game'))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(t('delete_game')),
+          ),
         ],
       ),
     );
@@ -489,8 +519,10 @@ class _SetupScreenState extends State<SetupScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(t('app_title'),
-            style: const TextStyle(fontSize: 22, letterSpacing: 3)),
+        title: Text(
+          t('app_title'),
+          style: const TextStyle(fontSize: 22, letterSpacing: 3),
+        ),
         centerTitle: true,
         actions: [
           IconButton(
@@ -514,11 +546,14 @@ class _SetupScreenState extends State<SetupScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // ── Subtitle ──────────────────────────────────────────────────
-            Text(t('subtitle'),
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                    letterSpacing: 1.5)),
+            Text(
+              t('subtitle'),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                letterSpacing: 1.5,
+              ),
+            ),
 
             const SizedBox(height: 24),
 
@@ -544,25 +579,29 @@ class _SetupScreenState extends State<SetupScreen> {
                       if (_pausedPlayers.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
-                          t('resume_game_subtitle', {'players': _pausedPlayers}),
+                          t('resume_game_subtitle', {
+                            'players': _pausedPlayers,
+                          }),
                           style: theme.textTheme.bodySmall,
                         ),
                       ],
                       const SizedBox(height: 10),
-                      Row(children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _onResume,
-                            icon: const Icon(Icons.play_arrow, size: 18),
-                            label: Text(t('resume_game')),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _onResume,
+                              icon: const Icon(Icons.play_arrow, size: 18),
+                              label: Text(t('resume_game')),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        OutlinedButton(
-                          onPressed: _onDiscardPaused,
-                          child: Text(t('resume_discard')),
-                        ),
-                      ]),
+                          const SizedBox(width: 8),
+                          OutlinedButton(
+                            onPressed: _onDiscardPaused,
+                            child: Text(t('resume_discard')),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -580,54 +619,63 @@ class _SetupScreenState extends State<SetupScreen> {
 
                   // Current group status
                   if (_selectedGroup != null) ...[
-                    Row(children: [
-                      const Icon(Icons.group, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          t('group_selected', {
-                            'name': _selectedGroup!['name'] as String,
-                            'code': _selectedGroup!['code'] as String,
-                          }),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                              color: kSuccess, fontWeight: FontWeight.w600),
+                    Row(
+                      children: [
+                        const Icon(Icons.group, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            t('group_selected', {
+                              'name': _selectedGroup!['name'] as String,
+                              'code': _selectedGroup!['code'] as String,
+                            }),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: kSuccess,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 18),
-                        onPressed: _clearGroup,
-                        tooltip: 'Clear',
-                        padding: EdgeInsets.zero,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ]),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: _clearGroup,
+                          tooltip: 'Clear',
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 8),
                   ] else ...[
-                    Text(t('group_not_selected'),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            fontStyle: FontStyle.italic,
-                            color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                    Text(
+                      t('group_not_selected'),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontStyle: FontStyle.italic,
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
                     const SizedBox(height: 10),
                   ],
 
                   // Action buttons
-                  Row(children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _joinGroup,
-                        icon: const Icon(Icons.login, size: 18),
-                        label: Text(t('group_select_label')),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _joinGroup,
+                          icon: const Icon(Icons.login, size: 18),
+                          label: Text(t('group_select_label')),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _createGroup,
-                        icon: const Icon(Icons.add, size: 18),
-                        label: Text(t('group_create_btn')),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _createGroup,
+                          icon: const Icon(Icons.add, size: 18),
+                          label: Text(t('group_create_btn')),
+                        ),
                       ),
-                    ),
-                  ]),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -641,47 +689,57 @@ class _SetupScreenState extends State<SetupScreen> {
                 children: [
                   _SectionHeader(t('add_players_header')),
                   const SizedBox(height: 12),
-                  Row(children: [
-                    // Avatar picker
-                    GestureDetector(
-                      onTap: () => setState(() =>
-                          _avatarIndex = (_avatarIndex + 1) % _kAvatars.length),
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surface,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                              color: theme.colorScheme.primary.withOpacity(0.5)),
+                  Row(
+                    children: [
+                      // Avatar picker
+                      GestureDetector(
+                        onTap: () => setState(
+                          () => _avatarIndex =
+                              (_avatarIndex + 1) % _kAvatars.length,
                         ),
-                        child: Text(_kAvatars[_avatarIndex],
-                            style: const TextStyle(fontSize: 24)),
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: theme.colorScheme.primary.withOpacity(0.5),
+                            ),
+                          ),
+                          child: Text(
+                            _kAvatars[_avatarIndex],
+                            style: const TextStyle(fontSize: 24),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _nameController,
-                        focusNode: _nameFocus,
-                        decoration: InputDecoration(
-                            hintText: t('player_name_placeholder')),
-                        onSubmitted: (_) => _addPlayer(),
-                        textInputAction: TextInputAction.done,
-                        style: _nameExistsInGroup
-                            ? const TextStyle(
-                                color: kSuccess, fontWeight: FontWeight.w600)
-                            : null,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _nameController,
+                          focusNode: _nameFocus,
+                          decoration: InputDecoration(
+                            hintText: t('player_name_placeholder'),
+                          ),
+                          onSubmitted: (_) => _addPlayer(),
+                          textInputAction: TextInputAction.done,
+                          style: _nameExistsInGroup
+                              ? const TextStyle(
+                                  color: kSuccess,
+                                  fontWeight: FontWeight.w600,
+                                )
+                              : null,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton.filled(
-                      onPressed: _addPlayer,
-                      tooltip: t('btn_add'),
-                      icon: const Icon(Icons.add),
-                    ),
-                  ]),
+                      const SizedBox(width: 8),
+                      IconButton.filled(
+                        onPressed: _addPlayer,
+                        tooltip: t('btn_add'),
+                        icon: const Icon(Icons.add),
+                      ),
+                    ],
+                  ),
 
                   // Player chips
                   if (_players.isNotEmpty) ...[
@@ -690,12 +748,14 @@ class _SetupScreenState extends State<SetupScreen> {
                       spacing: 8,
                       runSpacing: 8,
                       children: _players.asMap().entries.map((e) {
-                        final color = kPlayerColors[e.key % kPlayerColors.length];
+                        final color =
+                            kPlayerColors[e.key % kPlayerColors.length];
                         return _PlayerChip(
                           avatar: e.value['avatar'] as String,
                           name: e.value['name'] as String,
                           color: color,
-                          onRemove: () => _removePlayer(e.value['name'] as String),
+                          onRemove: () =>
+                              _removePlayer(e.value['name'] as String),
                         );
                       }).toList(),
                     ),
@@ -705,10 +765,12 @@ class _SetupScreenState extends State<SetupScreen> {
                   Text(
                     _players.isEmpty
                         ? t('hint_min_players')
-                        : t('hint_players_selected',
-                            {'n': _players.length.toString()}),
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(fontStyle: FontStyle.italic),
+                        : t('hint_players_selected', {
+                            'n': _players.length.toString(),
+                          }),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ],
               ),
@@ -723,28 +785,30 @@ class _SetupScreenState extends State<SetupScreen> {
                 children: [
                   _SectionHeader(t('game_mode_label')),
                   const SizedBox(height: 10),
-                  Row(children: [
-                    Expanded(
-                      child: RadioListTile<String>(
-                        value: 'standard',
-                        groupValue: _gameMode,
-                        onChanged: (v) => setState(() => _gameMode = v!),
-                        title: Text(t('game_mode_standard')),
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: RadioListTile<String>(
+                          value: 'standard',
+                          groupValue: _gameMode,
+                          onChanged: (v) => setState(() => _gameMode = v!),
+                          title: Text(t('game_mode_standard')),
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
                       ),
-                    ),
-                    Expanded(
-                      child: RadioListTile<String>(
-                        value: 'multiplicative',
-                        groupValue: _gameMode,
-                        onChanged: (v) => setState(() => _gameMode = v!),
-                        title: Text(t('game_mode_multiplicative')),
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
+                      Expanded(
+                        child: RadioListTile<String>(
+                          value: 'multiplicative',
+                          groupValue: _gameMode,
+                          onChanged: (v) => setState(() => _gameMode = v!),
+                          title: Text(t('game_mode_multiplicative')),
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
                       ),
-                    ),
-                  ]),
+                    ],
+                  ),
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
@@ -890,7 +954,8 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
     });
 
     final settings = context.read<AppSettings>();
-    final known = settings.findKnownGroupById(g['id'] as int?) ??
+    final known =
+        settings.findKnownGroupById(g['id'] as int?) ??
         settings.findKnownGroupByName(g['name'] as String? ?? '');
     final savedCode = known?['code'] as String?;
     if (savedCode != null && savedCode.length == 4) {
@@ -908,16 +973,25 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
     if (_pickedGroup == null) {
       // No group picked — never validate. The user has to choose a group
       // from the list first.
-      setState(() { _codeStatus = null; _validatedGroup = null; });
+      setState(() {
+        _codeStatus = null;
+        _validatedGroup = null;
+      });
       return;
     }
     if (code.isEmpty) {
-      setState(() { _codeStatus = null; _validatedGroup = null; });
+      setState(() {
+        _codeStatus = null;
+        _validatedGroup = null;
+      });
       return;
     }
     if (code.length != 4 || int.tryParse(code) == null) {
       // Not a complete valid code yet — show nothing while typing.
-      setState(() { _codeStatus = null; _validatedGroup = null; });
+      setState(() {
+        _codeStatus = null;
+        _validatedGroup = null;
+      });
       return;
     }
     // Debounce briefly so we don't hammer the server on every keystroke.
@@ -962,7 +1036,9 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
             // Search
             TextField(
               controller: _searchController,
-              decoration: InputDecoration(hintText: t('group_search_placeholder')),
+              decoration: InputDecoration(
+                hintText: t('group_search_placeholder'),
+              ),
               onChanged: (v) => _doSearch(v),
             ),
             const SizedBox(height: 8),
@@ -973,15 +1049,20 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
             else if (_connectionFailed)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(t('group_connection_error'),
-                    style: theme.textTheme.bodySmall?.copyWith(color: kDanger)),
+                child: Text(
+                  t('group_connection_error'),
+                  style: theme.textTheme.bodySmall?.copyWith(color: kDanger),
+                ),
               )
             else if (_groups.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(t('no_groups'),
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(fontStyle: FontStyle.italic)),
+                child: Text(
+                  t('no_groups'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
               )
             else
               SizedBox(
@@ -995,8 +1076,9 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
                     return ListTile(
                       dense: true,
                       selected: isPicked,
-                      selectedTileColor:
-                          theme.colorScheme.primary.withOpacity(0.12),
+                      selectedTileColor: theme.colorScheme.primary.withOpacity(
+                        0.12,
+                      ),
                       leading: Icon(
                         isPicked ? Icons.check_circle : Icons.group_outlined,
                         size: 20,
@@ -1009,8 +1091,9 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
                             : null,
                       ),
                       subtitle: Text(
-                          t('group_players_count', {'n': n.toString()}),
-                          style: theme.textTheme.bodySmall),
+                        t('group_players_count', {'n': n.toString()}),
+                        style: theme.textTheme.bodySmall,
+                      ),
                       onTap: () => _onPickGroup(g),
                     );
                   },
@@ -1020,9 +1103,12 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
             const Divider(),
 
             // Code validation
-            Text(t('group_code_label'),
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              t('group_code_label'),
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             if (_pickedGroup == null) ...[
               const SizedBox(height: 4),
               Text(
@@ -1060,40 +1146,44 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : _codeStatus == 'ok'
-                          ? Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.check_circle,
-                                    color: kSuccess, size: 18),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    _validatedGroup?['name'] as String? ?? '',
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.bodySmall
-                                        ?.copyWith(color: kSuccess),
-                                  ),
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.check_circle,
+                              color: kSuccess,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                _validatedGroup?['name'] as String? ?? '',
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: kSuccess,
                                 ),
-                              ],
-                            )
-                          : _codeStatus == 'error'
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.cancel,
-                                        color: kDanger, size: 18),
-                                    const SizedBox(width: 4),
-                                    Flexible(
-                                      child: Text(
-                                        t('group_code_invalid_short'),
-                                        overflow: TextOverflow.ellipsis,
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(color: kDanger),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : const SizedBox.shrink(),
+                              ),
+                            ),
+                          ],
+                        )
+                      : _codeStatus == 'error'
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.cancel, color: kDanger, size: 18),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                t('group_code_invalid_short'),
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: kDanger,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : const SizedBox.shrink(),
                 ),
               ],
             ),
@@ -1106,8 +1196,9 @@ class _GroupSelectDialogState extends State<_GroupSelectDialog> {
           child: Text(t('cancel')),
         ),
         ElevatedButton(
-          onPressed:
-              _validatedGroup != null ? () => Navigator.pop(context, _validatedGroup) : null,
+          onPressed: _validatedGroup != null
+              ? () => Navigator.pop(context, _validatedGroup)
+              : null,
           child: Text(t('load')),
         ),
       ],
@@ -1145,16 +1236,25 @@ class _GroupCreateDialogState extends State<_GroupCreateDialog> {
     final name = _nameController.text.trim();
     final code = _codeController.text.trim();
     if (name.isEmpty) {
-      setState(() { _statusMsg = t('group_name_placeholder') + ' required'; _isError = true; });
+      setState(() {
+        _statusMsg = t('group_name_placeholder') + ' required';
+        _isError = true;
+      });
       return;
     }
     if (code.length != 4 || int.tryParse(code) == null) {
-      setState(() { _statusMsg = t('group_code_invalid'); _isError = true; });
+      setState(() {
+        _statusMsg = t('group_code_invalid');
+        _isError = true;
+      });
       return;
     }
     setState(() => _creating = true);
     final result = await widget.service.createGroup(
-        name: name, code: code, visibility: _visibility);
+      name: name,
+      code: code,
+      visibility: _visibility,
+    );
     if (!mounted) return;
     setState(() => _creating = false);
     if (result.isOk) {
@@ -1193,47 +1293,60 @@ class _GroupCreateDialogState extends State<_GroupCreateDialog> {
           children: [
             TextField(
               controller: _nameController,
-              decoration: InputDecoration(hintText: t('group_name_placeholder')),
+              decoration: InputDecoration(
+                hintText: t('group_name_placeholder'),
+              ),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _codeController,
-              decoration: InputDecoration(hintText: t('group_code_placeholder')),
+              decoration: InputDecoration(
+                hintText: t('group_code_placeholder'),
+              ),
               keyboardType: TextInputType.number,
               maxLength: 4,
             ),
             const SizedBox(height: 6),
             // Visibility
-            Row(children: [
-              Expanded(
-                child: RadioListTile<String>(
-                  value: 'public',
-                  groupValue: _visibility,
-                  onChanged: (v) => setState(() => _visibility = v!),
-                  title: Text(t('group_visibility_public'),
-                      style: const TextStyle(fontSize: 13)),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
+            Row(
+              children: [
+                Expanded(
+                  child: RadioListTile<String>(
+                    value: 'public',
+                    groupValue: _visibility,
+                    onChanged: (v) => setState(() => _visibility = v!),
+                    title: Text(
+                      t('group_visibility_public'),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: RadioListTile<String>(
-                  value: 'hidden',
-                  groupValue: _visibility,
-                  onChanged: (v) => setState(() => _visibility = v!),
-                  title: Text(t('group_visibility_hidden'),
-                      style: const TextStyle(fontSize: 13)),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
+                Expanded(
+                  child: RadioListTile<String>(
+                    value: 'hidden',
+                    groupValue: _visibility,
+                    onChanged: (v) => setState(() => _visibility = v!),
+                    title: Text(
+                      t('group_visibility_hidden'),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
                 ),
-              ),
-            ]),
+              ],
+            ),
             if (_statusMsg != null)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text(_statusMsg!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                        color: _isError ? kDanger : kSuccess)),
+                child: Text(
+                  _statusMsg!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: _isError ? kDanger : kSuccess,
+                  ),
+                ),
               ),
             if (_creating) const LinearProgressIndicator(),
           ],
@@ -1261,11 +1374,8 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: child,
-        ),
-      );
+    child: Padding(padding: const EdgeInsets.all(16), child: child),
+  );
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -1274,20 +1384,24 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              letterSpacing: 1.5,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-      );
+    text,
+    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+      letterSpacing: 1.5,
+      fontWeight: FontWeight.bold,
+      color: Theme.of(context).colorScheme.primary,
+    ),
+  );
 }
 
 class _TabChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback? onTap;
-  const _TabChip({required this.label, required this.selected, required this.onTap});
+  const _TabChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1296,16 +1410,14 @@ class _TabChip extends StatelessWidget {
     final color = !enabled
         ? theme.colorScheme.onSurface.withOpacity(0.3)
         : selected
-            ? theme.colorScheme.onPrimary
-            : theme.colorScheme.onSurface.withOpacity(0.7);
-    final bg = selected
-        ? theme.colorScheme.primary
-        : theme.colorScheme.surface;
+        ? theme.colorScheme.onPrimary
+        : theme.colorScheme.onSurface.withOpacity(0.7);
+    final bg = selected ? theme.colorScheme.primary : theme.colorScheme.surface;
     final borderColor = !enabled
         ? theme.dividerColor
         : selected
-            ? theme.colorScheme.primary
-            : theme.colorScheme.onSurface.withOpacity(0.2);
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurface.withOpacity(0.2);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1347,25 +1459,30 @@ class _PlayerChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          border: Border.all(color: color),
-          borderRadius: BorderRadius.circular(20),
+    decoration: BoxDecoration(
+      border: Border.all(color: color),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(avatar, style: const TextStyle(fontSize: 16)),
+        const SizedBox(width: 4),
+        Text(
+          name,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(avatar, style: const TextStyle(fontSize: 16)),
-            const SizedBox(width: 4),
-            Text(name,
-                style: TextStyle(
-                    color: color, fontWeight: FontWeight.w600, fontSize: 13)),
-            const SizedBox(width: 4),
-            GestureDetector(
-              onTap: onRemove,
-              child: Icon(Icons.close, size: 14, color: color),
-            ),
-          ],
+        const SizedBox(width: 4),
+        GestureDetector(
+          onTap: onRemove,
+          child: Icon(Icons.close, size: 14, color: color),
         ),
-      );
+      ],
+    ),
+  );
 }

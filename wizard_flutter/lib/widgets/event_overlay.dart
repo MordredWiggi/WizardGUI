@@ -53,10 +53,14 @@ class _EventOverlayState extends State<EventOverlay>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 400));
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
     _opacity = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
-    _slide = Tween<double>(begin: 40, end: 0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    _slide = Tween<double>(
+      begin: 40,
+      end: 0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
     _ctrl.forward();
   }
 
@@ -87,27 +91,32 @@ class _EventOverlayState extends State<EventOverlay>
               color: widget.color.withOpacity(0.92),
               borderRadius: BorderRadius.circular(16),
             ),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             child: Row(
               children: [
-                Text(widget.emoji,
-                    style: const TextStyle(fontSize: 36)),
+                Text(widget.emoji, style: const TextStyle(fontSize: 36)),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(widget.title,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16)),
+                      Text(
+                        widget.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       if (widget.subtitle.isNotEmpty)
-                        Text(widget.subtitle,
-                            style: const TextStyle(
-                                color: Colors.white70, fontSize: 13)),
+                        Text(
+                          widget.subtitle,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
+                        ),
                     ],
                   ),
                 ),

@@ -73,8 +73,12 @@ class _GameScreenState extends State<GameScreen>
   }
 
   void _ensureCapacity(int n) {
-    while (_bids.length < n) { _bids.add(0); }
-    while (_mades.length < n) { _mades.add(0); }
+    while (_bids.length < n) {
+      _bids.add(0);
+    }
+    while (_mades.length < n) {
+      _mades.add(0);
+    }
   }
 
   void _resetEntries() {
@@ -103,14 +107,18 @@ class _GameScreenState extends State<GameScreen>
     // Validate: sum of made == cards this round
     final madeTot = results.fold(0, (s, r) => s + r.achieved);
     if (madeTot != game.cardsThisRound) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(t('made_tricks_warning', {
-          'made': madeTot.toString(),
-          'total': game.cardsThisRound.toString(),
-        })),
-        backgroundColor: kDanger,
-        duration: settings.messageDuration,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            t('made_tricks_warning', {
+              'made': madeTot.toString(),
+              'total': game.cardsThisRound.toString(),
+            }),
+          ),
+          backgroundColor: kDanger,
+          duration: settings.messageDuration,
+        ),
+      );
       return;
     }
 
@@ -135,18 +143,22 @@ class _GameScreenState extends State<GameScreen>
         bool matched = false;
         if (rule.type == 'points' && delta == rule.value) {
           matched = true;
-        } else if (rule.type == 'win_streak' && p.consecutivePerfect == rule.value) {
+        } else if (rule.type == 'win_streak' &&
+            p.consecutivePerfect == rule.value) {
           matched = true;
-        } else if (rule.type == 'loss_streak' && p.consecutiveLosses == rule.value) {
+        } else if (rule.type == 'loss_streak' &&
+            p.consecutiveLosses == rule.value) {
           matched = true;
         }
-        
+
         if (matched) {
           customPool.add((
             '✨',
-            rule.message.replaceAll('{name}', p.name).replaceAll('{value}', rule.value.toString()),
+            rule.message
+                .replaceAll('{name}', p.name)
+                .replaceAll('{value}', rule.value.toString()),
             '',
-            Colors.purpleAccent
+            Colors.purpleAccent,
           ));
         }
       }
@@ -199,10 +211,12 @@ class _GameScreenState extends State<GameScreen>
     if (events.newLeader != null) {
       pool.add((
         '👑',
-        settings.resolveEventMessage(
-            'new_leader', {'name': events.newLeader!.name}),
-        settings.t('new_leader_subtitle',
-            {'score': events.newLeader!.currentScore.toString()}),
+        settings.resolveEventMessage('new_leader', {
+          'name': events.newLeader!.name,
+        }),
+        settings.t('new_leader_subtitle', {
+          'score': events.newLeader!.currentScore.toString(),
+        }),
         kLeader,
       ));
     }
@@ -218,16 +232,20 @@ class _GameScreenState extends State<GameScreen>
       ));
     }
     for (final p in events.bowPlayers) {
-      pool.add(('🏹',
-          settings.resolveEventMessage('bow_stretched', {'name': p.name}),
-          '',
-          kDanger));
+      pool.add((
+        '🏹',
+        settings.resolveEventMessage('bow_stretched', {'name': p.name}),
+        '',
+        kDanger,
+      ));
     }
     for (final p in events.revengePlayers) {
-      pool.add(('⚡',
-          settings.resolveEventMessage('revenge_lever', {'name': p.name}),
-          '',
-          const Color(0xFFFF9900)));
+      pool.add((
+        '⚡',
+        settings.resolveEventMessage('revenge_lever', {'name': p.name}),
+        '',
+        const Color(0xFFFF9900),
+      ));
     }
 
     if (pool.isNotEmpty) {
@@ -290,10 +308,9 @@ class _GameScreenState extends State<GameScreen>
       final noGroup = notifier.activeGroup == null;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-            builder: (_) => PodiumScreen(
-                  podium: entries,
-                  offlineReminder: noGroup,
-                )),
+          builder: (_) =>
+              PodiumScreen(podium: entries, offlineReminder: noGroup),
+        ),
       );
     });
   }
@@ -314,26 +331,27 @@ class _GameScreenState extends State<GameScreen>
     if (url.isEmpty) return;
 
     final groupCode = notifier.activeGroup?['code'] as String?;
-    final payload = buildGameSubmission(
-      game.toJson(),
-      groupCode: groupCode,
-    );
+    final payload = buildGameSubmission(game.toJson(), groupCode: groupCode);
 
     LeaderboardService(url).submitGame(payload).then((success) async {
       if (!success) {
         // Persist offline so the next launch can retry.
         try {
           await notifier.savePendingGame(groupCode: groupCode);
-        } catch (_) {/* ignore */}
+        } catch (_) {
+          /* ignore */
+        }
       }
       final messenger = rootScaffoldMessengerKey.currentState;
       if (messenger == null) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text(success
-            ? t('leaderboard_submit_ok')
-            : t('leaderboard_submit_fail')),
-        duration: settings.messageDuration,
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            success ? t('leaderboard_submit_ok') : t('leaderboard_submit_fail'),
+          ),
+          duration: settings.messageDuration,
+        ),
+      );
     });
   }
 
@@ -346,11 +364,13 @@ class _GameScreenState extends State<GameScreen>
         content: Text(settings.t('undo_confirm')),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(settings.t('cancel'))),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(settings.t('cancel')),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(settings.t('undo'))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(settings.t('undo')),
+          ),
         ],
       ),
     );
@@ -366,8 +386,7 @@ class _GameScreenState extends State<GameScreen>
     final game = notifier.game;
     if (game == null) return;
 
-    final nameCtrl = TextEditingController(
-        text: game.playerNames.join('_'));
+    final nameCtrl = TextEditingController(text: game.playerNames.join('_'));
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -381,18 +400,21 @@ class _GameScreenState extends State<GameScreen>
             TextField(
               controller: nameCtrl,
               decoration: InputDecoration(
-                  hintText: settings.t('save_game_placeholder')),
+                hintText: settings.t('save_game_placeholder'),
+              ),
               autofocus: true,
             ),
           ],
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(settings.t('cancel'))),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(settings.t('cancel')),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(settings.t('save'))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(settings.t('save')),
+          ),
         ],
       ),
     );
@@ -402,18 +424,19 @@ class _GameScreenState extends State<GameScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                  '${settings.t('save')} ✓  ${path.split('/').last}'),
+              content: Text('${settings.t('save')} ✓  ${path.split('/').last}'),
               duration: settings.messageDuration,
             ),
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('${settings.t('save')}: $e'),
-            duration: settings.messageDuration,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${settings.t('save')}: $e'),
+              duration: settings.messageDuration,
+            ),
+          );
         }
       }
     }
@@ -428,11 +451,13 @@ class _GameScreenState extends State<GameScreen>
         content: Text(settings.t('new_game_confirm')),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(settings.t('cancel'))),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(settings.t('cancel')),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(settings.t('new'))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(settings.t('new')),
+          ),
         ],
       ),
     );
@@ -463,7 +488,9 @@ class _GameScreenState extends State<GameScreen>
       } else {
         await notifier.savePaused();
       }
-    } catch (_) {/* ignore – fall through to navigation */}
+    } catch (_) {
+      /* ignore – fall through to navigation */
+    }
     notifier.endGame();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -482,9 +509,7 @@ class _GameScreenState extends State<GameScreen>
     final game = notifier.game;
 
     if (game == null) {
-      return Scaffold(
-        body: Center(child: Text(t('no_saved_games'))),
-      );
+      return Scaffold(body: Center(child: Text(t('no_saved_games'))));
     }
 
     _ensureCapacity(game.numPlayers);
@@ -492,9 +517,7 @@ class _GameScreenState extends State<GameScreen>
     final leaderSet = game.leaders.map((p) => p.name).toSet();
 
     // Bid sum tracking for the bid-warning banner
-    final bidSum = _bids
-        .take(game.numPlayers)
-        .fold<int>(0, (s, b) => s + b);
+    final bidSum = _bids.take(game.numPlayers).fold<int>(0, (s, b) => s + b);
     final bidWarning = bidSum == game.cardsThisRound;
 
     final tabBar = TabBar(
@@ -507,10 +530,22 @@ class _GameScreenState extends State<GameScreen>
               Tab(icon: Icon(Icons.group, size: 20)),
             ]
           : [
-              Tab(icon: const Icon(Icons.people_outlined, size: 18), text: t('announced')),
-              Tab(icon: const Icon(Icons.show_chart, size: 18), text: t('tab_chart')),
-              Tab(icon: const Icon(Icons.leaderboard, size: 18), text: t('tab_groups_lb')),
-              Tab(icon: const Icon(Icons.group, size: 18), text: t('tab_group_lb')),
+              Tab(
+                icon: const Icon(Icons.people_outlined, size: 18),
+                text: t('announced'),
+              ),
+              Tab(
+                icon: const Icon(Icons.show_chart, size: 18),
+                text: t('tab_chart'),
+              ),
+              Tab(
+                icon: const Icon(Icons.leaderboard, size: 18),
+                text: t('tab_groups_lb'),
+              ),
+              Tab(
+                icon: const Icon(Icons.group, size: 18),
+                text: t('tab_group_lb'),
+              ),
             ],
       labelColor: kAccent,
       unselectedLabelColor: kTextDim,
@@ -538,10 +573,7 @@ class _GameScreenState extends State<GameScreen>
         toolbarHeight: _menuCollapsed ? 0 : kToolbarHeight,
         title: _menuCollapsed
             ? null
-            : Align(
-                alignment: Alignment.centerLeft,
-                child: toggleButton,
-              ),
+            : Align(alignment: Alignment.centerLeft, child: toggleButton),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: _menuCollapsed
@@ -664,7 +696,9 @@ class _Layer1 extends StatelessWidget {
       children: [
         // Bid counter banner
         Container(
-          color: bidWarning ? kDanger.withValues(alpha: 0.15) : Colors.transparent,
+          color: bidWarning
+              ? kDanger.withValues(alpha: 0.15)
+              : Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Row(
             children: [
@@ -679,15 +713,19 @@ class _Layer1 extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     color: bidWarning ? kDanger : kTextDim,
-                    fontWeight:
-                        bidWarning ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: bidWarning
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
               ),
               TextButton.icon(
                 onPressed: onAutoFill,
                 icon: const Icon(Icons.auto_fix_high, size: 16),
-                label: Text(t('auto_fill'), style: const TextStyle(fontSize: 12)),
+                label: Text(
+                  t('auto_fill'),
+                  style: const TextStyle(fontSize: 12),
+                ),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   visualDensity: VisualDensity.compact,
@@ -736,8 +774,10 @@ class _Layer1 extends StatelessWidget {
                       ? kDanger.withValues(alpha: 0.3)
                       : null,
                 ),
-                child: Text(t('complete_round'),
-                    style: const TextStyle(fontSize: 16)),
+                child: Text(
+                  t('complete_round'),
+                  style: const TextStyle(fontSize: 16),
+                ),
               ),
             ),
           ),

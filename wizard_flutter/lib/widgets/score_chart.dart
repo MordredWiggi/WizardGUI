@@ -27,8 +27,10 @@ class _ScoreChartState extends State<ScoreChart> {
 
     if (game.roundNumber == 0) {
       return Center(
-        child: Text(t('round_header', {'n': '0', 'total': game.totalRounds.toString()}),
-            style: Theme.of(context).textTheme.bodyMedium),
+        child: Text(
+          t('round_header', {'n': '0', 'total': game.totalRounds.toString()}),
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
       );
     }
 
@@ -41,28 +43,28 @@ class _ScoreChartState extends State<ScoreChart> {
       final color = kPlayerColors[i % kPlayerColors.length];
       final isTouched = _touchedLineIndex == i;
 
-      lines.add(LineChartBarData(
-        spots: p.scores
-            .asMap()
-            .entries
-            .map((e) => FlSpot(e.key.toDouble(), e.value.toDouble()))
-            .toList(),
-        isCurved: false,
-        color: color,
-        barWidth: isTouched ? 3.5 : 2,
-        dotData: FlDotData(
-          show: true,
-          getDotPainter: (spot, pct, bar, idx) => FlDotCirclePainter(
-            radius: idx == game.roundNumber
-                ? 5
-                : (isTouched ? 4 : 3),
-            color: color,
-            strokeWidth: isTouched ? 1.5 : 0,
-            strokeColor: isDark ? Colors.white : Colors.black,
+      lines.add(
+        LineChartBarData(
+          spots: p.scores
+              .asMap()
+              .entries
+              .map((e) => FlSpot(e.key.toDouble(), e.value.toDouble()))
+              .toList(),
+          isCurved: false,
+          color: color,
+          barWidth: isTouched ? 3.5 : 2,
+          dotData: FlDotData(
+            show: true,
+            getDotPainter: (spot, pct, bar, idx) => FlDotCirclePainter(
+              radius: idx == game.roundNumber ? 5 : (isTouched ? 4 : 3),
+              color: color,
+              strokeWidth: isTouched ? 1.5 : 0,
+              strokeColor: isDark ? Colors.white : Colors.black,
+            ),
           ),
+          belowBarData: BarAreaData(show: false),
         ),
-        belowBarData: BarAreaData(show: false),
-      ));
+      );
     }
 
     // Average line (dashed)
@@ -100,28 +102,22 @@ class _ScoreChartState extends State<ScoreChart> {
             spacing: 12,
             runSpacing: 4,
             children: sorted.asMap().entries.map((e) {
-              final originalIndex =
-                  game.players.indexWhere((p) => p.name == e.value.name);
-              final color =
-                  kPlayerColors[originalIndex % kPlayerColors.length];
+              final originalIndex = game.players.indexWhere(
+                (p) => p.name == e.value.name,
+              );
+              final color = kPlayerColors[originalIndex % kPlayerColors.length];
               final isFirst = e.key == 0;
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 16,
-                    height: 3,
-                    color: color,
-                  ),
+                  Container(width: 16, height: 3, color: color),
                   const SizedBox(width: 4),
                   Text(
                     '${e.value.avatar} ${e.value.name} (${e.value.currentScore})',
                     style: TextStyle(
                       fontSize: 12,
                       color: isFirst ? kLeader : color,
-                      fontWeight: isFirst
-                          ? FontWeight.bold
-                          : FontWeight.normal,
+                      fontWeight: isFirst ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
                 ],
@@ -140,18 +136,16 @@ class _ScoreChartState extends State<ScoreChart> {
                 child: CustomPaint(
                   size: const Size(16, 3),
                   painter: _DashedLinePainter(
-                    color: (isDark ? Colors.white : Colors.black)
-                        .withOpacity(0.35),
+                    color: (isDark ? Colors.white : Colors.black).withOpacity(
+                      0.35,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 4),
               Text(
                 t('average'),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: axisColor,
-                ),
+                style: TextStyle(fontSize: 12, color: axisColor),
               ),
             ],
           ),
@@ -186,9 +180,10 @@ class _ScoreChartState extends State<ScoreChart> {
                   bottomTitles: AxisTitles(
                     axisNameWidget: Padding(
                       padding: const EdgeInsets.only(top: 4),
-                      child: Text(t('round'),
-                          style: TextStyle(
-                              color: axisColor, fontSize: 12)),
+                      child: Text(
+                        t('round'),
+                        style: TextStyle(color: axisColor, fontSize: 12),
+                      ),
                     ),
                     sideTitles: SideTitles(
                       showTitles: true,
@@ -200,32 +195,37 @@ class _ScoreChartState extends State<ScoreChart> {
                             n % _labelStep(game.roundNumber) != 0) {
                           return const SizedBox.shrink();
                         }
-                        return Text('$n',
-                            style: TextStyle(
-                                color: axisColor, fontSize: 11));
+                        return Text(
+                          '$n',
+                          style: TextStyle(color: axisColor, fontSize: 11),
+                        );
                       },
                     ),
                   ),
                   rightTitles: AxisTitles(
                     axisNameWidget: Padding(
                       padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(t('points'),
-                          style: TextStyle(
-                              color: axisColor, fontSize: 12)),
+                      child: Text(
+                        t('points'),
+                        style: TextStyle(color: axisColor, fontSize: 12),
+                      ),
                     ),
                     sideTitles: SideTitles(
                       showTitles: true,
                       interval: 100,
                       reservedSize: 44,
-                      getTitlesWidget: (v, _) => Text('${v.toInt()}',
-                          style: TextStyle(
-                              color: axisColor, fontSize: 11)),
+                      getTitlesWidget: (v, _) => Text(
+                        '${v.toInt()}',
+                        style: TextStyle(color: axisColor, fontSize: 11),
+                      ),
                     ),
                   ),
                   leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 borderData: FlBorderData(
                   show: true,
@@ -239,7 +239,8 @@ class _ScoreChartState extends State<ScoreChart> {
                     // contains no spots. Picking only explicit "exit" events
                     // left the highlight stuck when the cursor slid off the
                     // side of the plot during a hover session.
-                    final isEndEvent = event is FlTapUpEvent ||
+                    final isEndEvent =
+                        event is FlTapUpEvent ||
                         event is FlTapCancelEvent ||
                         event is FlLongPressEnd ||
                         event is FlPanEndEvent ||
@@ -257,7 +258,7 @@ class _ScoreChartState extends State<ScoreChart> {
                     }
 
                     // Prefer the closest non-average line the user touched.
-                    final touched = spots!.firstWhere(
+                    final touched = spots.firstWhere(
                       (s) => s.barIndex < game.players.length,
                       orElse: () => spots.first,
                     );
@@ -322,7 +323,10 @@ class _DashedLinePainter extends CustomPainter {
     double x = 0;
     while (x < size.width) {
       canvas.drawLine(
-          Offset(x, size.height / 2), Offset(x + dashW, size.height / 2), paint);
+        Offset(x, size.height / 2),
+        Offset(x + dashW, size.height / 2),
+        paint,
+      );
       x += dashW + gapW;
     }
   }

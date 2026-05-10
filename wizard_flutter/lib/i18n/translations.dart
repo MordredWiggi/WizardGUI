@@ -28,7 +28,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'resume_game_subtitle': 'Pausiertes Spiel mit {players}',
     'resume_discard': 'Verwerfen',
     'resume_discard_confirm': 'Pausiertes Spiel verwerfen?',
-    'start_overrides_pause': 'Es gibt ein pausiertes Spiel. Wenn du jetzt ein neues Spiel startest, geht der Spielstand verloren.\n\nTrotzdem fortfahren?',
+    'start_overrides_pause':
+        'Es gibt ein pausiertes Spiel. Wenn du jetzt ein neues Spiel startest, geht der Spielstand verloren.\n\nTrotzdem fortfahren?',
     'cancel': 'Abbrechen',
     'proceed': 'Fortfahren',
     'ok': 'OK',
@@ -129,28 +130,34 @@ const Map<String, Map<String, String>> kTranslations = {
     'group_create_btn': 'Gruppe erstellen',
     'group_created_ok': 'Gruppe \'{name}\' erstellt (Code: {code})',
     'group_code_taken': 'Code {code} bereits vergeben',
-    'group_connection_error': 'Verbindung fehlgeschlagen – Server nicht erreichbar.',
+    'group_connection_error':
+        'Verbindung fehlgeschlagen – Server nicht erreichbar.',
     'group_required': 'Wähle eine Gruppe, um ihre Rangliste zu sehen.',
     'group_selected': 'Gruppe: {name} (Code: {code})',
     'no_groups': 'Keine Gruppen gefunden.',
     'group_players_count': '{n} Spieler',
     'group_not_selected': 'Keine Gruppe ausgewählt',
     'play_offline_btn': '🔌 Offline spielen',
-    'offline_mode_active': 'Offline-Modus aktiv – Spiel wird lokal gespeichert.',
+    'offline_mode_active':
+        'Offline-Modus aktiv – Spiel wird lokal gespeichert.',
     'offline_reminder_title': 'Spiel nicht hochgeladen',
-    'offline_reminder_message': 'Dieses Spiel ist keiner Gruppe zugeordnet und wurde nicht zum Leaderboard hochgeladen.',
+    'offline_reminder_message':
+        'Dieses Spiel ist keiner Gruppe zugeordnet und wurde nicht zum Leaderboard hochgeladen.',
     'offline_save_device': 'Auf diesem Gerät speichern',
     'offline_discard': 'Verwerfen',
     'offline_saved_ok': 'Spiel wurde lokal gespeichert.',
     'pending_sync_title': 'Offline-Spiele vorhanden',
-    'pending_sync_message': '{n} Spiele wurden ohne Verbindung gespielt. Jetzt einer Gruppe zuweisen und hochladen?',
+    'pending_sync_message':
+        '{n} Spiele wurden ohne Verbindung gespielt. Jetzt einer Gruppe zuweisen und hochladen?',
     'pending_sync_upload': 'Hochladen',
     'pending_sync_skip': 'Später',
     'pending_sync_assign_group': 'Gruppe zuweisen…',
     'pending_sync_no_group': 'Ohne Gruppe',
-    'pending_sync_success': '{n} offline gespielte Spiele nachträglich hochgeladen.',
+    'pending_sync_success':
+        '{n} offline gespielte Spiele nachträglich hochgeladen.',
     'leaderboard_submit_ok': 'Ergebnis an Leaderboard gesendet!',
-    'leaderboard_submit_fail': 'Leaderboard nicht erreichbar – Ergebnis lokal gespeichert.',
+    'leaderboard_submit_fail':
+        'Leaderboard nicht erreichbar – Ergebnis lokal gespeichert.',
     'tab_groups_lb': 'Gruppen',
     'tab_group_lb': 'Meine Gruppe',
     'tab_chart': 'Diagramm',
@@ -184,7 +191,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'resume_game_subtitle': 'Paused game with {players}',
     'resume_discard': 'Discard',
     'resume_discard_confirm': 'Discard the paused game?',
-    'start_overrides_pause': 'There is a paused game. Starting a new one will discard its state.\n\nContinue anyway?',
+    'start_overrides_pause':
+        'There is a paused game. Starting a new one will discard its state.\n\nContinue anyway?',
     'cancel': 'Cancel',
     'proceed': 'Proceed',
     'ok': 'OK',
@@ -293,19 +301,22 @@ const Map<String, Map<String, String>> kTranslations = {
     'play_offline_btn': '🔌 Play Offline',
     'offline_mode_active': 'Offline mode – game will be saved locally.',
     'offline_reminder_title': 'Game not uploaded',
-    'offline_reminder_message': 'This game is not bound to any group and was not uploaded to the leaderboard.',
+    'offline_reminder_message':
+        'This game is not bound to any group and was not uploaded to the leaderboard.',
     'offline_save_device': 'Save to this device',
     'offline_discard': 'Discard',
     'offline_saved_ok': 'Game saved locally.',
     'pending_sync_title': 'Offline games pending',
-    'pending_sync_message': '{n} games were played without connection. Assign a group and upload now?',
+    'pending_sync_message':
+        '{n} games were played without connection. Assign a group and upload now?',
     'pending_sync_upload': 'Upload',
     'pending_sync_skip': 'Later',
     'pending_sync_assign_group': 'Assign group…',
     'pending_sync_no_group': 'No group',
     'pending_sync_success': '{n} offline games synced to leaderboard.',
     'leaderboard_submit_ok': 'Result sent to leaderboard!',
-    'leaderboard_submit_fail': 'Leaderboard unreachable – result saved locally.',
+    'leaderboard_submit_fail':
+        'Leaderboard unreachable – result saved locally.',
     'tab_groups_lb': 'Groups',
     'tab_group_lb': 'My Group',
     'tab_chart': 'Chart',
@@ -339,7 +350,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'resume_game_subtitle': 'Partie en pause avec {players}',
     'resume_discard': 'Abandonner',
     'resume_discard_confirm': 'Abandonner la partie en pause ?',
-    'start_overrides_pause': 'Une partie est en pause. Si vous en démarrez une nouvelle, son état sera perdu.\n\nContinuer quand même ?',
+    'start_overrides_pause':
+        'Une partie est en pause. Si vous en démarrez une nouvelle, son état sera perdu.\n\nContinuer quand même ?',
     'cancel': 'Annuler',
     'proceed': 'Continuer',
     'ok': 'OK',
@@ -447,21 +459,25 @@ const Map<String, Map<String, String>> kTranslations = {
     'group_players_count': '{n} joueurs',
     'group_not_selected': 'Aucun groupe sélectionné',
     'play_offline_btn': '🔌 Jouer hors ligne',
-    'offline_mode_active': 'Mode hors ligne – la partie sera sauvegardée localement.',
+    'offline_mode_active':
+        'Mode hors ligne – la partie sera sauvegardée localement.',
     'offline_reminder_title': 'Partie non envoyée',
-    'offline_reminder_message': 'Cette partie n\'est liée à aucun groupe et n\'a pas été envoyée au classement.',
+    'offline_reminder_message':
+        'Cette partie n\'est liée à aucun groupe et n\'a pas été envoyée au classement.',
     'offline_save_device': 'Sauvegarder sur cet appareil',
     'offline_discard': 'Abandonner',
     'offline_saved_ok': 'Partie sauvegardée localement.',
     'pending_sync_title': 'Parties hors ligne en attente',
-    'pending_sync_message': '{n} parties ont été jouées hors ligne. Attribuer un groupe et télécharger ?',
+    'pending_sync_message':
+        '{n} parties ont été jouées hors ligne. Attribuer un groupe et télécharger ?',
     'pending_sync_upload': 'Télécharger',
     'pending_sync_skip': 'Plus tard',
     'pending_sync_assign_group': 'Attribuer un groupe…',
     'pending_sync_no_group': 'Sans groupe',
     'pending_sync_success': '{n} parties hors ligne synchronisées.',
     'leaderboard_submit_ok': 'Résultat envoyé au classement !',
-    'leaderboard_submit_fail': 'Classement inaccessible – résultat sauvegardé localement.',
+    'leaderboard_submit_fail':
+        'Classement inaccessible – résultat sauvegardé localement.',
     'tab_groups_lb': 'Groupes',
     'tab_group_lb': 'Mon groupe',
     'tab_chart': 'Graphique',
@@ -495,7 +511,8 @@ const Map<String, Map<String, String>> kTranslations = {
     'resume_game_subtitle': '{players} के साथ रोका हुआ खेल',
     'resume_discard': 'त्यागें',
     'resume_discard_confirm': 'रोका हुआ खेल त्यागें?',
-    'start_overrides_pause': 'एक रोका हुआ खेल मौजूद है। नया शुरू करने पर वह खो जाएगा।\n\nफिर भी जारी रखें?',
+    'start_overrides_pause':
+        'एक रोका हुआ खेल मौजूद है। नया शुरू करने पर वह खो जाएगा।\n\nफिर भी जारी रखें?',
     'cancel': 'रद्द करें',
     'proceed': 'आगे बढ़ें',
     'ok': 'ठीक है',
@@ -604,19 +621,22 @@ const Map<String, Map<String, String>> kTranslations = {
     'play_offline_btn': '🔌 ऑफ़लाइन खेलें',
     'offline_mode_active': 'ऑफ़लाइन मोड – खेल स्थानीय रूप से सहेजा जाएगा।',
     'offline_reminder_title': 'खेल अपलोड नहीं हुआ',
-    'offline_reminder_message': 'यह खेल किसी समूह से नहीं जुड़ा और लीडरबोर्ड पर अपलोड नहीं हुआ।',
+    'offline_reminder_message':
+        'यह खेल किसी समूह से नहीं जुड़ा और लीडरबोर्ड पर अपलोड नहीं हुआ।',
     'offline_save_device': 'इस डिवाइस पर सहेजें',
     'offline_discard': 'छोड़ें',
     'offline_saved_ok': 'खेल स्थानीय रूप से सहेजा गया।',
     'pending_sync_title': 'ऑफ़लाइन खेल लंबित',
-    'pending_sync_message': '{n} खेल बिना कनेक्शन के खेले गए। अब समूह असाइन करें और अपलोड करें?',
+    'pending_sync_message':
+        '{n} खेल बिना कनेक्शन के खेले गए। अब समूह असाइन करें और अपलोड करें?',
     'pending_sync_upload': 'अपलोड करें',
     'pending_sync_skip': 'बाद में',
     'pending_sync_assign_group': 'समूह असाइन करें…',
     'pending_sync_no_group': 'बिना समूह',
     'pending_sync_success': '{n} ऑफ़लाइन खेल अपलोड किए गए।',
     'leaderboard_submit_ok': 'परिणाम लीडरबोर्ड पर भेजा गया!',
-    'leaderboard_submit_fail': 'लीडरबोर्ड उपलब्ध नहीं – परिणाम स्थानीय रूप से सहेजा गया।',
+    'leaderboard_submit_fail':
+        'लीडरबोर्ड उपलब्ध नहीं – परिणाम स्थानीय रूप से सहेजा गया।',
     'tab_groups_lb': 'समूह',
     'tab_group_lb': 'मेरा समूह',
     'tab_chart': 'चार्ट',
@@ -633,8 +653,11 @@ const Map<String, Map<String, String>> kTranslations = {
 
 /// Translate [key] with optional named substitutions.
 /// Falls back to German, then to the key itself.
-String translate(String lang, String key,
-    [Map<String, String> args = const {}]) {
+String translate(
+  String lang,
+  String key, [
+  Map<String, String> args = const {},
+]) {
   final dict = kTranslations[lang] ?? kTranslations['de']!;
   String text = dict[key] ?? kTranslations['de']![key] ?? key;
   for (final entry in args.entries) {

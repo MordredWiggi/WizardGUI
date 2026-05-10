@@ -9,14 +9,15 @@ class LeaderboardService {
   final Duration timeout;
 
   LeaderboardService(String url, {this.timeout = const Duration(seconds: 8)})
-      : baseUrl = url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+    : baseUrl = url.endsWith('/') ? url.substring(0, url.length - 1) : url;
 
   // ── Groups ──────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>?> getGroupByCode(String code) async {
     try {
       final resp = await _get('/api/groups/$code');
-      if (resp.statusCode == 200) return jsonDecode(resp.body) as Map<String, dynamic>;
+      if (resp.statusCode == 200)
+        return jsonDecode(resp.body) as Map<String, dynamic>;
       return null;
     } catch (_) {
       return null;
@@ -25,7 +26,9 @@ class LeaderboardService {
 
   Future<List<Map<String, dynamic>>?> listGroups({String search = ''}) async {
     try {
-      final q = search.isNotEmpty ? '?search=${Uri.encodeComponent(search)}' : '';
+      final q = search.isNotEmpty
+          ? '?search=${Uri.encodeComponent(search)}'
+          : '';
       final resp = await _get('/api/groups$q');
       if (resp.statusCode == 200) {
         final decoded = jsonDecode(resp.body);
@@ -59,13 +62,15 @@ class LeaderboardService {
       });
       if (resp.statusCode == 201) {
         return CreateGroupResult.ok(
-            jsonDecode(resp.body) as Map<String, dynamic>);
+          jsonDecode(resp.body) as Map<String, dynamic>,
+        );
       }
       if (resp.statusCode == 409) {
         return CreateGroupResult.codeTaken();
       }
       return CreateGroupResult.networkError(
-          'HTTP ${resp.statusCode}: ${resp.body}');
+        'HTTP ${resp.statusCode}: ${resp.body}',
+      );
     } catch (e) {
       return CreateGroupResult.networkError(e.toString());
     }
@@ -86,10 +91,13 @@ class LeaderboardService {
   }
 
   Future<List<Map<String, dynamic>>?> getGroupPlayerLeaderboard(
-      String code, String mode) async {
+    String code,
+    String mode,
+  ) async {
     try {
       final resp = await _get(
-          '/api/leaderboard/group/$code?mode=${Uri.encodeComponent(mode)}');
+        '/api/leaderboard/group/$code?mode=${Uri.encodeComponent(mode)}',
+      );
       if (resp.statusCode == 200) {
         return (jsonDecode(resp.body) as List).cast<Map<String, dynamic>>();
       }
@@ -101,8 +109,9 @@ class LeaderboardService {
 
   Future<List<Map<String, dynamic>>?> getPlayerLeaderboard(String mode) async {
     try {
-      final resp =
-          await _get('/api/leaderboard?mode=${Uri.encodeComponent(mode)}');
+      final resp = await _get(
+        '/api/leaderboard?mode=${Uri.encodeComponent(mode)}',
+      );
       if (resp.statusCode == 200) {
         return (jsonDecode(resp.body) as List).cast<Map<String, dynamic>>();
       }
@@ -167,7 +176,11 @@ class CreateGroupResult {
   final bool taken;
   final String? errorMessage;
 
-  const CreateGroupResult._({this.group, this.taken = false, this.errorMessage});
+  const CreateGroupResult._({
+    this.group,
+    this.taken = false,
+    this.errorMessage,
+  });
 
   factory CreateGroupResult.ok(Map<String, dynamic> group) =>
       CreateGroupResult._(group: group);
@@ -186,15 +199,18 @@ class CreateGroupResult {
 String computeGameHash(Map<String, dynamic> gameData) {
   final canonical = {
     'mode': gameData['game_mode'] ?? 'standard',
-    'players': (gameData['players'] as List? ?? [])
-        .map((p) => {
-              'n': p['name'],
-              'r': (p['rounds'] as List? ?? [])
-                  .map((r) => {'s': r['said'], 'a': r['achieved']})
-                  .toList(),
-            })
-        .toList()
-      ..sort((a, b) => (a['n'] as String).compareTo(b['n'] as String)),
+    'players':
+        (gameData['players'] as List? ?? [])
+            .map(
+              (p) => {
+                'n': p['name'],
+                'r': (p['rounds'] as List? ?? [])
+                    .map((r) => {'s': r['said'], 'a': r['achieved']})
+                    .toList(),
+              },
+            )
+            .toList()
+          ..sort((a, b) => (a['n'] as String).compareTo(b['n'] as String)),
   };
   final raw = jsonEncode(canonical);
   final digest = sha256.convert(utf8.encode(raw));
@@ -234,8 +250,7 @@ Map<String, dynamic> buildGameSubmission(
         }
       }
     }
-    final correctBids =
-        rounds.where((r) => r['said'] == r['achieved']).length;
+    final correctBids = rounds.where((r) => r['said'] == r['achieved']).length;
     return {
       'name': p['name'],
       'final_score': score,
@@ -248,8 +263,9 @@ Map<String, dynamic> buildGameSubmission(
   // same rank — competition (or "1224") ranking — so a tied first place
   // counts as a win for every tied player on the server's leaderboards
   // (which credit a win whenever rank == 1).
-  playerResults
-      .sort((a, b) => (b['final_score'] as int) - (a['final_score'] as int));
+  playerResults.sort(
+    (a, b) => (b['final_score'] as int) - (a['final_score'] as int),
+  );
   int currentRank = 1;
   int? lastScore;
   for (int i = 0; i < playerResults.length; i++) {

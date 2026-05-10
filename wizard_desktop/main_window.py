@@ -7,6 +7,7 @@ Verwaltet:
   • Celebration-Overlay-Logik
   • Speichern / Laden via SaveManager
 """
+
 from __future__ import annotations
 
 import json
@@ -18,15 +19,29 @@ from PyQt6 import QtCore, QtWidgets, QtGui
 
 from game_control import GameControl, RoundEvents
 from save_manager import SaveManager, SAVE_DIR
-from style import ACCENT, BG_BASE, SUCCESS, DANGER, LEADER, PLAYER_COLORS, apply_titlebar_theme
+from style import (
+    ACCENT,
+    BG_BASE,
+    SUCCESS,
+    DANGER,
+    LEADER,
+    PLAYER_COLORS,
+    apply_titlebar_theme,
+)
 
 from setup_view import SetupView
 from game_view import GameView
 from dialogs import (
-    SaveGameDialog, LoadGameDialog,
-    CelebrationOverlay, WarningDialog, PodiumDialog,
-    MigrationDialog, MigrationProgressDialog, MigrationGroupDialog,
-    PendingSyncAssignDialog, OfflineGameReminderDialog,
+    SaveGameDialog,
+    LoadGameDialog,
+    CelebrationOverlay,
+    WarningDialog,
+    PodiumDialog,
+    MigrationDialog,
+    MigrationProgressDialog,
+    MigrationGroupDialog,
+    PendingSyncAssignDialog,
+    OfflineGameReminderDialog,
 )
 from app_settings import t, get_theme, get_leaderboard_url, resolve_event_message
 
@@ -53,7 +68,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._setup_view.load_game.connect(self._on_load_game_from_path)
         self._setup_view.resume_game.connect(self._on_resume_game)
         self._setup_view.settings_changed.connect(self._on_settings_changed)
-        self._stack.addWidget(self._setup_view)   # index 0
+        self._stack.addWidget(self._setup_view)  # index 0
 
         # GameView wird erst beim ersten Spielstart erstellt (index 1+)
 
@@ -155,7 +170,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self._game = GameControl.from_dict(data["game"])
         except Exception as exc:
             QtWidgets.QMessageBox.critical(
-                self, "Fehler",
+                self,
+                "Fehler",
                 f"Pausiertes Spiel konnte nicht geladen werden:\n{exc}",
             )
             self._save_manager.clear_paused()
@@ -190,11 +206,13 @@ class MainWindow(QtWidgets.QMainWindow):
                         matched = True
                     elif rtype == "loss_streak" and p.consecutive_losses == rval:
                         matched = True
-                        
+
                     if matched:
-                        formatted_msg = msg.replace("{name}", p.name).replace("{value}", str(rval))
+                        formatted_msg = msg.replace("{name}", p.name).replace(
+                            "{value}", str(rval)
+                        )
                         custom_pool.append(("✨", formatted_msg, "", "#d500f9"))
-                        
+
         if custom_pool:
             emoji, title, subtitle, color = random.choice(custom_pool)
             self._overlay.show_event(emoji, title, subtitle, color=color)
@@ -211,6 +229,7 @@ class MainWindow(QtWidgets.QMainWindow):
         elif events.huge_loss_player:
             try:
                 from sounds import play_xp_shutdown
+
                 play_xp_shutdown()
             except Exception:
                 pass
@@ -229,48 +248,62 @@ class MainWindow(QtWidgets.QMainWindow):
             possible_messages = []
 
             if events.fire_player:
-                possible_messages.append((
-                    "🔥",
-                    resolve_event_message("fire", name=events.fire_player.name),
-                    t("fire_subtitle"),
-                    "#ff6b35",
-                ))
+                possible_messages.append(
+                    (
+                        "🔥",
+                        resolve_event_message("fire", name=events.fire_player.name),
+                        t("fire_subtitle"),
+                        "#ff6b35",
+                    )
+                )
 
             if events.new_leader:
-                possible_messages.append((
-                    "👑",
-                    resolve_event_message("new_leader", name=events.new_leader.name),
-                    t("new_leader_subtitle", score=events.new_leader.current_score),
-                    LEADER,
-                ))
+                possible_messages.append(
+                    (
+                        "👑",
+                        resolve_event_message(
+                            "new_leader", name=events.new_leader.name
+                        ),
+                        t("new_leader_subtitle", score=events.new_leader.current_score),
+                        LEADER,
+                    )
+                )
 
             if events.big_scorer and events.big_score_delta >= 50:
-                possible_messages.append((
-                    "🎯",
-                    resolve_event_message("big_scorer"),
-                    t("big_scorer_subtitle",
-                      delta=events.big_score_delta,
-                      name=events.big_scorer.name),
-                    SUCCESS,
-                ))
+                possible_messages.append(
+                    (
+                        "🎯",
+                        resolve_event_message("big_scorer"),
+                        t(
+                            "big_scorer_subtitle",
+                            delta=events.big_score_delta,
+                            name=events.big_scorer.name,
+                        ),
+                        SUCCESS,
+                    )
+                )
 
             if events.bow_players:
                 for player in events.bow_players:
-                    possible_messages.append((
-                        "🏹",
-                        resolve_event_message("bow_stretched", name=player.name),
-                        "",
-                        DANGER,
-                    ))
+                    possible_messages.append(
+                        (
+                            "🏹",
+                            resolve_event_message("bow_stretched", name=player.name),
+                            "",
+                            DANGER,
+                        )
+                    )
 
             if events.revenge_players:
                 for player in events.revenge_players:
-                    possible_messages.append((
-                        "⚡",
-                        resolve_event_message("revenge_lever", name=player.name),
-                        "",
-                        "#ff9900",
-                    ))
+                    possible_messages.append(
+                        (
+                            "⚡",
+                            resolve_event_message("revenge_lever", name=player.name),
+                            "",
+                            "#ff9900",
+                        )
+                    )
 
             # Show one random message from all possibilities
             if possible_messages:
@@ -304,7 +337,9 @@ class MainWindow(QtWidgets.QMainWindow):
             return False
 
         # Sort players by score (descending) to find position
-        sorted_players = sorted(self._game.players, key=lambda p: p.current_score, reverse=True)
+        sorted_players = sorted(
+            self._game.players, key=lambda p: p.current_score, reverse=True
+        )
         tobi_position = sorted_players.index(tobi_player)
 
         # Check if last or second-last (index: len-1 or len-2)
@@ -371,7 +406,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self._show_game_view()
         except Exception as exc:
             QtWidgets.QMessageBox.critical(
-                self, "Fehler beim Laden",
+                self,
+                "Fehler beim Laden",
                 f"Das Spiel konnte nicht geladen werden:\n{exc}",
             )
 
@@ -411,7 +447,9 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         from leaderboard_client import (
-            LeaderboardClient, GameSubmitWorker, build_game_submission,
+            LeaderboardClient,
+            GameSubmitWorker,
+            build_game_submission,
         )
 
         group_code = self._active_group["code"]
@@ -440,9 +478,11 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             # Leave the file flagged as pending_sync — it will be retried on
             # the next launch by _retry_pending_sync().
-            self._show_status(t("leaderboard_submit_fail_offline")
-                              if path is not None
-                              else t("leaderboard_submit_fail"))
+            self._show_status(
+                t("leaderboard_submit_fail_offline")
+                if path is not None
+                else t("leaderboard_submit_fail")
+            )
         self._pending_sync_path = None
 
     # ── Pending-sync retry on launch ─────────────────────────────────────────
@@ -477,7 +517,9 @@ class MainWindow(QtWidgets.QMainWindow):
                     if assigned:
                         code = assigned.get("code")
                         item["group_code"] = code
-                        self._save_manager.update_pending_group_code(item["filepath"], code)
+                        self._save_manager.update_pending_group_code(
+                            item["filepath"], code
+                        )
             # If the user cancels the dialog entirely, we still sync below
             # (games just go to the global leaderboard without a group).
 
@@ -566,8 +608,12 @@ class MainWindow(QtWidgets.QMainWindow):
             group_code = assigned_group["code"] if assigned_group else None
 
             game_data = payload["game"]
-            played_at = payload.get("meta", {}).get("saved_at", datetime.now().isoformat())
-            submission = build_game_submission(game_data, played_at=played_at, group_code=group_code)
+            played_at = payload.get("meta", {}).get(
+                "saved_at", datetime.now().isoformat()
+            )
+            submission = build_game_submission(
+                game_data, played_at=played_at, group_code=group_code
+            )
             if client.submit_game(submission):
                 success_count += 1
 
@@ -597,4 +643,3 @@ class MainWindow(QtWidgets.QMainWindow):
     def _show_status(self, message: str, timeout_ms: int = 4000) -> None:
         self._update_status_bar_style()
         self.statusBar().showMessage(message, timeout_ms)
-

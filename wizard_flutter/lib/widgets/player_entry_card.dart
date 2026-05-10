@@ -12,10 +12,10 @@ class PlayerEntryCard extends StatelessWidget {
   final Player player;
   final Color color;
   final int playerIndex;
-  final int maxBid;           // cards this round — upper bound on bid
+  final int maxBid; // cards this round — upper bound on bid
   final bool isDealer;
   final bool isLeader;
-  final int scoreDelta;       // delta from last round (0 before any round)
+  final int scoreDelta; // delta from last round (0 before any round)
   final int bid;
   final int made;
   final void Function(int bid, int made) onChanged;
@@ -94,68 +94,76 @@ class PlayerEntryCard extends StatelessWidget {
                 // Prominent dealer banner above the header — clearly marks the
                 // player who has to deal cards this round.
                 if (isDealer) ...[
-                  _DealerBanner(label: t('dealer_badge', {'n': maxBid.toString()})),
+                  _DealerBanner(
+                    label: t('dealer_badge', {'n': maxBid.toString()}),
+                  ),
                   const SizedBox(height: 8),
                 ],
                 // ── Header row ─────────────────────────────────────────────
-                Row(children: [
-                  Text(player.avatar,
-                      style: const TextStyle(fontSize: 26)),
-                  const SizedBox(width: 10),
-                  Text(player.name,
+                Row(
+                  children: [
+                    Text(player.avatar, style: const TextStyle(fontSize: 26)),
+                    const SizedBox(width: 10),
+                    Text(
+                      player.name,
                       style: TextStyle(
-                          color: color,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15)),
-                  if (isLeader) ...[
-                    const SizedBox(width: 4),
-                    _Badge('👑', kLeader),
-                  ],
-                  const Spacer(),
-                  Text(
-                    player.currentScore.toString(),
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: color,
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
                     ),
-                  ),
-                  if (scoreDelta != 0) ...[
-                    const SizedBox(width: 8),
-                    _DeltaBadge(scoreDelta),
+                    if (isLeader) ...[
+                      const SizedBox(width: 4),
+                      _Badge('👑', kLeader),
+                    ],
+                    const Spacer(),
+                    Text(
+                      player.currentScore.toString(),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                    if (scoreDelta != 0) ...[
+                      const SizedBox(width: 8),
+                      _DeltaBadge(scoreDelta),
+                    ],
                   ],
-                ]),
+                ),
 
                 const SizedBox(height: 12),
                 const Divider(height: 1),
                 const SizedBox(height: 12),
 
                 // ── Bid / Made spinners ────────────────────────────────────
-                Row(children: [
-                  Expanded(
-                    child: _SpinnerField(
-                      label: t('announced'),
-                      value: bid,
-                      max: maxBid,
-                      color: color,
-                      onDecrement: () => _setBid(bid - 1),
-                      onIncrement: () => _setBid(bid + 1),
-                      onChanged: (v) => _setBid(v),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SpinnerField(
+                        label: t('announced'),
+                        value: bid,
+                        max: maxBid,
+                        color: color,
+                        onDecrement: () => _setBid(bid - 1),
+                        onIncrement: () => _setBid(bid + 1),
+                        onChanged: (v) => _setBid(v),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _SpinnerField(
-                      label: t('achieved'),
-                      value: made,
-                      max: maxBid,
-                      color: color,
-                      onDecrement: () => _setMade(made - 1),
-                      onIncrement: () => _setMade(made + 1),
-                      onChanged: (v) => _setMade(v),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _SpinnerField(
+                        label: t('achieved'),
+                        value: made,
+                        max: maxBid,
+                        color: color,
+                        onDecrement: () => _setMade(made - 1),
+                        onIncrement: () => _setMade(made + 1),
+                        onChanged: (v) => _setMade(v),
+                      ),
                     ),
-                  ),
-                ]),
+                  ],
+                ),
               ],
             ),
           ),
@@ -173,8 +181,8 @@ class _Badge extends StatelessWidget {
   const _Badge(this.text, this.color);
 
   @override
-  Widget build(BuildContext context) => Text(text,
-      style: TextStyle(fontSize: 13, color: color));
+  Widget build(BuildContext context) =>
+      Text(text, style: TextStyle(fontSize: 13, color: color));
 }
 
 class _DeltaBadge extends StatelessWidget {
@@ -227,10 +235,14 @@ class _SpinnerField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(label,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.labelSmall
-                ?.copyWith(color: color, letterSpacing: 1)),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: color,
+            letterSpacing: 1,
+          ),
+        ),
         const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -288,15 +300,17 @@ class _SpinnerField extends StatelessWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(t('cancel'))),
+            onPressed: () => Navigator.pop(context),
+            child: Text(t('cancel')),
+          ),
           TextButton(
-              onPressed: () {
-                final v = int.tryParse(ctrl.text) ?? value;
-                onChanged(v.clamp(0, max));
-                Navigator.pop(context);
-              },
-              child: Text(t('ok'))),
+            onPressed: () {
+              final v = int.tryParse(ctrl.text) ?? value;
+              onChanged(v.clamp(0, max));
+              Navigator.pop(context);
+            },
+            child: Text(t('ok')),
+          ),
         ],
       ),
     );
@@ -316,10 +330,7 @@ class _DealerBanner extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: [
-            kAccent.withOpacity(0.85),
-            kAccent.withOpacity(0.55),
-          ],
+          colors: [kAccent.withOpacity(0.85), kAccent.withOpacity(0.55)],
         ),
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
@@ -351,24 +362,30 @@ class _CircleIconBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
   final Color color;
-  const _CircleIconBtn(
-      {required this.icon, required this.onTap, required this.color});
+  const _CircleIconBtn({
+    required this.icon,
+    required this.onTap,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-                color: onTap != null ? color : color.withOpacity(0.2)),
-          ),
-          child: Icon(icon,
-              size: 16,
-              color: onTap != null ? color : color.withOpacity(0.3)),
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(20),
+    child: Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: onTap != null ? color : color.withOpacity(0.2),
         ),
-      );
+      ),
+      child: Icon(
+        icon,
+        size: 16,
+        color: onTap != null ? color : color.withOpacity(0.3),
+      ),
+    ),
+  );
 }

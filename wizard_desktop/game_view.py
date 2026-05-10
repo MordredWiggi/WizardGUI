@@ -6,6 +6,7 @@ Zeigt:
   • Matplotlib-Plot der Punkteverläufe mit Hover-Funktion
   • Toolbar-Aktionen (Undo, Speichern, Plot exportieren, Neues Spiel)
 """
+
 from __future__ import annotations
 
 from typing import Optional, List
@@ -13,6 +14,7 @@ from typing import Optional, List
 import numpy as np
 import matplotlib
 import matplotlib.ticker
+
 matplotlib.use("QtAgg")
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as _fm
@@ -22,22 +24,39 @@ from PyQt6 import QtCore, QtWidgets, QtGui
 
 from game_control import GameControl, RoundResult, RoundEvents
 from style import (
-    ACCENT, ACCENT_DIM, BG_BASE, BG_PANEL, BG_CARD, BG_DEEP, BG_CARD_L,
-    TEXT_MAIN, TEXT_DIM, TEXT_MAIN_L, SUCCESS, DANGER, LEADER, PLAYER_COLORS,
+    ACCENT,
+    ACCENT_DIM,
+    BG_BASE,
+    BG_PANEL,
+    BG_CARD,
+    BG_DEEP,
+    BG_CARD_L,
+    TEXT_MAIN,
+    TEXT_DIM,
+    TEXT_MAIN_L,
+    SUCCESS,
+    DANGER,
+    LEADER,
+    PLAYER_COLORS,
 )
 from app_settings import t, get_theme
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Matplotlib font setup for Unicode / Hindi support
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _configure_matplotlib_font() -> None:
     """Configure matplotlib to support Unicode including Hindi/Devanagari."""
     _DEVANAGARI_FONTS = [
-        "Noto Sans Devanagari", "Noto Serif Devanagari",
-        "Lohit Devanagari", "Mangal", "Kohinoor Devanagari",
-        "Arial Unicode MS", "FreeSans", "DejaVu Sans",
+        "Noto Sans Devanagari",
+        "Noto Serif Devanagari",
+        "Lohit Devanagari",
+        "Mangal",
+        "Kohinoor Devanagari",
+        "Arial Unicode MS",
+        "FreeSans",
+        "DejaVu Sans",
     ]
     available = {f.name for f in _fm.fontManager.ttflist}
     for font_name in _DEVANAGARI_FONTS:
@@ -55,6 +74,7 @@ _configure_matplotlib_font()
 # NoScrollSpinBox – QSpinBox with mouse-wheel scrolling disabled
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class NoScrollSpinBox(QtWidgets.QSpinBox):
     """QSpinBox that ignores mouse wheel events so the value cannot be changed
     by scrolling, even when the widget has focus."""
@@ -66,6 +86,7 @@ class NoScrollSpinBox(QtWidgets.QSpinBox):
 # ─────────────────────────────────────────────────────────────────────────────
 # Matplotlib Canvas
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class MplCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=8.5, height=6.5):
@@ -98,10 +119,23 @@ class MplCanvas(FigureCanvasQTAgg):
         ax.yaxis.tick_right()
         # Minor grid at 100-pt intervals (y), drawn before major grid
         ax.yaxis.set_minor_locator(matplotlib.ticker.MultipleLocator(100))
-        ax.grid(True, which="minor", axis="y", color="#3a3a6a", linewidth=0.8,
-                linestyle="--", alpha=0.7)
-        ax.grid(True, which="major", color="#4a4a7a", linewidth=0.8,
-                linestyle="--", alpha=0.6)
+        ax.grid(
+            True,
+            which="minor",
+            axis="y",
+            color="#3a3a6a",
+            linewidth=0.8,
+            linestyle="--",
+            alpha=0.7,
+        )
+        ax.grid(
+            True,
+            which="major",
+            color="#4a4a7a",
+            linewidth=0.8,
+            linestyle="--",
+            alpha=0.6,
+        )
 
     def _style_figure_light(self) -> None:
         self.fig.patch.set_facecolor("#f0f0f5")
@@ -117,10 +151,23 @@ class MplCanvas(FigureCanvasQTAgg):
         ax.yaxis.tick_right()
         # Minor grid at 100-pt intervals (y), drawn before major grid
         ax.yaxis.set_minor_locator(matplotlib.ticker.MultipleLocator(100))
-        ax.grid(True, which="minor", axis="y", color="#dcdcec", linewidth=0.8,
-                linestyle="--", alpha=0.8)
-        ax.grid(True, which="major", color="#dcdcec", linewidth=0.6,
-                linestyle="--", alpha=0.5)
+        ax.grid(
+            True,
+            which="minor",
+            axis="y",
+            color="#dcdcec",
+            linewidth=0.8,
+            linestyle="--",
+            alpha=0.8,
+        )
+        ax.grid(
+            True,
+            which="major",
+            color="#dcdcec",
+            linewidth=0.6,
+            linestyle="--",
+            alpha=0.5,
+        )
 
     def redraw(self, game: GameControl) -> None:
         self.axes.clear()
@@ -151,17 +198,25 @@ class MplCanvas(FigureCanvasQTAgg):
 
             if n_rounds <= 1:
                 # Only a single point – nothing to segment
-                line, = self.axes.plot(
-                    rounds, player.scores,
-                    color=color, marker="o", markersize=6, linewidth=0,
-                    label=player.name, zorder=4,
+                (line,) = self.axes.plot(
+                    rounds,
+                    player.scores,
+                    color=color,
+                    marker="o",
+                    markersize=6,
+                    linewidth=0,
+                    label=player.name,
+                    zorder=4,
                 )
                 self._hover_lines.append((line, player.name, player.scores, rounds))
             else:
                 # Build a style list for each segment
                 seg_styles = [
-                    OVERLAP_STYLES[overlap_rank[(i, r)] % len(OVERLAP_STYLES)]
-                    if (i, r) in overlap_rank else "-"
+                    (
+                        OVERLAP_STYLES[overlap_rank[(i, r)] % len(OVERLAP_STYLES)]
+                        if (i, r) in overlap_rank
+                        else "-"
+                    )
                     for r in range(n_rounds - 1)
                 ]
 
@@ -173,48 +228,77 @@ class MplCanvas(FigureCanvasQTAgg):
                     r_end = r
                     while r_end < n_rounds - 1 and seg_styles[r_end] == curr_style:
                         r_end += 1
-                    x_seg = rounds[r:r_end + 1]
-                    y_seg = player.scores[r:r_end + 1]
+                    x_seg = rounds[r : r_end + 1]
+                    y_seg = player.scores[r : r_end + 1]
                     lbl = player.name if not legend_added else "_nolegend_"
-                    seg_line, = self.axes.plot(
-                        x_seg, y_seg,
-                        color=color, marker="o", linewidth=2.2, markersize=6,
-                        label=lbl, linestyle=curr_style, zorder=3,
+                    (seg_line,) = self.axes.plot(
+                        x_seg,
+                        y_seg,
+                        color=color,
+                        marker="o",
+                        linewidth=2.2,
+                        markersize=6,
+                        label=lbl,
+                        linestyle=curr_style,
+                        zorder=3,
                     )
                     if not legend_added:
                         legend_added = True
                     r = r_end
 
                 # Ghost line spanning all data points for reliable hover detection
-                ghost, = self.axes.plot(
-                    rounds, player.scores,
-                    color=color, linewidth=8, alpha=0.0, zorder=6,
+                (ghost,) = self.axes.plot(
+                    rounds,
+                    player.scores,
+                    color=color,
+                    linewidth=8,
+                    alpha=0.0,
+                    zorder=6,
                 )
                 self._hover_lines.append((ghost, player.name, player.scores, rounds))
 
             # Highlight maximum
             max_i = int(np.argmax(player.scores))
             self.axes.plot(
-                rounds[max_i], player.scores[max_i],
-                marker="D", color=color, markersize=10,
-                markeredgecolor="white", markeredgewidth=1.2, zorder=5,
+                rounds[max_i],
+                player.scores[max_i],
+                marker="D",
+                color=color,
+                markersize=10,
+                markeredgecolor="white",
+                markeredgewidth=1.2,
+                zorder=5,
             )
 
         # Average line
         self.axes.plot(
-            rounds, game.averages,
-            color="#555577", linewidth=1.5, linestyle="--",
-            label=t("average"), zorder=2,
+            rounds,
+            game.averages,
+            color="#555577",
+            linewidth=1.5,
+            linestyle="--",
+            label=t("average"),
+            zorder=2,
         )
 
         # Zero line – more prominent than regular grid
         if get_theme() == "light":
             self.axes.axhline(
-                0, color="#666688", linewidth=1.8, linestyle="-", zorder=2, alpha=0.85,
+                0,
+                color="#666688",
+                linewidth=1.8,
+                linestyle="-",
+                zorder=2,
+                alpha=0.85,
             )
         else:
             self.axes.axhline(
-                0, color="#8888aa", linewidth=1.8, linestyle="-", zorder=2, alpha=0.9,
+                0,
+                color="#8888aa",
+                linewidth=1.8,
+                linestyle="-",
+                zorder=2,
+                alpha=0.9,
             )
 
         # Integer-only x-axis ticks; bold label for the current round
@@ -222,7 +306,9 @@ class MplCanvas(FigureCanvasQTAgg):
         for tick, r in zip(self.axes.xaxis.get_major_ticks(), rounds):
             tick.label1.set_fontweight("bold" if r == game.round_number else "normal")
             if r == game.round_number:
-                tick.label1.set_color(TEXT_MAIN if get_theme() == "dark" else TEXT_MAIN_L)
+                tick.label1.set_color(
+                    TEXT_MAIN if get_theme() == "dark" else TEXT_MAIN_L
+                )
 
         # ── Sorted legend with scores at the bottom ───────────────────────
         handles, raw_labels = self.axes.get_legend_handles_labels()
@@ -241,7 +327,9 @@ class MplCanvas(FigureCanvasQTAgg):
         name_to_handle: dict = {lbl: h for h, lbl in player_entries}
 
         # Sort players by current score descending (ranking order)
-        sorted_players = sorted(game.players, key=lambda p: p.current_score, reverse=True)
+        sorted_players = sorted(
+            game.players, key=lambda p: p.current_score, reverse=True
+        )
 
         new_handles: list = []
         new_labels: list = []
@@ -256,17 +344,27 @@ class MplCanvas(FigureCanvasQTAgg):
 
         if get_theme() == "light":
             self.axes.legend(
-                new_handles, new_labels,
-                facecolor="#e4e4ee", edgecolor="#ccccdd",
-                labelcolor="#1a1a2e", fontsize=17,
-                loc="upper left", ncol=1, framealpha=0.9,
+                new_handles,
+                new_labels,
+                facecolor="#e4e4ee",
+                edgecolor="#ccccdd",
+                labelcolor="#1a1a2e",
+                fontsize=17,
+                loc="upper left",
+                ncol=1,
+                framealpha=0.9,
             )
         else:
             self.axes.legend(
-                new_handles, new_labels,
-                facecolor="#1a1a3a", edgecolor="#2a2a4a",
-                labelcolor=TEXT_MAIN, fontsize=17,
-                loc="upper left", ncol=1, framealpha=0.9,
+                new_handles,
+                new_labels,
+                facecolor="#1a1a3a",
+                edgecolor="#2a2a4a",
+                labelcolor=TEXT_MAIN,
+                fontsize=17,
+                loc="upper left",
+                ncol=1,
+                framealpha=0.9,
             )
 
         # Set up hover annotation on the fresh axes
@@ -311,7 +409,11 @@ class MplCanvas(FigureCanvasQTAgg):
 
     def _on_hover(self, event) -> None:
         """Handle mouse hover over plot lines."""
-        if event.inaxes != self.axes or not self._hover_lines or self._hover_annot is None:
+        if (
+            event.inaxes != self.axes
+            or not self._hover_lines
+            or self._hover_annot is None
+        ):
             if self._hover_annot is not None and self._hover_annot.get_visible():
                 self._hover_annot.set_visible(False)
                 self.draw_idle()
@@ -406,6 +508,7 @@ class MplCanvas(FigureCanvasQTAgg):
 # Spieler-Karte (Eingabe-Widget pro Spieler)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class PlayerCard(QtWidgets.QFrame):
     bid_changed = QtCore.pyqtSignal()
 
@@ -415,15 +518,13 @@ class PlayerCard(QtWidgets.QFrame):
         self.color = color
         self.setObjectName("card")
         # Only set the dynamic border color; background comes from QSS (#card)
-        self.setStyleSheet(
-            f"""
+        self.setStyleSheet(f"""
             QFrame#card {{
                 border: 1px solid {color};
                 border-left: 4px solid {color};
                 border-radius: 8px;
             }}
-            """
-        )
+            """)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(12, 10, 12, 10)
@@ -477,15 +578,21 @@ class PlayerCard(QtWidgets.QFrame):
         def _make_spin_widgets(label_key: str) -> tuple:
             lbl = QtWidgets.QLabel(label_key)
             lbl.setObjectName("input_label")
-            lbl.setStyleSheet(f"color: {TEXT_DIM}; font-size: 15px; font-weight: 600; letter-spacing: 1px; background: transparent; border: none;")
+            lbl.setStyleSheet(
+                f"color: {TEXT_DIM}; font-size: 15px; font-weight: 600; letter-spacing: 1px; background: transparent; border: none;"
+            )
             spin = NoScrollSpinBox()
             spin.setRange(0, 20)
             spin.setMaximumWidth(60)
             return spin, lbl
 
         self._spin_said, self._lbl_bid = _make_spin_widgets(t("announced"))
-        input_grid.addWidget(self._lbl_bid, 0, 1, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
-        input_grid.addWidget(self._spin_said, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
+        input_grid.addWidget(
+            self._lbl_bid, 0, 1, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter
+        )
+        input_grid.addWidget(
+            self._spin_said, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter
+        )
 
         # Auto-fill button: sets made = bid for this player.
         # Large, prominent "=" glyph so it reads as "equal to the bid".
@@ -496,15 +603,21 @@ class PlayerCard(QtWidgets.QFrame):
         self._btn_auto_fill.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self._update_auto_fill_style()
         self._btn_auto_fill.clicked.connect(self._fill_made_from_bid)
-        
+
         btn_wrapper = QtWidgets.QHBoxLayout()
         btn_wrapper.setContentsMargins(12, 0, 12, 0)
         btn_wrapper.addWidget(self._btn_auto_fill)
-        input_grid.addLayout(btn_wrapper, 1, 2, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+        input_grid.addLayout(
+            btn_wrapper, 1, 2, alignment=QtCore.Qt.AlignmentFlag.AlignCenter
+        )
 
         self._spin_achieved, self._lbl_made = _make_spin_widgets(t("achieved"))
-        input_grid.addWidget(self._lbl_made, 0, 3, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
-        input_grid.addWidget(self._spin_achieved, 1, 3, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
+        input_grid.addWidget(
+            self._lbl_made, 0, 3, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter
+        )
+        input_grid.addWidget(
+            self._spin_achieved, 1, 3, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter
+        )
 
         # Emit bid_changed whenever the announced (said) spinbox changes
         self._spin_said.valueChanged.connect(self.bid_changed)
@@ -523,7 +636,9 @@ class PlayerCard(QtWidgets.QFrame):
     # ── public API ────────────────────────────────────────────────────────────
 
     def get_round_result(self) -> RoundResult:
-        return RoundResult(said=self._spin_said.value(), achieved=self._spin_achieved.value())
+        return RoundResult(
+            said=self._spin_said.value(), achieved=self._spin_achieved.value()
+        )
 
     def get_current_bid(self) -> int:
         return self._spin_said.value()
@@ -584,11 +699,13 @@ class PlayerCard(QtWidgets.QFrame):
             f"border: 1px solid {self.color}; border-radius: 4px; padding: 4px 8px; }}"
         )
 
+
 # ─────────────────────────────────────────────────────────────────────────────
 # GameView
 # ─────────────────────────────────────────────────────────────────────────────
 # Tab-wrap event filter
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class _TabWrapFilter(QtCore.QObject):
     """Installed on the last widget in the tab chain.
@@ -603,14 +720,16 @@ class _TabWrapFilter(QtCore.QObject):
 
     def eventFilter(self, obj, event) -> bool:
         if event.type() == QtCore.QEvent.Type.KeyPress:
-            if (event.key() == QtCore.Qt.Key.Key_Tab
-                    and not (event.modifiers() & QtCore.Qt.KeyboardModifier.ShiftModifier)):
+            if event.key() == QtCore.Qt.Key.Key_Tab and not (
+                event.modifiers() & QtCore.Qt.KeyboardModifier.ShiftModifier
+            ):
                 self._first.setFocus(QtCore.Qt.FocusReason.TabFocusReason)
                 return True
         return super().eventFilter(obj, event)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class GameView(QtWidgets.QWidget):
     """
@@ -622,12 +741,12 @@ class GameView(QtWidgets.QWidget):
     settings_changed()
     """
 
-    request_new_game  = QtCore.pyqtSignal()
-    request_save      = QtCore.pyqtSignal()
+    request_new_game = QtCore.pyqtSignal()
+    request_save = QtCore.pyqtSignal()
     request_save_plot = QtCore.pyqtSignal()
-    request_home      = QtCore.pyqtSignal()
-    round_submitted   = QtCore.pyqtSignal(object)   # RoundEvents
-    settings_changed  = QtCore.pyqtSignal()
+    request_home = QtCore.pyqtSignal()
+    round_submitted = QtCore.pyqtSignal(object)  # RoundEvents
+    settings_changed = QtCore.pyqtSignal()
 
     def __init__(self, game: GameControl, parent=None):
         super().__init__(parent)
@@ -655,10 +774,14 @@ class GameView(QtWidgets.QWidget):
         header_row.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
 
         title = QtWidgets.QLabel(t("app_title"))
-        title.setStyleSheet(f"color: {ACCENT}; font-size: 16px; font-weight: 800; letter-spacing: 2px; background: transparent;")
+        title.setStyleSheet(
+            f"color: {ACCENT}; font-size: 16px; font-weight: 800; letter-spacing: 2px; background: transparent;"
+        )
         title.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
 
-        self.lbl_round_header = QtWidgets.QLabel(t("round_header", n=0, total=self.game.total_rounds))
+        self.lbl_round_header = QtWidgets.QLabel(
+            t("round_header", n=0, total=self.game.total_rounds)
+        )
         self.lbl_round_header.setStyleSheet(
             f"color: {TEXT_DIM}; font-size: 20px; font-weight: 700; background: transparent;"
         )
@@ -691,7 +814,9 @@ class GameView(QtWidgets.QWidget):
         # Spieler-Karten (scrollbar)
         scroll = QtWidgets.QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
         scroll.setStyleSheet("background: transparent; border: none;")
         cards_widget = QtWidgets.QWidget()
         cards_widget.setStyleSheet("background: transparent;")
@@ -794,7 +919,11 @@ class GameView(QtWidgets.QWidget):
         self._right_stack.addWidget(self.canvas)  # index 0
 
         # Page 1: Global groups ranking (only public groups)
-        from leaderboard_widget import GroupsLeaderboardWidget, GroupPlayerLeaderboardWidget
+        from leaderboard_widget import (
+            GroupsLeaderboardWidget,
+            GroupPlayerLeaderboardWidget,
+        )
+
         self._groups_lb_widget = GroupsLeaderboardWidget()
         self._right_stack.addWidget(self._groups_lb_widget)  # index 1
 
@@ -835,10 +964,12 @@ class GameView(QtWidgets.QWidget):
     def _apply_right_tab_style(self) -> None:
         dark = get_theme() != "light"
         tabs = [
-            self._btn_tab_chart, self._btn_tab_groups, self._btn_tab_mygroup,
+            self._btn_tab_chart,
+            self._btn_tab_groups,
+            self._btn_tab_mygroup,
         ]
         for i, btn in enumerate(tabs):
-            active = (i == self._current_right_tab)
+            active = i == self._current_right_tab
             if dark:
                 if active:
                     btn.setStyleSheet(
@@ -888,6 +1019,7 @@ class GameView(QtWidgets.QWidget):
         if total_bid == total_possible:
             # Show blocking warning dialog
             from dialogs import WarningDialog
+
             dlg = WarningDialog(self, t("bid_warning"))
             dlg.exec()
             return  # Don't proceed with submitting the round
@@ -897,7 +1029,10 @@ class GameView(QtWidgets.QWidget):
         total_made = sum(r.achieved for r in results)
         if total_made != total_possible:
             from dialogs import WarningDialog
-            dlg = WarningDialog(self, t("made_tricks_warning", made=total_made, total=total_possible))
+
+            dlg = WarningDialog(
+                self, t("made_tricks_warning", made=total_made, total=total_possible)
+            )
             dlg.exec()
             return  # Don't proceed until made tricks are corrected
 
@@ -911,6 +1046,7 @@ class GameView(QtWidgets.QWidget):
 
     def _on_undo(self) -> None:
         from dialogs import WarningDialog
+
         dlg = WarningDialog(self, t("undo_confirm"))
         if dlg.exec():
             self.game.undo_round()
@@ -920,6 +1056,7 @@ class GameView(QtWidgets.QWidget):
 
     def _on_new_game(self) -> None:
         from dialogs import WarningDialog
+
         dlg = WarningDialog(self, t("new_game_confirm"))
         if dlg.exec():
             self.request_new_game.emit()
@@ -928,6 +1065,7 @@ class GameView(QtWidgets.QWidget):
         """Öffnet den Einstellungen-Dialog."""
         from dialogs import SettingsDialog
         from app_settings import get_theme as _get_theme
+
         old_theme = _get_theme()
         dlg = SettingsDialog(self)
         dlg.exec()
@@ -939,7 +1077,11 @@ class GameView(QtWidgets.QWidget):
 
     def _refresh_scores(self) -> None:
         self.lbl_round_header.setText(
-            t("round_header", n=self.game.round_number + 1, total=self.game.total_rounds)
+            t(
+                "round_header",
+                n=self.game.round_number + 1,
+                total=self.game.total_rounds,
+            )
         )
         leaders = list(self.game.leaders)
         deltas = self.game.last_deltas()
@@ -987,14 +1129,16 @@ class GameView(QtWidgets.QWidget):
         # Collect focusable widgets in the desired order
         focusable: list = []
         for card in self._player_cards:
-            focusable.extend([card._spin_said, card._btn_auto_fill, card._spin_achieved])
+            focusable.extend(
+                [card._spin_said, card._btn_auto_fill, card._spin_achieved]
+            )
 
         # Linear chain only – no wrap via setTabOrder
         for i in range(len(focusable) - 1):
             QtWidgets.QWidget.setTabOrder(focusable[i], focusable[i + 1])
 
         # Cyclic wrap via event filter (avoids breaking the first link)
-        if hasattr(self, '_tab_wrap_filter'):
+        if hasattr(self, "_tab_wrap_filter"):
             focusable[-1].removeEventFilter(self._tab_wrap_filter)
         self._tab_wrap_filter = _TabWrapFilter(focusable[0], self)
         focusable[-1].installEventFilter(self._tab_wrap_filter)
@@ -1050,4 +1194,3 @@ class GameView(QtWidgets.QWidget):
         self._refresh_scores()
         self.canvas.redraw(self.game)
         self.btn_undo.setEnabled(self.game.round_number > 0)
-

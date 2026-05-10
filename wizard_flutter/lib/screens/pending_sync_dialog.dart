@@ -42,9 +42,7 @@ class _PendingSyncSheetState extends State<_PendingSyncSheet> {
   @override
   void initState() {
     super.initState();
-    _assignments = {
-      for (final p in widget.pending) p.filePath: p.groupCode,
-    };
+    _assignments = {for (final p in widget.pending) p.filePath: p.groupCode};
   }
 
   Future<void> _pickGroup(PendingSyncGame p) async {
@@ -84,16 +82,20 @@ class _PendingSyncSheetState extends State<_PendingSyncSheet> {
           await notifier.markSynced(p.filePath);
           synced++;
         }
-      } catch (_) {/* ignore individual failures */}
+      } catch (_) {
+        /* ignore individual failures */
+      }
     }
 
     if (!mounted) return;
     Navigator.pop(context);
     if (synced > 0) {
-      rootScaffoldMessengerKey.currentState?.showSnackBar(SnackBar(
-        content: Text(t('pending_sync_success', {'n': synced.toString()})),
-        duration: settings.messageDuration,
-      ));
+      rootScaffoldMessengerKey.currentState?.showSnackBar(
+        SnackBar(
+          content: Text(t('pending_sync_success', {'n': synced.toString()})),
+          duration: settings.messageDuration,
+        ),
+      );
     }
   }
 
@@ -114,20 +116,29 @@ class _PendingSyncSheetState extends State<_PendingSyncSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(children: [
-                Icon(Icons.cloud_upload_outlined,
-                    size: 22, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(t('pending_sync_title'),
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold)),
-                ),
-              ]),
+              Row(
+                children: [
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    size: 22,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      t('pending_sync_title'),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
               Text(
-                t('pending_sync_message',
-                    {'n': widget.pending.length.toString()}),
+                t('pending_sync_message', {
+                  'n': widget.pending.length.toString(),
+                }),
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 12),
@@ -142,9 +153,12 @@ class _PendingSyncSheetState extends State<_PendingSyncSheet> {
                     return ListTile(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
-                      title: Text(p.name,
-                          style: theme.textTheme.bodyMedium
-                              ?.copyWith(fontWeight: FontWeight.w600)),
+                      title: Text(
+                        p.name,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       subtitle: Text(
                         code == null
                             ? t('pending_sync_no_group')
@@ -152,8 +166,7 @@ class _PendingSyncSheetState extends State<_PendingSyncSheet> {
                         style: theme.textTheme.bodySmall,
                       ),
                       trailing: TextButton(
-                        onPressed:
-                            _uploading ? null : () => _pickGroup(p),
+                        onPressed: _uploading ? null : () => _pickGroup(p),
                         child: Text(t('pending_sync_assign_group')),
                       ),
                     );
@@ -162,19 +175,20 @@ class _PendingSyncSheetState extends State<_PendingSyncSheet> {
               ),
               if (_uploading) const LinearProgressIndicator(),
               const SizedBox(height: 12),
-              Row(children: [
-                TextButton(
-                  onPressed:
-                      _uploading ? null : () => Navigator.pop(context),
-                  child: Text(t('pending_sync_skip')),
-                ),
-                const Spacer(),
-                ElevatedButton.icon(
-                  onPressed: _uploading ? null : _uploadAll,
-                  icon: const Icon(Icons.cloud_upload, size: 18),
-                  label: Text(t('pending_sync_upload')),
-                ),
-              ]),
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: _uploading ? null : () => Navigator.pop(context),
+                    child: Text(t('pending_sync_skip')),
+                  ),
+                  const Spacer(),
+                  ElevatedButton.icon(
+                    onPressed: _uploading ? null : _uploadAll,
+                    icon: const Icon(Icons.cloud_upload, size: 18),
+                    label: Text(t('pending_sync_upload')),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -234,16 +248,24 @@ class _GroupPickerSheetState extends State<_GroupPickerSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(children: [
-                Icon(Icons.group_outlined,
-                    size: 22, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(t('pending_sync_assign_group'),
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold)),
-                ),
-              ]),
+              Row(
+                children: [
+                  Icon(
+                    Icons.group_outlined,
+                    size: 22,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      t('pending_sync_assign_group'),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
 
               // Known groups list — these have codes locally, so tapping one
@@ -251,9 +273,12 @@ class _GroupPickerSheetState extends State<_GroupPickerSheet> {
               if (groups.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(t('no_groups'),
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(fontStyle: FontStyle.italic)),
+                  child: Text(
+                    t('no_groups'),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
                 )
               else
                 Flexible(
@@ -268,13 +293,17 @@ class _GroupPickerSheetState extends State<_GroupPickerSheet> {
                       return ListTile(
                         dense: true,
                         contentPadding: EdgeInsets.zero,
-                        leading:
-                            const Icon(Icons.group_outlined, size: 20),
-                        title: Text(name,
-                            style: theme.textTheme.bodyMedium
-                                ?.copyWith(fontWeight: FontWeight.w600)),
-                        subtitle: Text('#$code',
-                            style: theme.textTheme.bodySmall),
+                        leading: const Icon(Icons.group_outlined, size: 20),
+                        title: Text(
+                          name,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '#$code',
+                          style: theme.textTheme.bodySmall,
+                        ),
                         onTap: code.isEmpty
                             ? null
                             : () => Navigator.pop(context, code),
@@ -288,47 +317,58 @@ class _GroupPickerSheetState extends State<_GroupPickerSheet> {
               // Manual code entry — for groups the user knows the code for
               // but hasn't joined on this device. We don't validate against
               // the server here; the upload itself will succeed or fail.
-              Text(t('group_code_label'),
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                t('group_code_label'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 6),
-              Row(children: [
-                Expanded(
-                  child: TextField(
-                    controller: _codeController,
-                    decoration: InputDecoration(
-                      hintText: t('group_code_placeholder'),
-                      counterText: '',
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _codeController,
+                      decoration: InputDecoration(
+                        hintText: t('group_code_placeholder'),
+                        counterText: '',
+                      ),
+                      keyboardType: TextInputType.number,
+                      maxLength: 4,
+                      onChanged: (_) => setState(() {}),
                     ),
-                    keyboardType: TextInputType.number,
-                    maxLength: 4,
-                    onChanged: (_) => setState(() {}),
                   ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _codeValid
-                      ? () => Navigator.pop(
-                          context, _codeController.text.trim())
-                      : null,
-                  child: Text(t('btn_add')),
-                ),
-              ]),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _codeValid
+                        ? () => Navigator.pop(
+                            context,
+                            _codeController.text.trim(),
+                          )
+                        : null,
+                    child: Text(t('btn_add')),
+                  ),
+                ],
+              ),
 
               const SizedBox(height: 12),
-              Row(children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(t('cancel')),
-                ),
-                const Spacer(),
-                TextButton(
-                  // Empty string = explicit "no group" choice.
-                  onPressed: () => Navigator.pop(context, ''),
-                  child: Text(t('pending_sync_no_group'),
-                      style: const TextStyle(color: kTextDim)),
-                ),
-              ]),
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(t('cancel')),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    // Empty string = explicit "no group" choice.
+                    onPressed: () => Navigator.pop(context, ''),
+                    child: Text(
+                      t('pending_sync_no_group'),
+                      style: const TextStyle(color: kTextDim),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),

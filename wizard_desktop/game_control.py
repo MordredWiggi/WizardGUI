@@ -2,6 +2,7 @@
 GameControl – Datenmodell für ein Wizard-Spiel.
 Enthält: RoundResult, Player, GameControl
 """
+
 from __future__ import annotations
 import random
 from dataclasses import dataclass, field
@@ -18,6 +19,7 @@ GAME_MODE_MULTIPLICATIVE = "multiplicative"
 # ---------------------------------------------------------------------------
 # Value objects
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class RoundResult:
@@ -46,6 +48,7 @@ class RoundResult:
 # Player
 # ---------------------------------------------------------------------------
 
+
 @dataclass(init=False)
 class Player:
     name: str
@@ -53,7 +56,9 @@ class Player:
     scores: List[int]
     round_results: List[RoundResult]
 
-    def __init__(self, name: str, avatar: str = "🧙‍♂️", initial_score: int = 0) -> None:
+    def __init__(
+        self, name: str, avatar: str = "🧙‍♂️", initial_score: int = 0
+    ) -> None:
         self.name = name
         self.avatar = avatar
         self.scores = [initial_score]
@@ -94,10 +99,10 @@ class Player:
             return False
         r = self.round_results
         return (
-            r[-1].score_delta > 0   # current round: gain
-            and r[-2].score_delta > 0   # previous round: gain (2nd consecutive)
-            and r[-3].score_delta < 0   # before the gain streak: a loss
-            and r[-4].score_delta < 0   # and the round before that also a loss (≥2)
+            r[-1].score_delta > 0  # current round: gain
+            and r[-2].score_delta > 0  # previous round: gain (2nd consecutive)
+            and r[-3].score_delta < 0  # before the gain streak: a loss
+            and r[-4].score_delta < 0  # and the round before that also a loss (≥2)
         )
 
     # --- mutating methods ----------------------------------------------------
@@ -142,23 +147,27 @@ class Player:
 # Game events (returned after each round so the UI can react)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class RoundEvents:
-    new_leader: Optional[Player]           # None → no leadership change
-    big_scorer: Optional[Player]           # gained ≥ 50 pts this round
+    new_leader: Optional[Player]  # None → no leadership change
+    big_scorer: Optional[Player]  # gained ≥ 50 pts this round
     big_score_delta: int
-    fire_player: Optional[Player]          # ≥ 3 consecutive perfect rounds
-    negative_player: Optional[Player]      # took the biggest loss this round
-    game_over: bool = False                  # True when all rounds are played
-    bow_players: List[Player] = field(default_factory=list)      # 3 consecutive losses
-    revenge_players: List[Player] = field(default_factory=list)  # 2 gains after ≥2 losses
-    huge_loss_player: Optional[Player] = None   # lost ≥ 40 pts this round
-    huge_loss_delta: int = 0                    # the actual loss (negative)
+    fire_player: Optional[Player]  # ≥ 3 consecutive perfect rounds
+    negative_player: Optional[Player]  # took the biggest loss this round
+    game_over: bool = False  # True when all rounds are played
+    bow_players: List[Player] = field(default_factory=list)  # 3 consecutive losses
+    revenge_players: List[Player] = field(
+        default_factory=list
+    )  # 2 gains after ≥2 losses
+    huge_loss_player: Optional[Player] = None  # lost ≥ 40 pts this round
+    huge_loss_delta: int = 0  # the actual loss (negative)
 
 
 # ---------------------------------------------------------------------------
 # GameControl
 # ---------------------------------------------------------------------------
+
 
 class GameControl:
     """Central model holding the complete state of one game."""
@@ -172,7 +181,11 @@ class GameControl:
         self.game_mode = game_mode
         initial_score = 100 if game_mode == GAME_MODE_MULTIPLICATIVE else 0
         self.players: List[Player] = [
-            Player(name=p["name"], avatar=p.get("avatar", "🧙‍♂️"), initial_score=initial_score)
+            Player(
+                name=p["name"],
+                avatar=p.get("avatar", "🧙‍♂️"),
+                initial_score=initial_score,
+            )
             for p in player_data
         ]
         self.round_number: int = 0

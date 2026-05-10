@@ -13,7 +13,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_home": "Home",
         "nav_leaderboard": "Leaderboard",
         "nav_feedback": "Feedback",
-        
         # Hero
         "hero_badge": "Wizard Score Tracker",
         "hero_title_1": "Every trick.",
@@ -26,7 +25,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "cta_playstore": "Get it on Google Play",
         "cta_github": "View source on GitHub",
         "coming_soon": "Coming soon",
-        
         # Features
         "feat_1_title": "Automatic scoring",
         "feat_1_desc": "Enter bids and tricks — the app handles the math for every round, standard or multiplicative.",
@@ -34,21 +32,17 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "feat_2_desc": "Win rates, streaks, hit rates and highscores — see how your table stacks up worldwide.",
         "feat_3_title": "Private groups",
         "feat_3_desc": "Share a 4-digit code with your crew and keep a private leaderboard for your regular game nights.",
-        
         # Footer
         "footer_text": "Wizard Score Tracker",
         "footer_privacy": "Privacy Policy",
-        
         # Leaderboard specific (assuming minimal)
         "leaderboard_title": "Global Leaderboard",
         "leaderboard_desc": "See the best Wizard players from around the world.",
         "lb_name": "Player",
         "lb_score": "Score",
-        
         # Feedback specific
         "feedback_title": "Feedback & Ideas",
         "feedback_desc": "Got a great idea? Found a bug? Let us know below.",
-        
         # Leaderboard tabs/sort
         "lb_tab_standard": "Standard",
         "lb_tab_mult": "Multiplicative (×)",
@@ -69,11 +63,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "lb_table_hit": "Hit Rate",
         "lb_table_high": "Highscore",
         "lb_table_streak": "Streak",
-        
         # Feedback
         "fb_submit": "Submit Feedback",
         "fb_placeholder": "Write your feedback...",
-
         # Groups leaderboard page
         "lb_group_global_subtitle": "GROUPS RANKING",
         "lb_group_subtitle": "GROUP PLAYER RANKING",
@@ -96,7 +88,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_home": "Startseite",
         "nav_leaderboard": "Bestenliste",
         "nav_feedback": "Feedback",
-        
         # Hero
         "hero_badge": "Wizard Punkte-Tracker",
         "hero_title_1": "Jeder Stich.",
@@ -109,7 +100,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "cta_playstore": "Jetzt bei Google Play",
         "cta_github": "Quellcode auf GitHub",
         "coming_soon": "Bald verfügbar",
-        
         # Features
         "feat_1_title": "Automatische Wertung",
         "feat_1_desc": "Gib Ansagen und Stiche ein — die App übernimmt die Rechnung für jede Runde, ob Standard oder Multiplikator.",
@@ -117,21 +107,17 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "feat_2_desc": "Siegquoten, Serien, Trefferquoten und Highscores — sieh, wie dein Tisch weltweit abschneidet.",
         "feat_3_title": "Private Gruppen",
         "feat_3_desc": "Teile einen 4-stelligen Code mit deiner Crew für eine private Bestenliste.",
-        
         # Footer
         "footer_text": "Wizard Punkte-Tracker",
         "footer_privacy": "Datenschutzerklärung",
-        
         # Leaderboard specific
         "leaderboard_title": "Globale Bestenliste",
         "leaderboard_desc": "Sieh dir die besten Wizard-Spieler der Welt an.",
         "lb_name": "Spieler",
         "lb_score": "Punkte",
-        
         # Feedback specific
         "feedback_title": "Feedback & Ideen",
         "feedback_desc": "Tolle Idee? Bug gefunden? Lass es uns hier wissen.",
-        
         "lb_tab_standard": "Standard",
         "lb_tab_mult": "Multiplikativ (×)",
         "lb_sort_wins": "Siege",
@@ -151,10 +137,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "lb_table_hit": "Treffer",
         "lb_table_high": "Highscore",
         "lb_table_streak": "Serie",
-        
         "fb_submit": "Senden",
         "fb_placeholder": "Dein Feedback...",
-
         # Groups leaderboard page
         "lb_group_global_subtitle": "GRUPPEN-RANGLISTE",
         "lb_group_subtitle": "SPIELER-RANGLISTE DER GRUPPE",
@@ -177,7 +161,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_home": "Accueil",
         "nav_leaderboard": "Classement",
         "nav_feedback": "Retour",
-        
         # Hero
         "hero_badge": "Suivi de Score Wizard",
         "hero_title_1": "Chaque pli.",
@@ -190,7 +173,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "cta_playstore": "Disponible sur Google Play",
         "cta_github": "Code source sur GitHub",
         "coming_soon": "Bientôt disponible",
-        
         # Features
         "feat_1_title": "Calcul automatique",
         "feat_1_desc": "Saisissez les annonces et les plis — l'application s'occupe des maths pour chaque manche.",
@@ -198,19 +180,15 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "feat_2_desc": "Taux de victoire, séries et records — comparez votre table au reste du monde.",
         "feat_3_title": "Groupes privés",
         "feat_3_desc": "Partagez un code à 4 chiffres avec votre groupe pour un classement privé.",
-        
         # Footer
         "footer_text": "Suivi de Score Wizard",
         "footer_privacy": "Politique de confidentialité",
-        
         "leaderboard_title": "Classement mondial",
         "leaderboard_desc": "Voyez les meilleurs joueurs de Wizard du monde entier.",
         "lb_name": "Joueur",
         "lb_score": "Score",
-        
         "feedback_title": "Retours & Idées",
         "feedback_desc": "Une idée lumineuse ? Un bug aperçu ? Dites-le nous ci-dessous.",
-        
         "lb_tab_standard": "Classique",
         "lb_tab_mult": "Multiplicatif (×)",
         "lb_sort_wins": "Victoires",
@@ -225,15 +203,13 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "lb_empty": "Aucune partie dans ce mode.",
         "lb_table_games": "Parties",
         "lb_table_wins": "Victoires",
-        "lb_table_quote": "Taux V." ,
+        "lb_table_quote": "Taux V.",
         "lb_table_avg": "Ø Score",
         "lb_table_hit": "Précision",
         "lb_table_high": "Record",
         "lb_table_streak": "Série",
-        
         "fb_submit": "Envoyer",
         "fb_placeholder": "Votre retour...",
-
         # Groups leaderboard page
         "lb_group_global_subtitle": "CLASSEMENT DES GROUPES",
         "lb_group_subtitle": "CLASSEMENT DES JOUEURS DU GROUPE",
@@ -256,7 +232,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_home": "होम (Home)",
         "nav_leaderboard": "लीडरबोर्ड (Leaderboard)",
         "nav_feedback": "प्रतिक्रिया (Feedback)",
-        
         # Hero
         "hero_badge": "विज़ार्ड स्कोर ट्रैकर",
         "hero_title_1": "हर चाल।",
@@ -269,7 +244,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "cta_playstore": "गूगल प्ले पर उपलब्ध",
         "cta_github": "गिटहब पर कोड देखें",
         "coming_soon": "जल्द आ रहा है",
-        
         # Features
         "feat_1_title": "स्वचालित स्कोरिंग",
         "feat_1_desc": "बोलियां और चालें दर्ज करें — ऐप हर राउंड के लिए गणित संभालता है।",
@@ -277,19 +251,15 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "feat_2_desc": "जीत की दर, लकीरें और उच्च स्कोर — देखें कि आपकी टेबल दुनिया भर में कैसी है।",
         "feat_3_title": "निजी समूह",
         "feat_3_desc": "अपने समूह के साथ 4-अंकीय कोड साझा करें और अपने नियमित गेम नाइट्स के लिए एक निजी लीडरबोर्ड रखें।",
-        
         # Footer
         "footer_text": "विज़ार्ड स्कोर ट्रैकर",
         "footer_privacy": "गोपनीयता नीति",
-        
         "leaderboard_title": "ग्लोबल लीडरबोर्ड",
         "leaderboard_desc": "दुनिया भर के सर्वश्रेष्ठ विजार्ड खिलाड़ियों को देखें।",
         "lb_name": "खिलाड़ी",
         "lb_score": "अंक",
-        
         "feedback_title": "फ़ीडबैक और विचार",
         "feedback_desc": "कोई बढ़िया विचार है? कोई बग मिला? हमें नीचे बताएं।",
-        
         "lb_tab_standard": "स्टैंडर्ड",
         "lb_tab_mult": "गुणात्मक (×)",
         "lb_sort_wins": "जीत",
@@ -309,10 +279,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "lb_table_hit": "हिट",
         "lb_table_high": "उच्च स्कोर",
         "lb_table_streak": "लकीर",
-        
         "fb_submit": "सबमिट करें",
         "fb_placeholder": "अपना फीडबैक लिखें...",
-
         # Groups leaderboard page
         "lb_group_global_subtitle": "समूह रैंकिंग",
         "lb_group_subtitle": "समूह के खिलाड़ियों की रैंकिंग",
@@ -329,5 +297,5 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "lb_code_wrong": "गलत या अज्ञात कोड।",
         "lb_back_to_groups": "समूहों पर वापस जाएं",
         "cancel": "रद्द करें",
-    }
+    },
 }

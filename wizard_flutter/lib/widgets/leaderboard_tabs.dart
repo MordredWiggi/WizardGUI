@@ -31,16 +31,31 @@ class _GroupsLeaderboardTabState extends State<GroupsLeaderboardTab> {
   Future<void> _load() async {
     final url = context.read<AppSettings>().leaderboardUrl;
     if (url.isEmpty) {
-      setState(() { _data = null; _hasError = false; _loading = false; });
+      setState(() {
+        _data = null;
+        _hasError = false;
+        _loading = false;
+      });
       return;
     }
-    setState(() { _loading = true; _hasError = false; });
+    setState(() {
+      _loading = true;
+      _hasError = false;
+    });
     try {
       final svc = LeaderboardService(url);
       final result = await svc.getGlobalGroupsLeaderboard();
-      if (mounted) setState(() { _data = result; _loading = false; });
+      if (mounted)
+        setState(() {
+          _data = result;
+          _loading = false;
+        });
     } catch (_) {
-      if (mounted) setState(() { _loading = false; _hasError = true; });
+      if (mounted)
+        setState(() {
+          _loading = false;
+          _hasError = true;
+        });
     }
   }
 
@@ -88,6 +103,7 @@ class _GroupsLeaderboardTabState extends State<GroupsLeaderboardTab> {
       final c = Comparable.compare(av, bv);
       return _sortAscending ? c : -c;
     }
+
     rows.sort(cmp);
     return rows;
   }
@@ -114,9 +130,11 @@ class _GroupsLeaderboardTabState extends State<GroupsLeaderboardTab> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text('${t('leaderboard_url_label')} ${t('leaderboard_url_placeholder')}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: kTextDim)),
+          child: Text(
+            '${t('leaderboard_url_label')} ${t('leaderboard_url_placeholder')}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: kTextDim),
+          ),
         ),
       );
     }
@@ -159,12 +177,15 @@ class _GroupsLeaderboardTabState extends State<GroupsLeaderboardTab> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(t('tab_groups_lb'),
-                  style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: kTextDim,
-                      letterSpacing: 1.1)),
+              Text(
+                t('tab_groups_lb'),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: kTextDim,
+                  letterSpacing: 1.1,
+                ),
+              ),
               IconButton(
                 icon: const Icon(Icons.refresh, size: 20),
                 tooltip: t('btn_refresh'),
@@ -189,14 +210,20 @@ class _GroupsLeaderboardTabState extends State<GroupsLeaderboardTab> {
                 sortColumnIndex: _sortColumnIndex,
                 sortAscending: _sortAscending,
                 headingTextStyle: const TextStyle(
-                    fontSize: 11, color: kTextDim, fontWeight: FontWeight.w600),
+                  fontSize: 11,
+                  color: kTextDim,
+                  fontWeight: FontWeight.w600,
+                ),
                 dataTextStyle: const TextStyle(fontSize: 12),
                 columns: [
                   const DataColumn(
-                      label: _CenterHeader('#', width: _kRankCellWidth)),
+                    label: _CenterHeader('#', width: _kRankCellWidth),
+                  ),
                   DataColumn(
-                    label: _CenterHeader(t('lb_col_name'),
-                        width: _kNameCellWidth),
+                    label: _CenterHeader(
+                      t('lb_col_name'),
+                      width: _kNameCellWidth,
+                    ),
                     onSort: (i, _) => _sortBy(i, 'name', numeric: false),
                   ),
                   DataColumn(
@@ -225,25 +252,38 @@ class _GroupsLeaderboardTabState extends State<GroupsLeaderboardTab> {
                   final avg = (row['avg_score'] as num?)?.toDouble() ?? 0.0;
                   // Server already returns avg_hit_rate as a percentage (0-100).
                   final hit = (row['avg_hit_rate'] as num?)?.toDouble() ?? 0.0;
-                  return DataRow(cells: [
-                    DataCell(_CenterCell(
-                        Text(_rankBadge(visualRank),
+                  return DataRow(
+                    cells: [
+                      DataCell(
+                        _CenterCell(
+                          Text(
+                            _rankBadge(visualRank),
                             style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: _rankColor(visualRank))),
-                        width: _kRankCellWidth)),
-                    DataCell(_CenterCell(
-                        Text(name,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: _rankColor(visualRank),
+                            ),
+                          ),
+                          width: _kRankCellWidth,
+                        ),
+                      ),
+                      DataCell(
+                        _CenterCell(
+                          Text(
+                            name,
                             textAlign: TextAlign.center,
                             style: const TextStyle(fontWeight: FontWeight.w500),
-                            overflow: TextOverflow.ellipsis),
-                        width: _kNameCellWidth)),
-                    DataCell(_CenterCell(Text(games.toString()))),
-                    DataCell(_CenterCell(Text(players.toString()))),
-                    DataCell(_CenterCell(Text(avg.toStringAsFixed(0)))),
-                    DataCell(_CenterCell(Text('${hit.toStringAsFixed(0)}%'))),
-                  ]);
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          width: _kNameCellWidth,
+                        ),
+                      ),
+                      DataCell(_CenterCell(Text(games.toString()))),
+                      DataCell(_CenterCell(Text(players.toString()))),
+                      DataCell(_CenterCell(Text(avg.toStringAsFixed(0)))),
+                      DataCell(_CenterCell(Text('${hit.toStringAsFixed(0)}%'))),
+                    ],
+                  );
                 }).toList(),
               ),
             ),
@@ -277,7 +317,8 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
     super.didChangeDependencies();
     final group = context.read<GameNotifier>().activeGroup;
     final code = group?['code'] as String?;
-    if (code != null && (code != _lastGroupCode || (_data == null && !_loading))) {
+    if (code != null &&
+        (code != _lastGroupCode || (_data == null && !_loading))) {
       _lastGroupCode = code;
       _load(code);
     }
@@ -286,19 +327,33 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
   Future<void> _load(String code) async {
     final url = context.read<AppSettings>().leaderboardUrl;
     if (url.isEmpty) return;
-    setState(() { _loading = true; _hasError = false; });
+    setState(() {
+      _loading = true;
+      _hasError = false;
+    });
     try {
       final svc = LeaderboardService(url);
       final result = await svc.getGroupPlayerLeaderboard(code, _mode);
-      if (mounted) setState(() { _data = result; _loading = false; });
+      if (mounted)
+        setState(() {
+          _data = result;
+          _loading = false;
+        });
     } catch (_) {
-      if (mounted) setState(() { _loading = false; _hasError = true; });
+      if (mounted)
+        setState(() {
+          _loading = false;
+          _hasError = true;
+        });
     }
   }
 
   void _switchMode(String mode) {
     if (mode == _mode) return;
-    setState(() { _mode = mode; _data = null; });
+    setState(() {
+      _mode = mode;
+      _data = null;
+    });
     final code = context.read<GameNotifier>().activeGroup?['code'] as String?;
     if (code != null) _load(code);
   }
@@ -355,6 +410,7 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
       final c = Comparable.compare(av, bv);
       return _sortAscending ? c : -c;
     }
+
     rows.sort(cmp);
     return rows;
   }
@@ -370,9 +426,11 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(t('group_required'),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: kTextDim)),
+          child: Text(
+            t('group_required'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: kTextDim),
+          ),
         ),
       );
     }
@@ -381,9 +439,11 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text('${t('leaderboard_url_label')} ${t('leaderboard_url_placeholder')}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: kTextDim)),
+          child: Text(
+            '${t('leaderboard_url_label')} ${t('leaderboard_url_placeholder')}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: kTextDim),
+          ),
         ),
       );
     }
@@ -398,10 +458,11 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
                 child: Text(
                   group['name'] as String? ?? '',
                   style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: kAccent,
-                      letterSpacing: 1.0),
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: kAccent,
+                    letterSpacing: 1.0,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -447,8 +508,9 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
                   Text(t('lb_error'), style: const TextStyle(color: kTextDim)),
                   const SizedBox(height: 12),
                   ElevatedButton(
-                      onPressed: () => _load(group['code'] as String),
-                      child: Text(t('btn_refresh'))),
+                    onPressed: () => _load(group['code'] as String),
+                    child: Text(t('btn_refresh')),
+                  ),
                 ],
               ),
             ),
@@ -456,8 +518,10 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
         else if (_data == null || _data!.isEmpty)
           Expanded(
             child: Center(
-              child: Text(t('lb_no_data'),
-                  style: const TextStyle(color: kTextDim)),
+              child: Text(
+                t('lb_no_data'),
+                style: const TextStyle(color: kTextDim),
+              ),
             ),
           )
         else
@@ -475,14 +539,20 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
                   sortColumnIndex: _sortColumnIndex,
                   sortAscending: _sortAscending,
                   headingTextStyle: const TextStyle(
-                      fontSize: 10, color: kTextDim, fontWeight: FontWeight.w600),
+                    fontSize: 10,
+                    color: kTextDim,
+                    fontWeight: FontWeight.w600,
+                  ),
                   dataTextStyle: const TextStyle(fontSize: 12),
                   columns: [
                     const DataColumn(
-                        label: _CenterHeader('#', width: _kRankCellWidth)),
+                      label: _CenterHeader('#', width: _kRankCellWidth),
+                    ),
                     DataColumn(
-                      label: _CenterHeader(t('lb_col_name'),
-                          width: _kNameCellWidth),
+                      label: _CenterHeader(
+                        t('lb_col_name'),
+                        width: _kNameCellWidth,
+                      ),
                       onSort: (i, _) => _sortBy(i, numeric: false),
                     ),
                     DataColumn(
@@ -521,28 +591,48 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
                     // Server already returns hit_rate as a percentage (0-100).
                     final hitPct = (row['hit_rate'] as num?)?.toDouble() ?? 0.0;
                     final streak = (row['win_streak'] as num?)?.toInt() ?? 0;
-                    return DataRow(cells: [
-                      DataCell(_CenterCell(
-                          Text(_rankBadge(visualRank),
+                    return DataRow(
+                      cells: [
+                        DataCell(
+                          _CenterCell(
+                            Text(
+                              _rankBadge(visualRank),
                               style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: _rankColor(visualRank))),
-                          width: _kRankCellWidth)),
-                      DataCell(_CenterCell(
-                          Text(name,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: _rankColor(visualRank),
+                              ),
+                            ),
+                            width: _kRankCellWidth,
+                          ),
+                        ),
+                        DataCell(
+                          _CenterCell(
+                            Text(
+                              name,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(fontWeight: FontWeight.w500),
-                              overflow: TextOverflow.ellipsis),
-                          width: _kNameCellWidth)),
-                      DataCell(_CenterCell(Text(games.toString()))),
-                      DataCell(_CenterCell(Text(wins.toString()))),
-                      DataCell(_CenterCell(Text(avg.toStringAsFixed(0)))),
-                      DataCell(_CenterCell(Text(best.toString()))),
-                      DataCell(_CenterCell(Text('${hitPct.toStringAsFixed(0)}%'))),
-                      DataCell(_CenterCell(
-                          Text(streak > 0 ? '🔥$streak' : streak.toString()))),
-                    ]);
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            width: _kNameCellWidth,
+                          ),
+                        ),
+                        DataCell(_CenterCell(Text(games.toString()))),
+                        DataCell(_CenterCell(Text(wins.toString()))),
+                        DataCell(_CenterCell(Text(avg.toStringAsFixed(0)))),
+                        DataCell(_CenterCell(Text(best.toString()))),
+                        DataCell(
+                          _CenterCell(Text('${hitPct.toStringAsFixed(0)}%')),
+                        ),
+                        DataCell(
+                          _CenterCell(
+                            Text(streak > 0 ? '🔥$streak' : streak.toString()),
+                          ),
+                        ),
+                      ],
+                    );
                   }).toList(),
                 ),
               ),
@@ -628,8 +718,10 @@ class _CenterCell extends StatelessWidget {
   const _CenterCell(this.child, {this.width = _kHeaderCellWidth});
 
   @override
-  Widget build(BuildContext context) =>
-      SizedBox(width: width, child: Center(child: child));
+  Widget build(BuildContext context) => SizedBox(
+    width: width,
+    child: Center(child: child),
+  );
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────

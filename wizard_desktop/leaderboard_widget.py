@@ -11,6 +11,7 @@ The old global-player leaderboard has been removed: only two leaderboard
 kinds exist now — the global groups ranking and each group's internal
 player ranking.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -18,35 +19,47 @@ from typing import Optional
 from PyQt6 import QtCore, QtWidgets, QtGui
 
 from style import (
-    ACCENT, ACCENT_DIM, BG_PANEL, BG_CARD, BG_DEEP,
-    TEXT_MAIN, TEXT_DIM, LEADER,
+    ACCENT,
+    ACCENT_DIM,
+    BG_PANEL,
+    BG_CARD,
+    BG_DEEP,
+    TEXT_MAIN,
+    TEXT_DIM,
+    LEADER,
 )
 from app_settings import t, get_leaderboard_url, get_theme
 from game_control import GAME_MODE_STANDARD, GAME_MODE_MULTIPLICATIVE
 
-
 # Sort-capable columns and their header keys.  "_rank" and "name" are not
 # sortable; all others are.
 _COLUMNS = [
-    ("_rank",         "lb_col_rank",     50),
-    ("name",          "lb_col_name",    150),
-    ("wins",          "lb_col_wins",     70),
-    ("games",         "lb_col_games",    70),
-    ("win_rate",      "lb_col_win_rate", 80),
-    ("avg_score",     "lb_col_avg",      80),
-    ("hit_rate",      "lb_col_hit_rate", 80),
-    ("highest_score", "lb_col_highest",  80),
-    ("win_streak",    "lb_col_streak",   70),
+    ("_rank", "lb_col_rank", 50),
+    ("name", "lb_col_name", 150),
+    ("wins", "lb_col_wins", 70),
+    ("games", "lb_col_games", 70),
+    ("win_rate", "lb_col_win_rate", 80),
+    ("avg_score", "lb_col_avg", 80),
+    ("hit_rate", "lb_col_hit_rate", 80),
+    ("highest_score", "lb_col_highest", 80),
+    ("win_streak", "lb_col_streak", 70),
 ]
-_SORTABLE_KEYS = {"wins", "games", "win_rate", "avg_score",
-                  "hit_rate", "highest_score", "win_streak"}
+_SORTABLE_KEYS = {
+    "wins",
+    "games",
+    "win_rate",
+    "avg_score",
+    "hit_rate",
+    "highest_score",
+    "win_streak",
+}
 
 _GROUPS_COLUMNS = [
-    ("_rank",        "glb_col_rank",      50),
-    ("name",         "glb_col_name",     180),
-    ("total_games",  "glb_col_games",     80),
-    ("avg_score",    "glb_col_avg_score", 90),
-    ("avg_hit_rate", "glb_col_hit_rate",  90),
+    ("_rank", "glb_col_rank", 50),
+    ("name", "glb_col_name", 180),
+    ("total_games", "glb_col_games", 80),
+    ("avg_score", "glb_col_avg_score", 90),
+    ("avg_hit_rate", "glb_col_hit_rate", 90),
 ]
 _GROUPS_SORTABLE = {"total_games", "avg_score", "avg_hit_rate"}
 
@@ -192,7 +205,9 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
             btn.setMinimumHeight(30)
             btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self._btn_standard.clicked.connect(lambda: self._set_mode(GAME_MODE_STANDARD))
-        self._btn_multi.clicked.connect(lambda: self._set_mode(GAME_MODE_MULTIPLICATIVE))
+        self._btn_multi.clicked.connect(
+            lambda: self._set_mode(GAME_MODE_MULTIPLICATIVE)
+        )
         top_row.addWidget(self._btn_standard)
         top_row.addWidget(self._btn_multi)
 
@@ -201,7 +216,9 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
         self._btn_refresh = QtWidgets.QPushButton("↻")
         self._btn_refresh.setFixedSize(36, 30)
         self._btn_refresh.setToolTip(t("btn_refresh"))
-        self._btn_refresh.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self._btn_refresh.setCursor(
+            QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        )
         self._btn_refresh.clicked.connect(self.refresh)
         top_row.addWidget(self._btn_refresh)
 
@@ -212,9 +229,15 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
         self._table.setColumnCount(len(_COLUMNS))
         self._table.setHorizontalHeaderLabels([t(col[1]) for col in _COLUMNS])
         self._table.verticalHeader().setVisible(False)
-        self._table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
-        self._table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
-        self._table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        self._table.setEditTriggers(
+            QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers
+        )
+        self._table.setSelectionBehavior(
+            QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self._table.setSelectionMode(
+            QtWidgets.QAbstractItemView.SelectionMode.SingleSelection
+        )
 
         header = self._table.horizontalHeader()
         header.setSectionsClickable(True)
@@ -292,6 +315,7 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
             LeaderboardClient,
             GroupPlayerLeaderboardWorker,
         )
+
         client = LeaderboardClient(url)
         self._fetch_worker = GroupPlayerLeaderboardWorker(
             client, self._group_code, self._current_mode
@@ -343,12 +367,16 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
 
                 if row_idx == 0 and data_key in ("_rank", "name"):
                     item.setForeground(QtGui.QColor(LEADER))
-                    f = item.font(); f.setBold(True); item.setFont(f)
+                    f = item.font()
+                    f.setBold(True)
+                    item.setFont(f)
 
                 if data_key == self._current_sort:
                     dark = get_theme() != "light"
                     item.setForeground(QtGui.QColor(ACCENT if dark else "#9b7a1e"))
-                    f = item.font(); f.setBold(True); item.setFont(f)
+                    f = item.font()
+                    f.setBold(True)
+                    item.setFont(f)
 
                 self._table.setItem(row_idx, col_idx, item)
 
@@ -379,6 +407,7 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
 # GroupsLeaderboardWidget – global groups ranking
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class GroupsLeaderboardWidget(QtWidgets.QWidget):
     """Groups leaderboard; header clicks drive the sort."""
 
@@ -399,7 +428,9 @@ class GroupsLeaderboardWidget(QtWidgets.QWidget):
         self._btn_refresh = QtWidgets.QPushButton("↻")
         self._btn_refresh.setFixedSize(36, 32)
         self._btn_refresh.setToolTip(t("btn_refresh"))
-        self._btn_refresh.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self._btn_refresh.setCursor(
+            QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        )
         self._btn_refresh.clicked.connect(self.refresh)
         top_row.addWidget(self._btn_refresh)
         layout.addLayout(top_row)
@@ -408,9 +439,15 @@ class GroupsLeaderboardWidget(QtWidgets.QWidget):
         self._table.setColumnCount(len(_GROUPS_COLUMNS))
         self._table.setHorizontalHeaderLabels([t(col[1]) for col in _GROUPS_COLUMNS])
         self._table.verticalHeader().setVisible(False)
-        self._table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
-        self._table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
-        self._table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        self._table.setEditTriggers(
+            QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers
+        )
+        self._table.setSelectionBehavior(
+            QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self._table.setSelectionMode(
+            QtWidgets.QAbstractItemView.SelectionMode.SingleSelection
+        )
         self._table.setAlternatingRowColors(True)
 
         header = self._table.horizontalHeader()
@@ -459,6 +496,7 @@ class GroupsLeaderboardWidget(QtWidgets.QWidget):
             return
         self._show_status(t("glb_loading"))
         from leaderboard_client import LeaderboardClient, GroupsLeaderboardFetchWorker
+
         client = LeaderboardClient(url)
         self._fetch_worker = GroupsLeaderboardFetchWorker(client)
         self._fetch_worker.result.connect(self._on_data_received)
@@ -504,12 +542,16 @@ class GroupsLeaderboardWidget(QtWidgets.QWidget):
 
                 if row_idx == 0 and data_key in ("_rank", "name"):
                     item.setForeground(QtGui.QColor(LEADER))
-                    f = item.font(); f.setBold(True); item.setFont(f)
+                    f = item.font()
+                    f.setBold(True)
+                    item.setFont(f)
 
                 if data_key == self._current_sort:
                     dark = get_theme() != "light"
                     item.setForeground(QtGui.QColor(ACCENT if dark else "#9b7a1e"))
-                    f = item.font(); f.setBold(True); item.setFont(f)
+                    f = item.font()
+                    f.setBold(True)
+                    item.setFont(f)
                 self._table.setItem(row_idx, col_idx, item)
         self._table.resizeRowsToContents()
 

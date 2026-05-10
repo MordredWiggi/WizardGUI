@@ -18,6 +18,7 @@ Endpoints:
   GET  /feedback                         – HTML feedback page
   GET  /privacy                          – privacy policy page
 """
+
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -41,14 +42,17 @@ app.add_middleware(
 
 templates = Jinja2Templates(directory="templates")
 
+
 def get_translations(lang: str) -> dict[str, str]:
     if lang not in TRANSLATIONS:
         lang = "en"
     return TRANSLATIONS.get(lang, TRANSLATIONS["en"])
 
+
 def trans(key: str, lang: str = "en") -> str:
     lang_dict = get_translations(lang)
     return lang_dict.get(key, key)
+
 
 templates.env.globals["_"] = trans
 

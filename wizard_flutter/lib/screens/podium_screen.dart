@@ -36,12 +36,16 @@ class _PodiumScreenState extends State<PodiumScreen> {
       await notifier.saveGame();
       if (mounted) {
         setState(() => _savedAfterFinish = true);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(settings.t('offline_saved_ok')),
-          duration: settings.messageDuration,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(settings.t('offline_saved_ok')),
+            duration: settings.messageDuration,
+          ),
+        );
       }
-    } catch (_) {/* ignore */}
+    } catch (_) {
+      /* ignore */
+    }
   }
 
   @override
@@ -63,11 +67,13 @@ class _PodiumScreenState extends State<PodiumScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: Row(children: [
-          const Icon(Icons.wifi_off, size: 20),
-          const SizedBox(width: 8),
-          Expanded(child: Text(t('offline_reminder_title'))),
-        ]),
+        title: Row(
+          children: [
+            const Icon(Icons.wifi_off, size: 20),
+            const SizedBox(width: 8),
+            Expanded(child: Text(t('offline_reminder_title'))),
+          ],
+        ),
         content: Text(t('offline_reminder_message')),
         actions: [
           TextButton(
@@ -86,12 +92,16 @@ class _PodiumScreenState extends State<PodiumScreen> {
       try {
         await notifier.savePendingGame();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(t('offline_saved_ok')),
-            duration: settings.messageDuration,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(t('offline_saved_ok')),
+              duration: settings.messageDuration,
+            ),
+          );
         }
-      } catch (_) {/* ignore */}
+      } catch (_) {
+        /* ignore */
+      }
     }
   }
 
@@ -142,13 +152,21 @@ class _PodiumScreenState extends State<PodiumScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(t('game_over_title'),
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontSize: 28, letterSpacing: 2)),
+              Text(
+                t('game_over_title'),
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontSize: 28,
+                  letterSpacing: 2,
+                ),
+              ),
               const SizedBox(height: 8),
-              Text(t('podium_title'),
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(color: kLeader, fontSize: 20)),
+              Text(
+                t('podium_title'),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: kLeader,
+                  fontSize: 20,
+                ),
+              ),
               const SizedBox(height: 40),
 
               // Podium entries (rank ≤ 3, may include ties)
@@ -157,28 +175,32 @@ class _PodiumScreenState extends State<PodiumScreen> {
                 final r = ranks[i];
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(children: [
-                    Text(rankEmoji(r), style: const TextStyle(fontSize: 32)),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(name,
+                  child: Row(
+                    children: [
+                      Text(rankEmoji(r), style: const TextStyle(fontSize: 32)),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          name,
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: r == 1
                                 ? kLeader
                                 : theme.textTheme.bodyLarge?.color,
-                          )),
-                    ),
-                    Text(
-                      t('podium_points', {'pts': score.toString()}),
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: r == 1 ? kLeader : kAccentDim,
-                        fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    ),
-                  ]),
+                      Text(
+                        t('podium_points', {'pts': score.toString()}),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: r == 1 ? kLeader : kAccentDim,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               }),
 
@@ -192,18 +214,28 @@ class _PodiumScreenState extends State<PodiumScreen> {
                   final r = ranks[i];
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(children: [
-                      Text('$r.',
+                    child: Row(
+                      children: [
+                        Text(
+                          '$r.',
+                          style: const TextStyle(fontSize: 16, color: kTextDim),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: const TextStyle(fontSize: 15),
+                          ),
+                        ),
+                        Text(
+                          '$score',
                           style: const TextStyle(
-                              fontSize: 16, color: kTextDim)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                          child: Text(name,
-                              style: const TextStyle(fontSize: 15))),
-                      Text('$score',
-                          style: const TextStyle(
-                              fontSize: 15, color: kAccentDim)),
-                    ]),
+                            fontSize: 15,
+                            color: kAccentDim,
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 }),
               ],
@@ -223,9 +255,11 @@ class _PodiumScreenState extends State<PodiumScreen> {
                           : Icons.save_outlined,
                       size: 18,
                     ),
-                    label: Text(_savedAfterFinish
-                        ? t('offline_saved_ok')
-                        : t('offline_save_device')),
+                    label: Text(
+                      _savedAfterFinish
+                          ? t('offline_saved_ok')
+                          : t('offline_save_device'),
+                    ),
                   ),
                 ),
               if (!widget.offlineReminder) const SizedBox(height: 12),
@@ -236,8 +270,10 @@ class _PodiumScreenState extends State<PodiumScreen> {
                     MaterialPageRoute(builder: (_) => const SetupScreen()),
                     (_) => false,
                   ),
-                  child: Text(t('podium_close'),
-                      style: const TextStyle(fontSize: 16)),
+                  child: Text(
+                    t('podium_close'),
+                    style: const TextStyle(fontSize: 16),
+                  ),
                 ),
               ),
             ],

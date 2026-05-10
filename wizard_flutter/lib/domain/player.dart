@@ -10,20 +10,17 @@ class Player {
   final List<int> scores;
   final List<RoundResult> roundResults;
 
-  Player({
-    required this.name,
-    this.avatar = '🧙‍♂️',
-    int initialScore = 0,
-  })  : scores = [initialScore],
-        roundResults = [];
+  Player({required this.name, this.avatar = '🧙‍♂️', int initialScore = 0})
+    : scores = [initialScore],
+      roundResults = [];
 
   Player._raw({
     required this.name,
     required this.avatar,
     required List<int> scores,
     required List<RoundResult> roundResults,
-  })  : scores = scores,
-        roundResults = roundResults;
+  }) : scores = scores,
+       roundResults = roundResults;
 
   int get currentScore => scores.last;
 
@@ -106,15 +103,16 @@ class Player {
   // --- serialisation --------------------------------------------------------
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'avatar': avatar,
-        'rounds': roundResults.map((r) => r.toJson()).toList(),
-      };
+    'name': name,
+    'avatar': avatar,
+    'rounds': roundResults.map((r) => r.toJson()).toList(),
+  };
 
-  factory Player.fromJson(Map<String, dynamic> json,
-      {GameMode gameMode = GameMode.standard}) {
-    final int initialScore =
-        gameMode == GameMode.multiplicative ? 100 : 0;
+  factory Player.fromJson(
+    Map<String, dynamic> json, {
+    GameMode gameMode = GameMode.standard,
+  }) {
+    final int initialScore = gameMode == GameMode.multiplicative ? 100 : 0;
     var p = Player(
       name: json['name'] as String,
       avatar: (json['avatar'] as String?) ?? '🧙‍♂️',

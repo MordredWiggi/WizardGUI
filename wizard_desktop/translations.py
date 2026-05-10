@@ -3,6 +3,7 @@ translations.py – Internationalisierung für Wizard GUI.
 
 Enthält Übersetzungswörterbücher für alle unterstützten Sprachen.
 """
+
 from __future__ import annotations
 
 # ── Sprachkürzel → Anzeigename ────────────────────────────────────────────────
@@ -265,8 +266,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "warning_title": "Warning",
         "undo_confirm": "Really undo the last round?",
         "new_game_confirm": (
-            "End current game and start a new one?\n\n"
-            "Unsaved data will be lost."
+            "End current game and start a new one?\n\n" "Unsaved data will be lost."
         ),
         "save_game_title": "Save Game",
         "save_game_label": "Game name:",
@@ -667,8 +667,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "warning_title": "चेतावनी",
         "undo_confirm": "क्या वाकई अंतिम राउंड पूर्ववत करना है?",
         "new_game_confirm": (
-            "वर्तमान खेल समाप्त करें और नया शुरू करें?\n\n"
-            "असहेजा डेटा खो जाएगा।"
+            "वर्तमान खेल समाप्त करें और नया शुरू करें?\n\n" "असहेजा डेटा खो जाएगा।"
         ),
         "save_game_title": "खेल सहेजें",
         "save_game_label": "खेल का नाम:",

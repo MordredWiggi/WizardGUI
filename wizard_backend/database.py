@@ -8,6 +8,7 @@ Tables:
   - results:  per-player results for each game
   - feedback: public feedback messages with upvote/downvote counters
 """
+
 from __future__ import annotations
 
 import os
@@ -67,12 +68,15 @@ def init_db() -> None:
     # Idempotent migration: add group_id column to games if missing (for existing DBs)
     cols = {row[1] for row in db.execute("PRAGMA table_info(games)")}
     if "group_id" not in cols:
-        db.execute("ALTER TABLE games ADD COLUMN group_id INTEGER REFERENCES groups(id)")
+        db.execute(
+            "ALTER TABLE games ADD COLUMN group_id INTEGER REFERENCES groups(id)"
+        )
         db.commit()
     db.close()
 
 
 # ── Player helpers ────────────────────────────────────────────────────────────
+
 
 def player_exists(name: str) -> bool:
     """Check whether a player name is already registered (global).
@@ -129,6 +133,7 @@ def _get_or_create_player(db: sqlite3.Connection, name: str) -> int:
 
 # ── Group helpers ─────────────────────────────────────────────────────────────
 
+
 def create_group(name: str, code: str, visibility: str = "public") -> Optional[dict]:
     """Create a new group. Returns the created group dict, or None if code conflicts."""
     if len(code) != 4 or not code.isdigit():
@@ -180,18 +185,18 @@ def list_groups(search: str = "") -> list[dict]:
     """
     if search:
         rows = db.execute(
-            base_sql + " WHERE gr.name LIKE ? COLLATE NOCASE GROUP BY gr.id ORDER BY gr.name",
+            base_sql
+            + " WHERE gr.name LIKE ? COLLATE NOCASE GROUP BY gr.id ORDER BY gr.name",
             (f"%{search}%",),
         ).fetchall()
     else:
-        rows = db.execute(
-            base_sql + " GROUP BY gr.id ORDER BY gr.name"
-        ).fetchall()
+        rows = db.execute(base_sql + " GROUP BY gr.id ORDER BY gr.name").fetchall()
     db.close()
     return [dict(r) for r in rows]
 
 
 # ── Game submission ────────────────────────────────────────────────────────────
+
 
 def submit_game(
     game_hash: str,
@@ -243,6 +248,7 @@ def submit_game(
 
 # ── Player leaderboard ────────────────────────────────────────────────────────
 
+
 def get_leaderboard(game_mode: str) -> list[dict]:
     """Return all player stats for a game mode (global, across all groups).
     Sorting is done client-side."""
@@ -278,9 +284,7 @@ def get_group_player_leaderboard(code: str, game_mode: str) -> Optional[list[dic
     """Return player stats for a specific group identified by code.
     Returns None if the group does not exist."""
     db = _get_db()
-    group_row = db.execute(
-        "SELECT id FROM groups WHERE code = ?", (code,)
-    ).fetchone()
+    group_row = db.execute("SELECT id FROM groups WHERE code = ?", (code,)).fetchone()
     if group_row is None:
         db.close()
         return None
@@ -361,6 +365,7 @@ def _build_player_stats(
 
 # ── Global groups leaderboard ─────────────────────────────────────────────────
 
+
 def get_groups_leaderboard() -> list[dict]:
     """Return aggregated stats per public group (global groups leaderboard).
 
@@ -371,8 +376,7 @@ def get_groups_leaderboard() -> list[dict]:
     Hidden groups are excluded.
     """
     db = _get_db()
-    rows = db.execute(
-        """
+    rows = db.execute("""
         SELECT
             gr.id,
             gr.name,
@@ -388,8 +392,7 @@ def get_groups_leaderboard() -> list[dict]:
         JOIN results r ON r.game_id   = g.id
         WHERE gr.visibility = 'public'
         GROUP BY gr.id
-        """
-    ).fetchall()
+        """).fetchall()
     db.close()
     return [
         {
@@ -413,9 +416,7 @@ def create_feedback(message: str) -> dict:
     """Insert a new feedback message and return the created row."""
     db = _get_db()
     try:
-        cursor = db.execute(
-            "INSERT INTO feedback (message) VALUES (?)", (message,)
-        )
+        cursor = db.execute("INSERT INTO feedback (message) VALUES (?)", (message,))
         feedback_id = cursor.lastrowid
         db.commit()
         row = db.execute(
@@ -431,14 +432,12 @@ def create_feedback(message: str) -> dict:
 def list_feedback() -> list[dict]:
     """Return all feedback ordered by net votes (desc) then newest first."""
     db = _get_db()
-    rows = db.execute(
-        """
+    rows = db.execute("""
         SELECT id, message, upvotes, downvotes, created_at,
                (upvotes - downvotes) AS net_votes
         FROM feedback
         ORDER BY net_votes DESC, created_at DESC
-        """
-    ).fetchall()
+        """).fetchall()
     db.close()
     return [dict(r) for r in rows]
 
