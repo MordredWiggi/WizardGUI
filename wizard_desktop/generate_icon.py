@@ -1,9 +1,9 @@
 """
-generate_icon.py – Create icon.ico matching the mobile app launcher icon.
+generate_icon.py – Build icon.ico from the shared trimmed AppIcon source.
 
-Renders the same gold spade on dark-purple background used by the Android
-launcher (see wizard_flutter/.../ic_launcher_foreground.xml) into a multi-size
-Windows .ico file.  Can be run standalone:
+Reads images/AppIcon_trimmed.png (the pre-cleaned, transparent-background
+PNG produced by images/_trim_appicon.py) and writes a multi-size Windows
+.ico for the PyInstaller build.  Can be run standalone:
 
     python generate_icon.py
 
@@ -16,53 +16,9 @@ import os
 import sys
 
 
-def _draw_icon(size: int):
-    from PIL import Image, ImageDraw
-
-    bg = (13, 13, 26, 255)  # #0D0D1A – dark purple background
-    fg = (201, 168, 76, 255)  # #C9A84C – gold accent
-
-    img = Image.new("RGBA", (size, size), bg)
-    draw = ImageDraw.Draw(img)
-
-    # Viewport: 108x108 (from the SVG).  Pre-computed spade polygon that
-    # approximates the curved svg path – uniform-scale to the target size.
-    def s(x, y):
-        return (x / 108.0 * size, y / 108.0 * size)
-
-    # Spade-ish silhouette plus a little stem at the bottom.
-    spade = [
-        s(54, 22),
-        s(44, 32),
-        s(36, 42),
-        s(30, 52),
-        s(30, 58),
-        s(32, 66),
-        s(38, 70),
-        s(45, 70),
-        s(43, 74),
-        s(40, 78),
-        s(35, 81),
-        s(32, 82),
-        s(76, 82),
-        s(73, 81),
-        s(68, 78),
-        s(65, 74),
-        s(63, 70),
-        s(70, 70),
-        s(76, 66),
-        s(78, 58),
-        s(78, 52),
-        s(72, 42),
-        s(64, 32),
-    ]
-    draw.polygon(spade, fill=fg)
-    return img
-
-
-def build(out_path: str) -> None:
+def build(out_path: str, src_path: str) -> None:
     try:
-        from PIL import Image  # noqa: F401
+        from PIL import Image
     except ImportError:
         print(
             "[!] Pillow is required to generate icon.ico (pip install Pillow)",
@@ -70,14 +26,31 @@ def build(out_path: str) -> None:
         )
         sys.exit(1)
 
-    sizes = (16, 24, 32, 48, 64, 128, 256)
-    images = [_draw_icon(s) for s in sizes]
-    images[0].save(
-        out_path, format="ICO", sizes=[(im.width, im.height) for im in images]
-    )
+    if not os.path.isfile(src_path):
+        print(
+            f"[!] {src_path} not found. Run images/_trim_appicon.py first to "
+            "regenerate the trimmed source.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    img = Image.open(src_path).convert("RGBA")
+    # Ensure square so Pillow's downscaling produces square ICO entries.
+    if img.size[0] != img.size[1]:
+        side = max(img.size)
+        square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+        square.paste(img, ((side - img.width) // 2, (side - img.height) // 2))
+        img = square
+
+    base = img.resize((256, 256), Image.LANCZOS)
+    sizes = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
+    base.save(out_path, format="ICO", sizes=sizes)
     print(f"[+] Wrote {out_path}")
 
 
 if __name__ == "__main__":
     here = os.path.dirname(os.path.abspath(__file__))
-    build(os.path.join(here, "icon.ico"))
+    repo_root = os.path.abspath(os.path.join(here, ".."))
+    default_src = os.path.join(repo_root, "images", "AppIcon_trimmed.png")
+    src = sys.argv[1] if len(sys.argv) > 1 else default_src
+    build(os.path.join(here, "icon.ico"), src)
