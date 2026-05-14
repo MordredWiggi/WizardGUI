@@ -516,19 +516,27 @@ class PlayerCard(QtWidgets.QFrame):
         super().__init__(parent)
         self.player_name = player_name
         self.color = color
+        self._is_dealer = False
         self.setObjectName("card")
         # Only set the dynamic border color; background comes from QSS (#card)
-        self.setStyleSheet(f"""
-            QFrame#card {{
-                border: 1px solid {color};
-                border-left: 4px solid {color};
-                border-radius: 8px;
-            }}
-            """)
+        self._apply_card_border()
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(8)
+
+        # Dealer banner — prominent strip at the top of the card. Hidden
+        # unless this player is the current dealer; shows the card count
+        # for the round and is unmistakable at a glance.
+        self.lbl_dealer = QtWidgets.QLabel()
+        self.lbl_dealer.setStyleSheet(
+            f"color: {BG_DEEP}; background: {ACCENT}; font-size: 14px; "
+            f"font-weight: 800; letter-spacing: 1px; border-radius: 6px; "
+            f"padding: 6px 12px;"
+        )
+        self.lbl_dealer.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.lbl_dealer.setVisible(False)
+        layout.addWidget(self.lbl_dealer)
 
         # Name + Crown + Punkte
         top_row = QtWidgets.QHBoxLayout()
@@ -624,14 +632,24 @@ class PlayerCard(QtWidgets.QFrame):
 
         layout.addLayout(input_grid)
 
-        # Dealer badge – prominent, larger font with highlighted background
-        self.lbl_dealer = QtWidgets.QLabel()
-        self.lbl_dealer.setStyleSheet(
-            f"color: {BG_DEEP}; background: {ACCENT}; font-size: 14px; font-weight: 700; "
-            f"border-radius: 6px; padding: 3px 8px;"
-        )
-        self.lbl_dealer.setVisible(False)
-        layout.addWidget(self.lbl_dealer, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+    def _apply_card_border(self) -> None:
+        """Apply a thicker accent-coloured border when this player is dealer."""
+        if self._is_dealer:
+            self.setStyleSheet(f"""
+                QFrame#card {{
+                    border: 2px solid {ACCENT};
+                    border-left: 5px solid {ACCENT};
+                    border-radius: 8px;
+                }}
+                """)
+        else:
+            self.setStyleSheet(f"""
+                QFrame#card {{
+                    border: 1px solid {self.color};
+                    border-left: 4px solid {self.color};
+                    border-radius: 8px;
+                }}
+                """)
 
     # ── public API ────────────────────────────────────────────────────────────
 
@@ -654,12 +672,14 @@ class PlayerCard(QtWidgets.QFrame):
         self._spin_achieved.setValue(0)
 
     def set_dealer(self, is_dealer: bool, cards: int) -> None:
-        """Show or hide the dealer badge for this card."""
+        """Show or hide the dealer banner for this card."""
+        self._is_dealer = is_dealer
         if is_dealer:
             self.lbl_dealer.setText(t("dealer_badge", n=cards))
             self.lbl_dealer.setVisible(True)
         else:
             self.lbl_dealer.setVisible(False)
+        self._apply_card_border()
 
     def update_score(self, score: int, delta: int, is_leader: bool) -> None:
         self.lbl_score.setText(str(score))

@@ -114,7 +114,22 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._active_group = group  # may be None for load-game paths
         self._game = GameControl(player_data, game_mode=game_mode)
+        # Persist immediately so the game is recoverable even if the app
+        # crashes before the first round completes.
+        self._auto_save_paused()
         self._show_game_view()
+
+    def _auto_save_paused(self) -> None:
+        """Write a paused snapshot of the current game (best-effort)."""
+        if self._game is None or self._game.is_game_over:
+            return
+        try:
+            self._save_manager.save_paused(
+                self._game.to_dict(),
+                group=self._active_group,
+            )
+        except Exception:
+            pass
 
     def _show_game_view(self) -> None:
         assert self._game is not None
@@ -149,13 +164,10 @@ class MainWindow(QtWidgets.QMainWindow):
         if self._game is None:
             self._stack.setCurrentWidget(self._setup_view)
             return
-        try:
-            self._save_manager.save_paused(
-                self._game.to_dict(),
-                group=self._active_group,
-            )
-        except Exception:
-            pass
+        # The snapshot is already kept current after every round, but write
+        # one more time on Home for the case where the user clicks Home
+        # without having submitted any rounds yet (or right after starting).
+        self._auto_save_paused()
         self._setup_view.refresh_resume_state()
         self._setup_view.retranslate_ui()
         self._stack.setCurrentWidget(self._setup_view)
@@ -177,8 +189,17 @@ class MainWindow(QtWidgets.QMainWindow):
             self._save_manager.clear_paused()
             self._setup_view.refresh_resume_state()
             return
+        # Defensive: a finished game must never be resumed. Drop the stale
+        # snapshot and return to setup without loading.
+        if self._game.is_game_over:
+            self._game = None
+            self._save_manager.clear_paused()
+            self._setup_view.refresh_resume_state()
+            return
         self._active_group = data.get("group")
-        self._save_manager.clear_paused()
+        # Keep the paused snapshot in place — it's overwritten after every
+        # round (and cleared on game-over) so resume always points at the
+        # latest state, even if the user crashes mid-game.
         self._setup_view.refresh_resume_state()
         self._show_game_view()
 
@@ -188,6 +209,17 @@ class MainWindow(QtWidgets.QMainWindow):
         """Wählt den passenden Celebration-Effekt für die Runde."""
         import random
         from app_settings import get_custom_rules
+
+        # Keep the paused snapshot current after every round so a crash
+        # never loses more than the current unsubmitted round. On the final
+        # round we clear it so the next launch doesn't offer to "resume" a
+        # game that's already over.
+        if self._game is not None:
+            if self._game.is_game_over:
+                self._save_manager.clear_paused()
+                self._setup_view.refresh_resume_state()
+            else:
+                self._auto_save_paused()
 
         # --- Evaluate Custom Rules (Highest Priority) ---
         custom_pool = []
@@ -368,8 +400,19 @@ class MainWindow(QtWidgets.QMainWindow):
             reverse=True,
         )
         dlg = PodiumDialog(self, players_sorted)
+        dlg.save_requested.connect(self._on_podium_save)
         if dlg.exec():
             self._on_new_game()
+
+    def _on_podium_save(self) -> None:
+        """Persist the finished game from the podium with an automatic name."""
+        if not self._game:
+            return
+        try:
+            path = self._save_manager.save_game(self._game.to_dict())
+            self._show_status(f"💾  {t('offline_saved_ok')}: {path.name}")
+        except Exception:
+            pass
 
     # ── Speichern ─────────────────────────────────────────────────────────────
 

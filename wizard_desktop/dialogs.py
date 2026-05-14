@@ -515,9 +515,14 @@ class _AddRuleDialog(ThemedDialog):
 class PodiumDialog(ThemedDialog):
     """
     Displays the winner's podium at the end of the game.
-    Shows the top 3 players with their scores and places.
+    Shows the top players (rank ≤ 3, may include ties) with their scores
+    and places, and the remaining players below.
     Emits accepted() when the user clicks 'Start New Game'.
     """
+
+    # Emitted when the user clicks the "Save to device" button. The main
+    # window listens and persists the finished game to disk.
+    save_requested = QtCore.pyqtSignal()
 
     def __init__(self, parent: QtWidgets.QWidget, players_sorted: list) -> None:
         """
@@ -551,21 +556,37 @@ class PodiumDialog(ThemedDialog):
 
         layout.addWidget(_sep())
 
-        # Podium places
-        place_keys = ["podium_1st", "podium_2nd", "podium_3rd"]
-        place_colors = [LEADER, "#aaaacc", "#c9a84c"]  # gold, silver, bronze
-        place_sizes = ["22px", "19px", "17px"]
+        # Compute competition ranks (1224) so players with identical scores
+        # share the same place — and the same emoji/colour. Two co-winners
+        # both get rank 1 (gold), the next player gets rank 3.
+        ranks: list[int] = []
+        last_score: Optional[int] = None
+        current_rank = 1
+        for i, (_, score) in enumerate(players_sorted):
+            if last_score is None or score != last_score:
+                current_rank = i + 1
+                last_score = score
+            ranks.append(current_rank)
 
-        for rank, (place_key, color, size) in enumerate(
-            zip(place_keys, place_colors, place_sizes)
-        ):
-            if rank >= len(players_sorted):
-                break
-            name, score = players_sorted[rank]
+        rank_to_label = {1: "podium_1st", 2: "podium_2nd", 3: "podium_3rd"}
+        rank_to_color = {1: LEADER, 2: "#aaaacc", 3: "#c9a84c"}  # gold, silver, bronze
+        rank_to_size = {1: "22px", 2: "19px", 3: "17px"}
+
+        # Split into "top" (rank ≤ 3, may include ties) and "rest" so ties
+        # can extend the podium beyond three rows (e.g. two co-winners both
+        # appear on top with gold).
+        top_indices = [i for i, r in enumerate(ranks) if r <= 3]
+        rest_indices = [i for i, r in enumerate(ranks) if r > 3]
+
+        for idx_in_loop, i in enumerate(top_indices):
+            name, score = players_sorted[i]
+            r = ranks[i]
+            color = rank_to_color.get(r, ACCENT)
+            size = rank_to_size.get(r, "17px")
 
             row = QtWidgets.QHBoxLayout()
 
-            place_lbl = QtWidgets.QLabel(t(place_key))
+            place_lbl = QtWidgets.QLabel(t(rank_to_label[r]))
             place_lbl.setStyleSheet(
                 f"font-size: {size}; font-weight: 700; color: {color}; min-width: 120px; background: transparent;"
             )
@@ -589,17 +610,18 @@ class PodiumDialog(ThemedDialog):
             row.addWidget(score_lbl)
             layout.addLayout(row)
 
-            if rank < min(2, len(players_sorted) - 1):
+            if idx_in_loop < len(top_indices) - 1:
                 layout.addWidget(_sep())
 
-        # Show remaining players if more than 3
-        if len(players_sorted) > 3:
+        # Show remaining players (rank > 3)
+        if rest_indices:
             layout.addWidget(_sep())
             others_lbl = QtWidgets.QLabel()
             lines = []
-            for rank in range(3, len(players_sorted)):
-                name, score = players_sorted[rank]
-                lines.append(f"{rank + 1}. {name}  –  {t('podium_points', pts=score)}")
+            for i in rest_indices:
+                name, score = players_sorted[i]
+                r = ranks[i]
+                lines.append(f"{r}. {name}  –  {t('podium_points', pts=score)}")
             others_lbl.setText("\n".join(lines))
             others_lbl.setStyleSheet(
                 f"color: {TEXT_DIM}; font-size: 14px; background: transparent;"
@@ -607,6 +629,12 @@ class PodiumDialog(ThemedDialog):
             layout.addWidget(others_lbl)
 
         layout.addWidget(_sep())
+
+        # ── Save-to-device button (always shown) ─────────────────────────────
+        self._btn_save = QtWidgets.QPushButton(t("offline_save_device"))
+        self._btn_save.setMinimumHeight(36)
+        self._btn_save.clicked.connect(self._on_save_clicked)
+        layout.addWidget(self._btn_save)
 
         btn_row = QtWidgets.QHBoxLayout()
         btn_row.addStretch()
@@ -616,6 +644,12 @@ class PodiumDialog(ThemedDialog):
         btn_close.clicked.connect(self.accept)
         btn_row.addWidget(btn_close)
         layout.addLayout(btn_row)
+
+    def _on_save_clicked(self) -> None:
+        """Forward the save request to the parent and update button state."""
+        self.save_requested.emit()
+        self._btn_save.setEnabled(False)
+        self._btn_save.setText(t("offline_saved_ok"))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -727,14 +761,21 @@ class MigrationProgressDialog(ThemedDialog):
 class GroupSelectDialog(ThemedDialog):
     """
     Shows a searchable list of public groups.
-    The user must enter the 4-digit code to confirm joining.
-    Emits accepted() with self.selected_group set to the validated group dict.
+    The user must pick a group from the list AND enter its 4-digit code.
+    The entered code must match the picked group — otherwise someone could
+    brute-force codes and discover any group on the server. Emits accepted()
+    with self.selected_group set to the validated group dict.
     """
 
     def __init__(self, parent: QtWidgets.QWidget, client) -> None:
         super().__init__(parent)
         self._client = client
         self.selected_group: Optional[Dict] = None
+        # The group the user picked from the list. The entered code must
+        # match this picked group, not just *some* group.
+        self._picked_group: Optional[Dict] = None
+        # The group the server returned for the entered code. Only counts
+        # when its id matches _picked_group's; otherwise the code is invalid.
         self._validated_group: Optional[Dict] = None
         self._check_worker = None
         self._list_worker = None
@@ -780,11 +821,19 @@ class GroupSelectDialog(ThemedDialog):
         layout.addWidget(_sep())
 
         # ── Code validation ──────────────────────────────────────────────────
-        code_lbl = QtWidgets.QLabel(t("group_code_label"))
-        code_lbl.setStyleSheet(
+        self._code_lbl = QtWidgets.QLabel(t("group_code_label"))
+        self._code_lbl.setStyleSheet(
             f"font-size: 13px; font-weight: 600; color: {TEXT_DIM}; background: transparent;"
         )
-        layout.addWidget(code_lbl)
+        layout.addWidget(self._code_lbl)
+
+        # Hint shown when no group has been picked yet — explains why the
+        # code field is disabled.
+        self._pick_first_lbl = QtWidgets.QLabel(t("group_pick_first"))
+        self._pick_first_lbl.setStyleSheet(
+            f"font-size: 12px; color: {TEXT_DIM}; font-style: italic; background: transparent;"
+        )
+        layout.addWidget(self._pick_first_lbl)
 
         code_row = QtWidgets.QHBoxLayout()
         self._code_edit = QtWidgets.QLineEdit()
@@ -792,12 +841,14 @@ class GroupSelectDialog(ThemedDialog):
         self._code_edit.setMaxLength(4)
         self._code_edit.setMinimumHeight(34)
         self._code_edit.setMaximumWidth(120)
+        self._code_edit.setEnabled(False)
         self._code_edit.textChanged.connect(self._on_code_changed)
-        btn_validate = QtWidgets.QPushButton(t("group_code_validate"))
-        btn_validate.setMinimumHeight(34)
-        btn_validate.clicked.connect(self._validate_code)
+        self._btn_validate = QtWidgets.QPushButton(t("group_code_validate"))
+        self._btn_validate.setMinimumHeight(34)
+        self._btn_validate.setEnabled(False)
+        self._btn_validate.clicked.connect(self._validate_code)
         code_row.addWidget(self._code_edit)
-        code_row.addWidget(btn_validate)
+        code_row.addWidget(self._btn_validate)
         code_row.addStretch()
         layout.addLayout(code_row)
 
@@ -864,21 +915,49 @@ class GroupSelectDialog(ThemedDialog):
             item.setData(QtCore.Qt.ItemDataRole.UserRole, g)
             self._group_list.addItem(item)
 
+    def _same_group(self, a: Optional[Dict], b: Optional[Dict]) -> bool:
+        if not a or not b:
+            return False
+        ai = a.get("id")
+        bi = b.get("id")
+        if ai is not None and bi is not None:
+            return ai == bi
+        return a.get("name") == b.get("name")
+
     def _on_group_selected(self, current, _) -> None:
-        # Auto-fill the code from the local cache if the user previously
-        # opted in to remembering this group. Otherwise the user must type
-        # it, since the code gates access.
+        # Picking a (different) group invalidates any previous code state.
         if current is None:
+            self._picked_group = None
+            self._validated_group = None
+            self._code_edit.setEnabled(False)
+            self._btn_validate.setEnabled(False)
+            self._pick_first_lbl.setVisible(True)
+            self._btn_join.setEnabled(False)
+            self._code_status.clear()
             return
         group = current.data(QtCore.Qt.ItemDataRole.UserRole)
         if not group:
             return
+        self._picked_group = group
+        self._validated_group = None
+        self._btn_join.setEnabled(False)
+        self._code_status.clear()
+        # Now that a group is picked, unlock the code field.
+        self._code_edit.setEnabled(True)
+        self._btn_validate.setEnabled(True)
+        self._pick_first_lbl.setVisible(False)
+
+        # Auto-fill the code from the local cache if the user previously
+        # opted in to remembering this group. Otherwise the user must type
+        # it, since the code gates access.
         from group_cache import lookup_code_by_name
 
         cached = lookup_code_by_name(group.get("name", ""))
         if cached:
             self._code_edit.setText(cached)
             self._validate_code()
+        else:
+            self._code_edit.clear()
 
     def _on_code_changed(self, text: str) -> None:
         # Reset validation if user edits code
@@ -887,6 +966,9 @@ class GroupSelectDialog(ThemedDialog):
         self._code_status.clear()
 
     def _validate_code(self) -> None:
+        if self._picked_group is None:
+            # Should never happen — the field is disabled, but be defensive.
+            return
         code = self._code_edit.text().strip()
         if len(code) != 4 or not code.isdigit():
             self._code_status.setText(t("group_code_invalid"))
@@ -903,8 +985,18 @@ class GroupSelectDialog(ThemedDialog):
         self._check_worker.start()
 
     def _on_code_checked(self, group: object) -> None:
-        if group is None:
-            self._code_status.setText(t("group_code_invalid"))
+        # Only accept the code when it actually unlocks the picked group —
+        # otherwise it's the same brute-force leak we're trying to close.
+        if group is None or not self._same_group(group, self._picked_group):
+            # If a code unlocked *some* group, but not the one the user
+            # selected, surface that more specifically so they realise it's
+            # a mismatch — not a server-side "unknown code".
+            if group is not None and not self._same_group(
+                group, self._picked_group
+            ):
+                self._code_status.setText(t("group_code_mismatch"))
+            else:
+                self._code_status.setText(t("group_code_invalid"))
             self._code_status.setStyleSheet(
                 f"font-size: 12px; color: {DANGER}; background: transparent;"
             )

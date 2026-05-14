@@ -166,9 +166,11 @@ def _refresh_btn_style() -> str:
 class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
     """Player leaderboard for a specific group, with Standard/Multi mode toggle.
 
-    Sorting is performed by clicking on a column header. Until a group code is
-    supplied via :meth:`set_group`, the widget shows an informational status
-    message instead of a table.
+    Sorting is performed by clicking on a column header. The first click on
+    a column sorts descending (high → low) for numeric data; clicking the
+    same header again toggles the direction. Until a group code is supplied
+    via :meth:`set_group`, the widget shows an informational status message
+    instead of a table.
     """
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
@@ -176,6 +178,7 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
         self._fetch_worker: Optional[object] = None
         self._current_mode = GAME_MODE_STANDARD
         self._current_sort = "wins"
+        self._sort_ascending = False  # default: high → low for numeric columns
         self._group_code: Optional[str] = None
         self._data: list[dict] = []
         self._build_ui()
@@ -243,12 +246,14 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
         header.setSectionsClickable(True)
         header.setStretchLastSection(False)
         header.setDefaultAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        header.setSortIndicatorShown(True)
         header.sectionClicked.connect(self._on_header_clicked)
 
         for i, (_, _, width) in enumerate(_COLUMNS):
             self._table.setColumnWidth(i, width)
             header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.Stretch)
         self._table.setAlternatingRowColors(True)
+        self._update_sort_indicator()
 
         wrap = QtWidgets.QHBoxLayout()
         wrap.addStretch()
@@ -284,6 +289,21 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
     def _apply_refresh_style(self) -> None:
         self._btn_refresh.setStyleSheet(_refresh_btn_style())
 
+    def _update_sort_indicator(self) -> None:
+        """Reflect _current_sort / _sort_ascending in the header arrow."""
+        try:
+            col = next(
+                i for i, (k, _, _) in enumerate(_COLUMNS) if k == self._current_sort
+            )
+        except StopIteration:
+            return
+        order = (
+            QtCore.Qt.SortOrder.AscendingOrder
+            if self._sort_ascending
+            else QtCore.Qt.SortOrder.DescendingOrder
+        )
+        self._table.horizontalHeader().setSortIndicator(col, order)
+
     # ── Mode / Sort switching ────────────────────────────────────────────────
 
     def _set_mode(self, mode: str) -> None:
@@ -297,7 +317,14 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
         key = _COLUMNS[column][0]
         if key not in _SORTABLE_KEYS:
             return
-        self._current_sort = key
+        if key == self._current_sort:
+            # Same column: toggle direction.
+            self._sort_ascending = not self._sort_ascending
+        else:
+            # New numeric column: default to descending (high → low).
+            self._current_sort = key
+            self._sort_ascending = False
+        self._update_sort_indicator()
         self._render_data()
 
     # ── Data fetching ────────────────────────────────────────────────────────
@@ -347,7 +374,7 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
         sorted_data = sorted(
             self._data,
             key=lambda row: row.get(self._current_sort, 0),
-            reverse=True,
+            reverse=not self._sort_ascending,
         )
         self._table.setRowCount(len(sorted_data))
 
@@ -381,6 +408,7 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
                 self._table.setItem(row_idx, col_idx, item)
 
         self._table.resizeRowsToContents()
+        self._update_sort_indicator()
 
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -409,12 +437,17 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
 
 
 class GroupsLeaderboardWidget(QtWidgets.QWidget):
-    """Groups leaderboard; header clicks drive the sort."""
+    """Groups leaderboard; header clicks drive the sort.
+
+    First click on a numeric column sorts descending; a second click on
+    the same column flips the direction.
+    """
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
         self._fetch_worker: Optional[object] = None
         self._current_sort = "total_games"
+        self._sort_ascending = False
         self._data: list[dict] = []
         self._build_ui()
 
@@ -454,10 +487,12 @@ class GroupsLeaderboardWidget(QtWidgets.QWidget):
         header.setSectionsClickable(True)
         header.setStretchLastSection(False)
         header.setDefaultAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        header.setSortIndicatorShown(True)
         header.sectionClicked.connect(self._on_header_clicked)
         for i, (_, _, width) in enumerate(_GROUPS_COLUMNS):
             self._table.setColumnWidth(i, width)
             header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        self._update_sort_indicator()
 
         wrap = QtWidgets.QHBoxLayout()
         wrap.addStretch()
@@ -486,8 +521,29 @@ class GroupsLeaderboardWidget(QtWidgets.QWidget):
         key = _GROUPS_COLUMNS[column][0]
         if key not in _GROUPS_SORTABLE:
             return
-        self._current_sort = key
+        if key == self._current_sort:
+            self._sort_ascending = not self._sort_ascending
+        else:
+            self._current_sort = key
+            self._sort_ascending = False
+        self._update_sort_indicator()
         self._render_data()
+
+    def _update_sort_indicator(self) -> None:
+        try:
+            col = next(
+                i
+                for i, (k, _, _) in enumerate(_GROUPS_COLUMNS)
+                if k == self._current_sort
+            )
+        except StopIteration:
+            return
+        order = (
+            QtCore.Qt.SortOrder.AscendingOrder
+            if self._sort_ascending
+            else QtCore.Qt.SortOrder.DescendingOrder
+        )
+        self._table.horizontalHeader().setSortIndicator(col, order)
 
     def refresh(self) -> None:
         url = get_leaderboard_url()
@@ -524,7 +580,7 @@ class GroupsLeaderboardWidget(QtWidgets.QWidget):
         sorted_data = sorted(
             self._data,
             key=lambda row: row.get(self._current_sort, 0),
-            reverse=True,
+            reverse=not self._sort_ascending,
         )
         self._table.setRowCount(len(sorted_data))
         for row_idx, entry in enumerate(sorted_data):
@@ -554,6 +610,7 @@ class GroupsLeaderboardWidget(QtWidgets.QWidget):
                     item.setFont(f)
                 self._table.setItem(row_idx, col_idx, item)
         self._table.resizeRowsToContents()
+        self._update_sort_indicator()
 
     def showEvent(self, event: QtGui.QShowEvent) -> None:
         super().showEvent(event)
