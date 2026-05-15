@@ -31,6 +31,19 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
+
+flutter_launcher_icons:
+  image_path: "../images/AppIcon_trimmed.png"
+  android: "ic_launcher"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#0D0D1A"
+  adaptive_icon_foreground: "../images/AppIcon_trimmed.png"
+  adaptive_icon_monochrome: "../images/AppIcon_trimmed.png"
+  windows:
+    generate: true
+    image_path: "../images/AppIcon_trimmed.png"
+    icon_size: 256

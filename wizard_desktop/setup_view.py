@@ -809,7 +809,18 @@ class SetupView(QtWidgets.QWidget):
             self._resume_panel.setVisible(False)
             return
         game = data.get("game") or {}
-        players = ", ".join(p.get("name", "") for p in game.get("players", []))
+        players_list = game.get("players", []) or []
+        num_players = len(players_list)
+        round_number = game.get("round_number", 0) or 0
+        total_rounds = 0 if num_players == 0 else 60 // num_players
+        # Defensive: never offer to resume a finished game — that snapshot
+        # should have been cleared when the last round was submitted, but
+        # old files (or a process killed mid-cleanup) can leave one behind.
+        if num_players > 0 and round_number >= total_rounds:
+            self._save_manager.clear_paused()
+            self._resume_panel.setVisible(False)
+            return
+        players = ", ".join(p.get("name", "") for p in players_list)
         self._resume_subtitle_lbl.setText(t("resume_game_subtitle", players=players))
         self._resume_panel.setVisible(True)
 

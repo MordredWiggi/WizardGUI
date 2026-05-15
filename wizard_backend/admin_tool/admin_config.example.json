@@ -1,0 +1,23 @@
+{
+  "_comment": "This file is only a template. On first launch (or via 'python setup_admin.py') the tool generates an admin_config.json that is excluded by .gitignore and must never be committed. You can also fill the fields below by hand.",
+
+  "password_hash": "<BASE64-PBKDF2-HASH>",
+  "password_salt": "<BASE64-RANDOM-SALT>",
+  "password_iterations": 600000,
+
+  "connections": {
+    "local": {
+      "label": "Local test DB",
+      "db_path": "../leaderboard.db"
+    },
+    "remote_oracle": {
+      "label": "Production (Oracle Cloud)",
+      "ssh_host": "158.180.32.188",
+      "ssh_user": "ubuntu",
+      "ssh_key": "C:\\Users\\<YOUR_USER>\\.ssh\\oracle_key.key",
+      "remote_db_path": "/data/leaderboard.db"
+    }
+  },
+
+  "default_connection": "local"
+}
