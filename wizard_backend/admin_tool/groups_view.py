@@ -1,8 +1,9 @@
 """
 groups_view.py - List and CRUD for all groups.
 
-Double-clicking a row (or pressing the "Show games" button) emits
-open_group_games so MainWindow can switch to the games view.
+Double-clicking a row (or pressing the "Open group" button) emits
+open_group so MainWindow can switch to the group's detail view, which
+hosts the Games and Players tabs for that group.
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from views_base import BaseView, fill_table, make_table, push_button, selected_r
 
 
 class GroupsView(BaseView):
-    open_group_games = QtCore.pyqtSignal(dict)
+    open_group = QtCore.pyqtSignal(dict)
 
     def __init__(self, backend: DbBackend) -> None:
         super().__init__(backend)
@@ -47,8 +48,8 @@ class GroupsView(BaseView):
         btn_edit.clicked.connect(self._edit_group)
         self.add_toolbar_widget(btn_edit)
 
-        btn_open = push_button("→  Show games", role="primary")
-        btn_open.clicked.connect(self._open_games)
+        btn_open = push_button("→  Open group", role="primary")
+        btn_open.clicked.connect(self._open_group)
         self.add_toolbar_widget(btn_open)
 
         btn_del = push_button("🗑  Delete", role="danger")
@@ -59,7 +60,7 @@ class GroupsView(BaseView):
         self._table = make_table(
             ["ID", "Name", "Code", "Visibility", "Games", "Players"]
         )
-        self._table.cellDoubleClicked.connect(lambda *_: self._open_games())
+        self._table.cellDoubleClicked.connect(lambda *_: self._open_group())
         self.add_to_body(self._table, stretch=1)
 
         self._all_rows: list[dict] = []
@@ -209,9 +210,9 @@ class GroupsView(BaseView):
         self.set_status(f"Group '{group['name']}' deleted.", success=True)
         self.refresh()
 
-    def _open_games(self) -> None:
+    def _open_group(self) -> None:
         group = self._selected_group()
         if not group:
             self.set_status("No group selected.", success=False)
             return
-        self.open_group_games.emit(group)
+        self.open_group.emit(group)

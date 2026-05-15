@@ -2,13 +2,14 @@
 dialogs.py - Shared dialogs for the admin tool.
 
 Includes:
-  - ConfirmDialog            generic confirmation with detail box
-  - DangerConfirmDialog      destructive confirmation with required typed phrase
-  - TextInputDialog          single text field (e.g. rename)
-  - GroupEditDialog          create / edit a group
-  - GameEditDialog           edit a game's metadata
-  - ResultEditDialog         edit a single per-player result
-  - PlayerMergeDialog        merge two players
+  - ConfirmDialog               generic confirmation with detail box
+  - DangerConfirmDialog         destructive confirmation with required typed phrase
+  - TextInputDialog             single text field (e.g. rename)
+  - GroupEditDialog             create / edit a group
+  - GameEditDialog              edit a game's metadata
+  - ResultEditDialog            edit a single per-player result
+  - GroupPlayerRenameDialog     rename a player inside a single group
+  - GroupPlayerMergeDialog      merge two players inside a single group
 """
 
 from __future__ import annotations
@@ -579,44 +580,190 @@ class ResultEditDialog(_Themed):
 
 
 # ---------------------------------------------------------------------------
-# PlayerMergeDialog - merge two players
+# GroupPlayerRenameDialog - rename a player but only inside one group
 # ---------------------------------------------------------------------------
 
 
-class PlayerMergeDialog(_Themed):
+class GroupPlayerRenameDialog(_Themed):
+    """Pick a player who has results in this group and choose a new name.
+
+    The rename is scoped to the current group: only the results belonging to
+    games of this group will move to the new identity. Results of the same
+    player in other groups are left untouched.
+    """
+
     def __init__(
         self,
         parent: Optional[QtWidgets.QWidget],
-        players: list[dict],
-        source_player: dict,
+        group: dict,
+        players_in_group: list[dict],
+        preselect_id: Optional[int] = None,
     ) -> None:
         super().__init__(parent)
-        self._source = source_player
-        self.setWindowTitle("Merge players")
-        self.setMinimumWidth(440)
+        self.setWindowTitle("Rename player in group")
+        self.setMinimumWidth(460)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(24, 22, 24, 18)
         layout.setSpacing(12)
 
-        layout.addWidget(_header("Merge players", color=ADMIN_RED))
+        layout.addWidget(_header("Rename player in group"))
         layout.addWidget(_sep())
 
         info = QtWidgets.QLabel(
-            f"All results of <b>{source_player['name']}</b> "
-            f"(id={source_player['id']}) will be reassigned to the target "
-            f"player. <b>{source_player['name']}</b> will then be deleted."
+            f"Renames apply only to games of <b>{group['name']}</b>. "
+            "Results in other groups are not affected."
         )
         info.setWordWrap(True)
+        info.setStyleSheet(f"font-size: 12px; color: {TEXT_DIM};")
         layout.addWidget(info)
 
-        layout.addWidget(self._field_label("Target player"))
+        layout.addWidget(self._field_label("Player"))
         self._combo = QtWidgets.QComboBox()
-        for p in players:
-            if p["id"] == source_player["id"]:
-                continue
-            self._combo.addItem(f"{p['name']}  (id={p['id']})", p["id"])
+        cur_idx = 0
+        for i, p in enumerate(players_in_group):
+            self._combo.addItem(
+                f"{p['name']}  (id={p['id']}, {p.get('games', 0)} games)",
+                p["id"],
+            )
+            if preselect_id is not None and p["id"] == preselect_id:
+                cur_idx = i
+        if players_in_group:
+            self._combo.setCurrentIndex(cur_idx)
+        self._combo.currentIndexChanged.connect(self._on_player_changed)
         layout.addWidget(self._combo)
+
+        layout.addWidget(self._field_label("New name"))
+        self._edit = QtWidgets.QLineEdit()
+        self._edit.setMinimumHeight(32)
+        layout.addWidget(self._edit)
+
+        self._status = QtWidgets.QLabel(" ")
+        self._status.setStyleSheet(f"color: {DANGER}; font-size: 12px;")
+        self._status.setWordWrap(True)
+        layout.addWidget(self._status)
+
+        layout.addWidget(_sep())
+        row = QtWidgets.QHBoxLayout()
+        row.addStretch()
+        btn_cancel = QtWidgets.QPushButton("Cancel")
+        btn_ok = QtWidgets.QPushButton("Rename")
+        btn_ok.setObjectName("primary")
+        btn_cancel.clicked.connect(self.reject)
+        btn_ok.clicked.connect(self._on_ok)
+        row.addWidget(btn_cancel)
+        row.addWidget(btn_ok)
+        layout.addLayout(row)
+
+        self._players = players_in_group
+        self._on_player_changed(self._combo.currentIndex())
+        self._edit.setFocus()
+        self._edit.selectAll()
+
+    def _field_label(self, text: str) -> QtWidgets.QLabel:
+        lbl = QtWidgets.QLabel(text)
+        lbl.setStyleSheet(f"font-size: 11px; color: {TEXT_DIM}; font-weight: 600;")
+        return lbl
+
+    def _on_player_changed(self, idx: int) -> None:
+        if 0 <= idx < len(self._players):
+            self._edit.setText(self._players[idx]["name"])
+            self._edit.selectAll()
+
+    def _on_ok(self) -> None:
+        pid = self._combo.currentData()
+        if pid is None:
+            self._status.setText("No player selected.")
+            return
+        new_name = self._edit.text().strip()
+        if not new_name:
+            self._status.setText("New name must not be empty.")
+            return
+        self.accept()
+
+    @property
+    def player_id(self) -> Optional[int]:
+        return self._combo.currentData()
+
+    @property
+    def new_name(self) -> str:
+        return self._edit.text().strip()
+
+
+# ---------------------------------------------------------------------------
+# GroupPlayerMergeDialog - merge two players but only inside one group
+# ---------------------------------------------------------------------------
+
+
+class GroupPlayerMergeDialog(_Themed):
+    """Pick two players, choose an arbitrary new name for the survivor.
+
+    The merge is scoped to the current group: only this group's results are
+    consolidated onto the survivor. If either source player has results in
+    other groups, those rows stay where they are.
+    """
+
+    def __init__(
+        self,
+        parent: Optional[QtWidgets.QWidget],
+        group: dict,
+        players_in_group: list[dict],
+        preselect_a_id: Optional[int] = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Merge players in group")
+        self.setMinimumWidth(480)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(24, 22, 24, 18)
+        layout.setSpacing(12)
+
+        layout.addWidget(_header("Merge players in group", color=ADMIN_RED))
+        layout.addWidget(_sep())
+
+        info = QtWidgets.QLabel(
+            f"Both players' results in <b>{group['name']}</b> will move "
+            "onto the chosen target name. Results in other groups are not "
+            "affected. If both players have a result for the same game, the "
+            "first player's row wins."
+        )
+        info.setWordWrap(True)
+        info.setStyleSheet(f"font-size: 12px; color: {TEXT_DIM};")
+        layout.addWidget(info)
+
+        self._players = players_in_group
+
+        layout.addWidget(self._field_label("Player A"))
+        self._combo_a = QtWidgets.QComboBox()
+        layout.addWidget(self._combo_a)
+
+        layout.addWidget(self._field_label("Player B"))
+        self._combo_b = QtWidgets.QComboBox()
+        layout.addWidget(self._combo_b)
+
+        a_idx = 0
+        for i, p in enumerate(players_in_group):
+            label = f"{p['name']}  (id={p['id']}, {p.get('games', 0)} games)"
+            self._combo_a.addItem(label, p["id"])
+            self._combo_b.addItem(label, p["id"])
+            if preselect_a_id is not None and p["id"] == preselect_a_id:
+                a_idx = i
+        if players_in_group:
+            self._combo_a.setCurrentIndex(a_idx)
+        # Default B to a different player than A whenever possible.
+        if len(players_in_group) >= 2:
+            self._combo_b.setCurrentIndex(0 if a_idx != 0 else 1)
+        self._combo_a.currentIndexChanged.connect(self._on_a_changed)
+
+        layout.addWidget(self._field_label("New name (the merged player's name)"))
+        self._edit = QtWidgets.QLineEdit()
+        self._edit.setMinimumHeight(32)
+        layout.addWidget(self._edit)
+
+        self._status = QtWidgets.QLabel(" ")
+        self._status.setStyleSheet(f"color: {DANGER}; font-size: 12px;")
+        self._status.setWordWrap(True)
+        layout.addWidget(self._status)
 
         layout.addWidget(_sep())
         row = QtWidgets.QHBoxLayout()
@@ -625,16 +772,47 @@ class PlayerMergeDialog(_Themed):
         btn_ok = QtWidgets.QPushButton("Merge")
         btn_ok.setObjectName("danger")
         btn_cancel.clicked.connect(self.reject)
-        btn_ok.clicked.connect(self.accept)
+        btn_ok.clicked.connect(self._on_ok)
         row.addWidget(btn_cancel)
         row.addWidget(btn_ok)
         layout.addLayout(row)
+
+        self._on_a_changed(self._combo_a.currentIndex())
+        self._edit.setFocus()
+        self._edit.selectAll()
 
     def _field_label(self, text: str) -> QtWidgets.QLabel:
         lbl = QtWidgets.QLabel(text)
         lbl.setStyleSheet(f"font-size: 11px; color: {TEXT_DIM}; font-weight: 600;")
         return lbl
 
+    def _on_a_changed(self, idx: int) -> None:
+        if 0 <= idx < len(self._players):
+            self._edit.setText(self._players[idx]["name"])
+            self._edit.selectAll()
+
+    def _on_ok(self) -> None:
+        a = self._combo_a.currentData()
+        b = self._combo_b.currentData()
+        if a is None or b is None:
+            self._status.setText("Pick two players to merge.")
+            return
+        if a == b:
+            self._status.setText("Player A and Player B must differ.")
+            return
+        if not self._edit.text().strip():
+            self._status.setText("New name must not be empty.")
+            return
+        self.accept()
+
     @property
-    def target_id(self) -> Optional[int]:
-        return self._combo.currentData()
+    def player_a_id(self) -> Optional[int]:
+        return self._combo_a.currentData()
+
+    @property
+    def player_b_id(self) -> Optional[int]:
+        return self._combo_b.currentData()
+
+    @property
+    def new_name(self) -> str:
+        return self._edit.text().strip()

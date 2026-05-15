@@ -3,9 +3,8 @@ main_window.py - Main window with sidebar and a QStackedWidget.
 
 Sidebar sections:
     Dashboard
-    Groups
-    Games
-    Players
+    Groups       -> selecting a group opens the GroupDetailView (Games + Players)
+    All players  -> every (group, player) row; all edits are group-scoped
     Feedback
     SQL Console
     Backup
@@ -40,7 +39,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Lazy imports to avoid circular dependencies.
         from dashboard_view import DashboardView
         from groups_view import GroupsView
-        from games_view import GamesView
+        from group_players_view import GroupDetailView
         from players_view import PlayersView
         from feedback_view import FeedbackView
         from sql_console import SqlConsole
@@ -71,10 +70,14 @@ class MainWindow(QtWidgets.QMainWindow):
         h.addWidget(right, 1)
         self.setCentralWidget(central)
 
-        # Instantiate views
+        # Instantiate views. The stack order is:
+        #   0 Dashboard, 1 Groups list, 2 GroupDetail (Games+Players tabs),
+        #   3 All players, 4 Feedback, 5 SQL Console, 6 Backup
+        # Stack index 2 is reached only by clicking a group in the Groups
+        # view - there is no sidebar button for it.
         self._dashboard = DashboardView(self.backend)
         self._groups = GroupsView(self.backend)
-        self._games = GamesView(self.backend)
+        self._group_detail = GroupDetailView(self.backend)
         self._players = PlayersView(self.backend)
         self._feedback = FeedbackView(self.backend)
         self._sql = SqlConsole(self.backend)
@@ -83,7 +86,7 @@ class MainWindow(QtWidgets.QMainWindow):
         for view in (
             self._dashboard,
             self._groups,
-            self._games,
+            self._group_detail,
             self._players,
             self._feedback,
             self._sql,
@@ -91,11 +94,17 @@ class MainWindow(QtWidgets.QMainWindow):
         ):
             self._stack.addWidget(view)
 
-        # Cross-view navigation: click on a group -> open its games
-        self._groups.open_group_games.connect(self._show_games_for_group)
-        self._games.back_to_groups.connect(lambda: self._switch(1))
-        self._games.player_changed.connect(lambda: self._players.refresh())
-        self._players.player_changed.connect(lambda: self._games.refresh())
+        # Cross-view navigation: click on a group -> open its detail page
+        self._groups.open_group.connect(self._show_group_detail)
+        self._group_detail.back_to_groups.connect(lambda: self._switch(1))
+        # Anything that re-shapes the player set in one place is mirrored
+        # to the other view so stats never drift.
+        self._group_detail.player_changed.connect(
+            lambda: self._players.refresh()
+        )
+        self._players.player_changed.connect(
+            lambda: self._group_detail.refresh()
+        )
 
         # Default view
         self._switch(0)
@@ -118,13 +127,14 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         layout.addWidget(title)
 
-        self._nav_buttons: list[QtWidgets.QPushButton] = []
+        # Maps stack-index -> sidebar button. Stack index 2 (GroupDetail)
+        # has no sidebar button - it is only reached by clicking a group.
+        self._nav_buttons: dict[int, QtWidgets.QPushButton] = {}
 
         sections = [
             ("📊  Dashboard", 0),
             ("👥  Groups", 1),
-            ("🎮  Games", 2),
-            ("🧑  Players", 3),
+            ("🧑  All players", 3),
             ("💬  Feedback", 4),
             ("🛠  SQL Console", 5),
             ("💾  Backup", 6),
@@ -136,7 +146,7 @@ class MainWindow(QtWidgets.QMainWindow):
             btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
             btn.clicked.connect(lambda _, i=idx: self._switch(i))
             layout.addWidget(btn)
-            self._nav_buttons.append(btn)
+            self._nav_buttons[idx] = btn
 
         layout.addStretch()
 
@@ -201,7 +211,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _switch(self, idx: int) -> None:
         self._stack.setCurrentIndex(idx)
-        for i, btn in enumerate(self._nav_buttons):
+        for i, btn in self._nav_buttons.items():
             btn.setChecked(i == idx)
         # Auto-refresh on entry
         try:
@@ -211,8 +221,8 @@ class MainWindow(QtWidgets.QMainWindow):
         except DbError as exc:
             QtWidgets.QMessageBox.warning(self, "Database error", str(exc))
 
-    def _show_games_for_group(self, group: dict) -> None:
-        self._games.set_group(group)
+    def _show_group_detail(self, group: dict) -> None:
+        self._group_detail.set_group(group)
         self._switch(2)
 
     # -- window behaviour ---------------------------------------------------

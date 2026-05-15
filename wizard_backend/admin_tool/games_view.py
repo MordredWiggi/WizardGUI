@@ -20,6 +20,7 @@ from dialogs import (
     GameEditDialog,
     ResultEditDialog,
 )
+from player_ops import ensure_player as _ensure_player_global
 from style import ACCENT, TEXT_DIM
 from views_base import BaseView, fill_table, make_table, push_button, selected_row_index
 
@@ -489,26 +490,7 @@ class GamesView(BaseView):
     # -- Helpers ------------------------------------------------------------
 
     def _ensure_player(self, name: str) -> Optional[int]:
-        existing = self.safe(
-            self.backend.query,
-            "SELECT id FROM players WHERE name = ? COLLATE NOCASE",
-            (name,),
-        )
-        if existing:
-            return int(existing[0]["id"])
-        rc = self.safe(
-            self.backend.execute, "INSERT INTO players (name) VALUES (?)", (name,)
-        )
-        if rc is None:
-            return None
-        rows = self.safe(
-            self.backend.query,
-            "SELECT id FROM players WHERE name = ? COLLATE NOCASE",
-            (name,),
-        )
-        if not rows:
-            return None
-        return int(rows[0]["id"])
+        return self.safe(_ensure_player_global, self.backend, name)
 
 
 def _now() -> str:
