@@ -46,7 +46,12 @@ AVATARS = [
 
 
 class PlayerChip(QtWidgets.QFrame):
-    """Kleiner farbiger Chip für einen Spielernamen."""
+    """Kleiner farbiger Chip für einen Spielernamen.
+
+    Kann per Drag & Drop neu angeordnet werden: Linksklick-Ziehen startet einen
+    QDrag, dessen MimeData den Spielernamen trägt. Das eigentliche Umsortieren
+    übernimmt der umgebende :class:`ReorderableChipContainer`.
+    """
 
     removed = QtCore.pyqtSignal(str)
 
@@ -59,6 +64,9 @@ class PlayerChip(QtWidgets.QFrame):
     ):
         super().__init__(parent)
         self.name = name
+        self._drag_start_pos: Optional[QtCore.QPoint] = None
+        # An open-hand cursor hints that the chip can be dragged to reorder.
+        self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.OpenHandCursor))
         self.setStyleSheet(f"""
             QFrame {{
                 background-color: transparent;
@@ -75,9 +83,13 @@ class PlayerChip(QtWidgets.QFrame):
         lbl.setStyleSheet(
             f"color: {color}; font-weight: 600; font-size: 12px; background: transparent; border: none;"
         )
+        # Let mouse events fall through the label to the frame so a drag can be
+        # started anywhere on the chip; the ✕ button keeps its own clicks.
+        lbl.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
 
         btn_x = QtWidgets.QPushButton("✕")
         btn_x.setFixedSize(18, 18)
+        btn_x.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         btn_x.setStyleSheet(f"""
             QPushButton {{
                 background: transparent;
@@ -93,6 +105,94 @@ class PlayerChip(QtWidgets.QFrame):
 
         row.addWidget(lbl)
         row.addWidget(btn_x)
+
+    # ── Drag & Drop ─────────────────────────────────────────────────────────
+
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self._drag_start_pos = event.position().toPoint()
+            # Accept the press so this chip becomes the mouse grabber and keeps
+            # receiving move events (needed to recognise the drag gesture).
+            event.accept()
+        else:
+            super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
+        if self._drag_start_pos is None or not (
+            event.buttons() & QtCore.Qt.MouseButton.LeftButton
+        ):
+            return
+        if (
+            event.position().toPoint() - self._drag_start_pos
+        ).manhattanLength() < QtWidgets.QApplication.startDragDistance():
+            return
+        drag = QtGui.QDrag(self)
+        mime = QtCore.QMimeData()
+        mime.setText(self.name)
+        drag.setMimeData(mime)
+        drag.setPixmap(self.grab())
+        drag.setHotSpot(event.position().toPoint())
+        # Don't touch ``self`` after exec(): the drop may rebuild (and delete)
+        # the chips, so the container defers that to keep this widget valid.
+        drag.exec(QtCore.Qt.DropAction.MoveAction)
+
+
+class ReorderableChipContainer(QtWidgets.QWidget):
+    """Hält die Spieler-Chips und erlaubt Neuanordnen per Drag & Drop.
+
+    Sendet ``reorder(name, target_index)``, sobald ein Chip an eine neue
+    Position gezogen wurde; das Umsortieren der Spielerliste übernimmt die
+    :class:`SetupView`.
+    """
+
+    reorder = QtCore.pyqtSignal(str, int)
+
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+
+    def _chips(self) -> List[PlayerChip]:
+        layout = self.layout()
+        if layout is None:
+            return []
+        return [
+            layout.itemAt(i).widget()
+            for i in range(layout.count())
+            if isinstance(layout.itemAt(i).widget(), PlayerChip)
+        ]
+
+    def dragEnterEvent(self, event: QtGui.QDragEnterEvent) -> None:
+        if event.mimeData().hasText():
+            event.setDropAction(QtCore.Qt.DropAction.MoveAction)
+            event.accept()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event: QtGui.QDragMoveEvent) -> None:
+        if event.mimeData().hasText():
+            event.setDropAction(QtCore.Qt.DropAction.MoveAction)
+            event.accept()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event: QtGui.QDropEvent) -> None:
+        if not event.mimeData().hasText():
+            event.ignore()
+            return
+        name = event.mimeData().text()
+        drop_x = event.position().x()
+        # Insertion index = how many other chips have their centre left of the
+        # drop point. This is the index in the list *after* the dragged player
+        # is removed, which is exactly how SetupView re-inserts it.
+        target = 0
+        for chip in self._chips():
+            if chip.name == name:
+                continue
+            if chip.x() + chip.width() / 2 < drop_x:
+                target += 1
+        event.setDropAction(QtCore.Qt.DropAction.MoveAction)
+        event.accept()
+        self.reorder.emit(name, target)
 
 
 class SetupView(QtWidgets.QWidget):
@@ -351,9 +451,10 @@ class SetupView(QtWidgets.QWidget):
         input_row.addWidget(self._btn_add)
         sp_layout.addLayout(input_row)
 
-        # Chip-Container
-        self._chips_container = QtWidgets.QWidget()
+        # Chip-Container – Chips lassen sich per Drag & Drop neu anordnen.
+        self._chips_container = ReorderableChipContainer()
         self._chips_container.setStyleSheet("background: transparent;")
+        self._chips_container.reorder.connect(self._reorder_player)
         self._chips_layout = QtWidgets.QHBoxLayout(self._chips_container)
         self._chips_layout.setContentsMargins(0, 0, 0, 0)
         self._chips_layout.setSpacing(8)
@@ -642,46 +743,64 @@ class SetupView(QtWidgets.QWidget):
         avatar = self._avatar_combo.currentText()
         if not name or any(p["name"] == name for p in self._players):
             return
-        color = PLAYER_COLORS[len(self._players) % len(PLAYER_COLORS)]
         self._players.append({"name": name, "avatar": avatar})
-        chip = PlayerChip(
-            name, color, self._chips_container, display=f"{avatar}  {name}"
-        )
-        chip.removed.connect(self._remove_player)
-        idx = self._chips_layout.count() - 1
-        self._chips_layout.insertWidget(idx, chip)
         self._name_edit.clear()
         self._name_status.clear()
+        self._rebuild_chips()
         self._update_state()
 
     def _remove_player(self, name: str) -> None:
         self._players = [p for p in self._players if p["name"] != name]
-        for i in range(self._chips_layout.count()):
-            item = self._chips_layout.itemAt(i)
-            if item and isinstance(item.widget(), PlayerChip):
-                if item.widget().name == name:
-                    widget = item.widget()
-                    self._chips_layout.removeWidget(widget)
-                    widget.deleteLater()
-                    break
-        # Re-colour remaining chips
-        for i, item_i in enumerate(
-            [
-                self._chips_layout.itemAt(j).widget()
-                for j in range(self._chips_layout.count())
-                if isinstance(self._chips_layout.itemAt(j).widget(), PlayerChip)
-            ]
-        ):
-            color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
-            item_i.setStyleSheet(f"""
-                QFrame {{
-                    background-color: transparent;
-                    border: 1px solid {color};
-                    border-radius: 14px;
-                    padding: 2px 10px;
-                }}
-                """)
+        self._rebuild_chips()
         self._update_state()
+
+    def _reorder_player(self, name: str, target_index: int) -> None:
+        """Move a dragged player to ``target_index`` in the seating order.
+
+        Deferred via a zero-timer: the drop arrives while QDrag's nested event
+        loop is still unwinding, and rebuilding the chips there would delete the
+        very widget that started the drag. Running it on the next event-loop
+        turn keeps that widget valid until the drag has fully finished.
+        """
+
+        def apply() -> None:
+            current = next(
+                (i for i, p in enumerate(self._players) if p["name"] == name),
+                None,
+            )
+            if current is None:
+                return
+            player = self._players.pop(current)
+            target = max(0, min(target_index, len(self._players)))
+            self._players.insert(target, player)
+            self._rebuild_chips()
+
+        QtCore.QTimer.singleShot(0, apply)
+
+    def _rebuild_chips(self) -> None:
+        """Rebuild all chips from ``self._players``, colouring by position.
+
+        Colours follow seat order (not the player), so they preview exactly the
+        colours the game will assign once started.
+        """
+        layout = self._chips_layout
+        # Drop everything currently in the layout (chips + trailing stretch).
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        for i, p in enumerate(self._players):
+            color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
+            chip = PlayerChip(
+                p["name"],
+                color,
+                self._chips_container,
+                display=f"{p['avatar']}  {p['name']}",
+            )
+            chip.removed.connect(self._remove_player)
+            layout.addWidget(chip)
+        layout.addStretch()
 
     def _update_state(self) -> None:
         n = len(self._players)

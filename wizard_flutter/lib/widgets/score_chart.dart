@@ -101,24 +101,23 @@ class _ScoreChartState extends State<ScoreChart> {
           child: Wrap(
             spacing: 12,
             runSpacing: 4,
-            children: sorted.asMap().entries.map((e) {
+            children: sorted.map((p) {
+              // Every player keeps their own line colour in the legend. The
+              // leader is no longer singled out with a different colour or a
+              // bold weight — it just happens to be listed first by the score
+              // sort above.
               final originalIndex = game.players.indexWhere(
-                (p) => p.name == e.value.name,
+                (pl) => pl.name == p.name,
               );
               final color = kPlayerColors[originalIndex % kPlayerColors.length];
-              final isFirst = e.key == 0;
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(width: 16, height: 3, color: color),
                   const SizedBox(width: 4),
                   Text(
-                    '${e.value.avatar} ${e.value.name} (${e.value.currentScore})',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isFirst ? kLeader : color,
-                      fontWeight: isFirst ? FontWeight.bold : FontWeight.normal,
-                    ),
+                    '${p.avatar} ${p.name} (${p.currentScore})',
+                    style: TextStyle(fontSize: 12, color: color),
                   ),
                 ],
               );
@@ -188,6 +187,13 @@ class _ScoreChartState extends State<ScoreChart> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       interval: 1,
+                      // Don't emit a title at the axis edges. Without this,
+                      // fl_chart adds an extra tick at maxX (= roundNumber +
+                      // 0.25); v.toInt() truncates that back to roundNumber,
+                      // which labelled the last round a second time at the far
+                      // right of the axis.
+                      minIncluded: false,
+                      maxIncluded: false,
                       getTitlesWidget: (v, _) {
                         final n = v.toInt();
                         if (n == 0 ||

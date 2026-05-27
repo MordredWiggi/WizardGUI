@@ -332,6 +332,18 @@ class _SetupScreenState extends State<SetupScreen> {
   void _removePlayer(String name) =>
       setState(() => _players.removeWhere((p) => p['name'] == name));
 
+  // Reorder the entered players via drag and drop. The list order is the
+  // seating order the game starts with, so this is all that needs to change.
+  void _onReorderPlayers(int oldIndex, int newIndex) {
+    setState(() {
+      // ReorderableListView reports newIndex assuming the dragged item is
+      // still present; adjust when moving an item further down the list.
+      if (newIndex > oldIndex) newIndex -= 1;
+      final moved = _players.removeAt(oldIndex);
+      _players.insert(newIndex, moved);
+    });
+  }
+
   Future<void> _startGame() async {
     if (_players.length < 2) return;
     final notifier = context.read<GameNotifier>();
@@ -741,23 +753,32 @@ class _SetupScreenState extends State<SetupScreen> {
                     ],
                   ),
 
-                  // Player chips
+                  // Player list — drag a row by its handle to change the
+                  // seating order. This is the order the game is started with
+                  // (see _startGame); it only becomes fixed once the game
+                  // begins.
                   if (_players.isNotEmpty) ...[
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _players.asMap().entries.map((e) {
+                    ReorderableListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      buildDefaultDragHandles: false,
+                      itemCount: _players.length,
+                      onReorder: _onReorderPlayers,
+                      itemBuilder: (context, index) {
+                        final p = _players[index];
+                        final name = p['name'] as String;
                         final color =
-                            kPlayerColors[e.key % kPlayerColors.length];
+                            kPlayerColors[index % kPlayerColors.length];
                         return _PlayerChip(
-                          avatar: e.value['avatar'] as String,
-                          name: e.value['name'] as String,
+                          key: ValueKey(name),
+                          index: index,
+                          avatar: p['avatar'] as String,
+                          name: name,
                           color: color,
-                          onRemove: () =>
-                              _removePlayer(e.value['name'] as String),
+                          onRemove: () => _removePlayer(name),
                         );
-                      }).toList(),
+                      },
                     ),
                   ],
 
@@ -1445,12 +1466,15 @@ class _TabChip extends StatelessWidget {
 }
 
 class _PlayerChip extends StatelessWidget {
+  final int index;
   final String avatar;
   final String name;
   final Color color;
   final VoidCallback onRemove;
 
   const _PlayerChip({
+    super.key,
+    required this.index,
     required this.avatar,
     required this.name,
     required this.color,
@@ -1459,28 +1483,40 @@ class _PlayerChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 8),
     decoration: BoxDecoration(
       border: Border.all(color: color),
       borderRadius: BorderRadius.circular(20),
     ),
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
     child: Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
+        // Drag handle — the affordance for reordering players.
+        ReorderableDragStartListener(
+          index: index,
+          child: Icon(
+            Icons.drag_indicator,
+            size: 20,
+            color: color.withOpacity(0.7),
+          ),
+        ),
+        const SizedBox(width: 8),
         Text(avatar, style: const TextStyle(fontSize: 16)),
-        const SizedBox(width: 4),
-        Text(
-          name,
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            name,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
           ),
         ),
         const SizedBox(width: 4),
         GestureDetector(
           onTap: onRemove,
-          child: Icon(Icons.close, size: 14, color: color),
+          child: Icon(Icons.close, size: 16, color: color),
         ),
       ],
     ),
