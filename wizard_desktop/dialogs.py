@@ -578,6 +578,11 @@ class PodiumDialog(ThemedDialog):
         top_indices = [i for i, r in enumerate(ranks) if r <= 3]
         rest_indices = [i for i, r in enumerate(ranks) if r > 3]
 
+        # Map player name -> the ELO badge label. The leaderboard worker fills
+        # these via ``set_elo_deltas`` once the response arrives; the dialog
+        # may open before that happens, so the labels start blank/hidden.
+        self._elo_labels: dict[str, QtWidgets.QLabel] = {}
+
         for idx_in_loop, i in enumerate(top_indices):
             name, score = players_sorted[i]
             r = ranks[i]
@@ -605,28 +610,53 @@ class PodiumDialog(ThemedDialog):
                 | QtCore.Qt.AlignmentFlag.AlignVCenter
             )
 
+            elo_lbl = self._make_elo_label()
+            self._elo_labels[name] = elo_lbl
+
             row.addWidget(place_lbl)
             row.addWidget(name_lbl, 1)
             row.addWidget(score_lbl)
+            row.addWidget(elo_lbl)
             layout.addLayout(row)
 
             if idx_in_loop < len(top_indices) - 1:
                 layout.addWidget(_sep())
 
-        # Show remaining players (rank > 3)
+        # Show remaining players (rank > 3) — one row each so the ELO badge
+        # can sit next to its player.
         if rest_indices:
             layout.addWidget(_sep())
-            others_lbl = QtWidgets.QLabel()
-            lines = []
             for i in rest_indices:
                 name, score = players_sorted[i]
                 r = ranks[i]
-                lines.append(f"{r}. {name}  –  {t('podium_points', pts=score)}")
-            others_lbl.setText("\n".join(lines))
-            others_lbl.setStyleSheet(
-                f"color: {TEXT_DIM}; font-size: 14px; background: transparent;"
-            )
-            layout.addWidget(others_lbl)
+                row = QtWidgets.QHBoxLayout()
+                row.setContentsMargins(0, 2, 0, 2)
+
+                place_lbl = QtWidgets.QLabel(f"{r}.")
+                place_lbl.setStyleSheet(
+                    f"color: {TEXT_DIM}; font-size: 14px; min-width: 24px; background: transparent;"
+                )
+                name_lbl = QtWidgets.QLabel(name)
+                name_lbl.setStyleSheet(
+                    f"color: {TEXT_DIM}; font-size: 14px; background: transparent;"
+                )
+                score_lbl = QtWidgets.QLabel(t("podium_points", pts=score))
+                score_lbl.setStyleSheet(
+                    f"color: {TEXT_DIM}; font-size: 14px; background: transparent;"
+                )
+                score_lbl.setAlignment(
+                    QtCore.Qt.AlignmentFlag.AlignRight
+                    | QtCore.Qt.AlignmentFlag.AlignVCenter
+                )
+
+                elo_lbl = self._make_elo_label()
+                self._elo_labels[name] = elo_lbl
+
+                row.addWidget(place_lbl)
+                row.addWidget(name_lbl, 1)
+                row.addWidget(score_lbl)
+                row.addWidget(elo_lbl)
+                layout.addLayout(row)
 
         layout.addWidget(_sep())
 
@@ -650,6 +680,46 @@ class PodiumDialog(ThemedDialog):
         self.save_requested.emit()
         self._btn_save.setEnabled(False)
         self._btn_save.setText(t("offline_saved_ok"))
+
+    # ── ELO badges ──────────────────────────────────────────────────────────
+
+    def _make_elo_label(self) -> QtWidgets.QLabel:
+        """Empty, hidden placeholder for an ELO badge."""
+        lbl = QtWidgets.QLabel("")
+        lbl.setVisible(False)
+        lbl.setMinimumWidth(70)
+        lbl.setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignRight
+            | QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
+        return lbl
+
+    def set_elo_deltas(self, deltas: list) -> None:
+        """Populate each player's ELO badge from the leaderboard response.
+
+        ``deltas`` is a list of ``{"name", "delta", "rating", "rank"}`` dicts
+        as returned by ``POST /api/games``. Players whose name we don't have
+        a row for (shouldn't happen) are silently skipped. Safe to call
+        multiple times.
+        """
+        for entry in deltas or []:
+            name = entry.get("name") if isinstance(entry, dict) else None
+            delta = entry.get("delta") if isinstance(entry, dict) else None
+            if not isinstance(name, str) or not isinstance(delta, (int, float)):
+                continue
+            lbl = self._elo_labels.get(name)
+            if lbl is None:
+                continue
+            rounded = round(float(delta))
+            up = rounded >= 0
+            sign = "+" if up else "−"
+            color = SUCCESS if up else DANGER
+            lbl.setText(f"ELO {sign}{abs(rounded)}")
+            lbl.setStyleSheet(
+                f"color: {color}; font-size: 13px; font-weight: 700; "
+                f"background: transparent; padding: 2px 6px;"
+            )
+            lbl.setVisible(True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

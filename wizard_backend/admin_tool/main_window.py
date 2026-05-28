@@ -42,6 +42,7 @@ class MainWindow(QtWidgets.QMainWindow):
         from group_players_view import GroupDetailView
         from players_view import PlayersView
         from feedback_view import FeedbackView
+        from elo_view import EloView
         from sql_console import SqlConsole
         from backup_view import BackupView
 
@@ -72,7 +73,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Instantiate views. The stack order is:
         #   0 Dashboard, 1 Groups list, 2 GroupDetail (Games+Players tabs),
-        #   3 All players, 4 Feedback, 5 SQL Console, 6 Backup
+        #   3 All players, 4 Feedback, 5 ELO, 6 SQL Console, 7 Backup
         # Stack index 2 is reached only by clicking a group in the Groups
         # view - there is no sidebar button for it.
         self._dashboard = DashboardView(self.backend)
@@ -80,6 +81,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._group_detail = GroupDetailView(self.backend)
         self._players = PlayersView(self.backend)
         self._feedback = FeedbackView(self.backend)
+        self._elo = EloView(self.backend)
         self._sql = SqlConsole(self.backend)
         self._backup = BackupView(self.backend)
 
@@ -89,6 +91,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self._group_detail,
             self._players,
             self._feedback,
+            self._elo,
             self._sql,
             self._backup,
         ):
@@ -136,8 +139,9 @@ class MainWindow(QtWidgets.QMainWindow):
             ("👥  Groups", 1),
             ("🧑  All players", 3),
             ("💬  Feedback", 4),
-            ("🛠  SQL Console", 5),
-            ("💾  Backup", 6),
+            ("📈  ELO", 5),
+            ("🛠  SQL Console", 6),
+            ("💾  Backup", 7),
         ]
         for label, idx in sections:
             btn = QtWidgets.QPushButton(label)

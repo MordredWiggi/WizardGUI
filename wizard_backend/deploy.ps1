@@ -91,7 +91,17 @@ $staging = Join-Path $env:TEMP ("wizard-deploy-" + [guid]::NewGuid().ToString("N
 New-Item -ItemType Directory -Path $staging -Force | Out-Null
 
 # Whitelist - nur diese Dateien/Ordner werden hochgeladen
-$items = @("main.py", "database.py", "requirements.txt", "templates", "translations.py")
+# Hinweis: Die Produktiv-Datenbank liegt unter /data/leaderboard.db und wird
+# bewusst NICHT angefasst. Schema-Migrationen laufen idempotent in init_db().
+$items = @(
+    "main.py",
+    "database.py",
+    "elo.py",
+    "translations.py",
+    "requirements.txt",
+    "templates",
+    "ELO_SYSTEM.md"
+)
 foreach ($item in $items) {
     $src = Join-Path $scriptDir $item
     if (-not (Test-Path $src)) {
@@ -126,11 +136,22 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# Inhalt von $staging (nicht den Ordner selbst) hochladen
+# Inhalt von $staging (nicht den Ordner selbst) hochladen.
+# scp bekommt nur die tatsaechlich gestageten Items - so kann das Whitelist-
+# Array oben die einzige Quelle der Wahrheit bleiben.
 Push-Location $staging
 try {
+    # @(...) forces an array even when Get-ChildItem yields a single item, so
+    # the @stagedItems splat below always passes one-name-per-argument.
+    $stagedItems = @(Get-ChildItem -Path $staging | ForEach-Object { $_.Name })
+    if (-not $stagedItems) {
+        Write-Err "Staging ist leer - nichts zum Hochladen."
+        Pop-Location
+        Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
+        exit 1
+    }
     & scp -i $SshKey -o StrictHostKeyChecking=accept-new -r -q `
-        "main.py" "database.py" "requirements.txt" "templates" "translations.py" `
+        @stagedItems `
         "${SshUser}@${SshHost}:${RemoteDir}/"
     if ($LASTEXITCODE -ne 0) {
         Write-Err "scp-Upload fehlgeschlagen."

@@ -309,7 +309,7 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
   bool _hasError = false;
   String _mode = 'standard';
   String? _lastGroupCode;
-  int _sortColumnIndex = 4; // default: avg score, descending
+  int _sortColumnIndex = 2; // default: ELO, descending
   bool _sortAscending = false;
 
   @override
@@ -380,27 +380,31 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
           av = (a['name'] as String? ?? '').toLowerCase();
           bv = (b['name'] as String? ?? '').toLowerCase();
           break;
-        case 2: // games
+        case 2: // elo (players without a rating sort to the bottom)
+          av = (a['elo'] as num?)?.toDouble() ?? -1;
+          bv = (b['elo'] as num?)?.toDouble() ?? -1;
+          break;
+        case 3: // games
           av = (a['games'] as num?)?.toDouble() ?? 0;
           bv = (b['games'] as num?)?.toDouble() ?? 0;
           break;
-        case 3: // wins
+        case 4: // wins
           av = (a['wins'] as num?)?.toDouble() ?? 0;
           bv = (b['wins'] as num?)?.toDouble() ?? 0;
           break;
-        case 4: // avg_score
+        case 5: // avg_score
           av = (a['avg_score'] as num?)?.toDouble() ?? 0;
           bv = (b['avg_score'] as num?)?.toDouble() ?? 0;
           break;
-        case 5: // highest_score
+        case 6: // highest_score
           av = (a['highest_score'] as num?)?.toDouble() ?? 0;
           bv = (b['highest_score'] as num?)?.toDouble() ?? 0;
           break;
-        case 6: // hit_rate
+        case 7: // hit_rate
           av = (a['hit_rate'] as num?)?.toDouble() ?? 0;
           bv = (b['hit_rate'] as num?)?.toDouble() ?? 0;
           break;
-        case 7: // win_streak
+        case 8: // win_streak
           av = (a['win_streak'] as num?)?.toDouble() ?? 0;
           bv = (b['win_streak'] as num?)?.toDouble() ?? 0;
           break;
@@ -556,6 +560,10 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
                       onSort: (i, _) => _sortBy(i, numeric: false),
                     ),
                     DataColumn(
+                      label: _CenterHeader(t('lb_col_elo')),
+                      onSort: (i, _) => _sortBy(i, numeric: true),
+                    ),
+                    DataColumn(
                       label: _CenterHeader(t('lb_col_games')),
                       onSort: (i, _) => _sortBy(i, numeric: true),
                     ),
@@ -584,6 +592,7 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
                     final visualRank = entry.key + 1;
                     final row = entry.value;
                     final name = row['name'] as String? ?? '';
+                    final elo = (row['elo'] as num?)?.toInt();
                     final games = (row['games'] as num?)?.toInt() ?? 0;
                     final wins = (row['wins'] as num?)?.toInt() ?? 0;
                     final avg = (row['avg_score'] as num?)?.toDouble() ?? 0.0;
@@ -617,6 +626,17 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
                               overflow: TextOverflow.ellipsis,
                             ),
                             width: _kNameCellWidth,
+                          ),
+                        ),
+                        DataCell(
+                          _CenterCell(
+                            Text(
+                              elo?.toString() ?? '–',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: elo == null ? kTextDim : kAccent,
+                              ),
+                            ),
                           ),
                         ),
                         DataCell(_CenterCell(Text(games.toString()))),

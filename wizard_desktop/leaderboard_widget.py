@@ -36,6 +36,7 @@ from game_control import GAME_MODE_STANDARD, GAME_MODE_MULTIPLICATIVE
 _COLUMNS = [
     ("_rank", "lb_col_rank", 50),
     ("name", "lb_col_name", 150),
+    ("elo", "lb_col_elo", 80),
     ("wins", "lb_col_wins", 70),
     ("games", "lb_col_games", 70),
     ("win_rate", "lb_col_win_rate", 80),
@@ -45,6 +46,7 @@ _COLUMNS = [
     ("win_streak", "lb_col_streak", 70),
 ]
 _SORTABLE_KEYS = {
+    "elo",
     "wins",
     "games",
     "win_rate",
@@ -177,7 +179,7 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
         super().__init__(parent)
         self._fetch_worker: Optional[object] = None
         self._current_mode = GAME_MODE_STANDARD
-        self._current_sort = "wins"
+        self._current_sort = "elo"
         self._sort_ascending = False  # default: high → low for numeric columns
         self._group_code: Optional[str] = None
         self._data: list[dict] = []
@@ -371,9 +373,20 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
     # ── Rendering ────────────────────────────────────────────────────────────
 
     def _render_data(self) -> None:
+        # Players without a rating yet (``elo`` is None) must not crash the
+        # comparator and must sort to the bottom regardless of direction.
+        sentinel_low = float("-inf")
+        sentinel_high = float("inf")
+
+        def _sort_key(row: dict):
+            v = row.get(self._current_sort)
+            if v is None:
+                return sentinel_high if self._sort_ascending else sentinel_low
+            return v
+
         sorted_data = sorted(
             self._data,
-            key=lambda row: row.get(self._current_sort, 0),
+            key=_sort_key,
             reverse=not self._sort_ascending,
         )
         self._table.setRowCount(len(sorted_data))
@@ -382,6 +395,9 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
             for col_idx, (data_key, _, _) in enumerate(_COLUMNS):
                 if data_key == "_rank":
                     value = str(row_idx + 1)
+                elif data_key == "elo":
+                    v = entry.get("elo")
+                    value = "–" if v is None else str(int(v))
                 elif data_key in ("win_rate", "hit_rate", "avg_score"):
                     value = f"{entry.get(data_key, 0):.1f}"
                     if data_key in ("win_rate", "hit_rate"):

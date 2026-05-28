@@ -76,6 +76,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self._overlay = CelebrationOverlay(self)
         self._submit_worker = None
         self._pending_sync_path: Optional[Path] = None
+        # ELO deltas for the just-finished game (filled by the submit worker).
+        # The PodiumDialog reads these — it can be open before or after the
+        # response arrives, so we also keep a reference to push updates in.
+        self._last_elo_deltas: list[dict] = []
+        self._podium_dlg: Optional[PodiumDialog] = None
 
         self.showMaximized()
 
@@ -111,6 +116,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 return
             self._save_manager.clear_paused()
             self._setup_view.refresh_resume_state()
+        # Clear ELO deltas from any previous game so they don't leak into the
+        # podium of the next one.
+        self._last_elo_deltas = []
 
         self._active_group = group  # may be None for load-game paths
         self._game = GameControl(player_data, game_mode=game_mode)
@@ -399,10 +407,16 @@ class MainWindow(QtWidgets.QMainWindow):
             key=lambda x: x[1],
             reverse=True,
         )
-        dlg = PodiumDialog(self, players_sorted)
-        dlg.save_requested.connect(self._on_podium_save)
-        if dlg.exec():
-            self._on_new_game()
+        self._podium_dlg = PodiumDialog(self, players_sorted)
+        self._podium_dlg.save_requested.connect(self._on_podium_save)
+        # If the leaderboard response already arrived, render it immediately.
+        if self._last_elo_deltas:
+            self._podium_dlg.set_elo_deltas(self._last_elo_deltas)
+        try:
+            if self._podium_dlg.exec():
+                self._on_new_game()
+        finally:
+            self._podium_dlg = None
 
     def _on_podium_save(self) -> None:
         """Persist the finished game from the podium with an automatic name."""
@@ -512,9 +526,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self._submit_worker.finished.connect(self._on_submit_result)
         self._submit_worker.start()
 
-    def _on_submit_result(self, success: bool) -> None:
+    def _on_submit_result(self, result: object) -> None:
+        """Handle the parsed server response (dict) or ``None`` on failure."""
         path = getattr(self, "_pending_sync_path", None)
+        success = result is not None
         if success:
+            # Surface the ELO change on the podium screen.
+            elo_list = result.get("elo") if isinstance(result, dict) else None
+            self._last_elo_deltas = list(elo_list or [])
+            if self._podium_dlg is not None and self._last_elo_deltas:
+                self._podium_dlg.set_elo_deltas(self._last_elo_deltas)
             if path is not None:
                 self._save_manager.mark_synced(path)
             self._show_status(t("leaderboard_submit_ok"))
@@ -574,7 +595,9 @@ class MainWindow(QtWidgets.QMainWindow):
                     played_at=item.get("saved_at") or None,
                     group_code=item.get("group_code"),
                 )
-                if client.submit_game(submission):
+                # The server returns a dict on success (non-None) including the
+                # ELO deltas; we just need to know the upload was accepted.
+                if client.submit_game(submission) is not None:
                     self._save_manager.mark_synced(item["filepath"])
                     synced += 1
             except Exception:
@@ -657,7 +680,7 @@ class MainWindow(QtWidgets.QMainWindow):
             submission = build_game_submission(
                 game_data, played_at=played_at, group_code=group_code
             )
-            if client.submit_game(submission):
+            if client.submit_game(submission) is not None:
                 success_count += 1
 
         progress.close()

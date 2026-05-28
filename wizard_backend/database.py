@@ -11,11 +11,19 @@ Tables:
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
+from datetime import datetime, timezone
 from typing import Optional
 
+import elo
+
 DB_PATH = os.environ.get("WIZARD_DB_PATH", "/data/leaderboard.db")
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 def _get_db() -> sqlite3.Connection:
@@ -64,6 +72,33 @@ def init_db() -> None:
             downvotes  INTEGER NOT NULL DEFAULT 0,
             created_at TEXT    NOT NULL DEFAULT (datetime('now'))
         );
+        -- ELO: single editable configuration row (id is always 1).
+        CREATE TABLE IF NOT EXISTS elo_config (
+            id         INTEGER PRIMARY KEY CHECK (id = 1),
+            params     TEXT    NOT NULL,
+            version    INTEGER NOT NULL DEFAULT 1,
+            updated_at TEXT    NOT NULL
+        );
+        -- ELO: current rating per (player, group, game_mode). No global pool.
+        CREATE TABLE IF NOT EXISTS player_ratings (
+            player_id  INTEGER NOT NULL REFERENCES players(id),
+            group_id   INTEGER NOT NULL REFERENCES groups(id),
+            game_mode  TEXT    NOT NULL,
+            rating     REAL    NOT NULL,
+            games      INTEGER NOT NULL DEFAULT 0,
+            streak     INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT    NOT NULL,
+            PRIMARY KEY (player_id, group_id, game_mode)
+        );
+        -- ELO: per-game, per-player rating change (audit trail + app display).
+        CREATE TABLE IF NOT EXISTS game_elo_deltas (
+            game_id       INTEGER NOT NULL REFERENCES games(id),
+            player_id     INTEGER NOT NULL REFERENCES players(id),
+            rating_before REAL    NOT NULL,
+            rating_after  REAL    NOT NULL,
+            delta         REAL    NOT NULL,
+            PRIMARY KEY (game_id, player_id)
+        );
     """)
     # Idempotent migration: add group_id column to games if missing (for existing DBs)
     cols = {row[1] for row in db.execute("PRAGMA table_info(games)")}
@@ -71,7 +106,14 @@ def init_db() -> None:
         db.execute(
             "ALTER TABLE games ADD COLUMN group_id INTEGER REFERENCES groups(id)"
         )
-        db.commit()
+    # Seed the ELO config row with defaults on first run.
+    if db.execute("SELECT 1 FROM elo_config WHERE id = 1").fetchone() is None:
+        db.execute(
+            "INSERT INTO elo_config (id, params, version, updated_at) "
+            "VALUES (1, ?, 1, ?)",
+            (json.dumps(elo.DEFAULT_CONFIG), _now_iso()),
+        )
+    db.commit()
     db.close()
 
 
@@ -195,6 +237,193 @@ def list_groups(search: str = "") -> list[dict]:
     return [dict(r) for r in rows]
 
 
+# ── ELO engine ──────────────────────────────────────────────────────────────
+#
+# Ratings are tracked per (player, group, game_mode). The actual maths lives in
+# the dependency-free ``elo`` module so the backend and the Admin Tool share one
+# implementation. The functions below are the thin DB layer around it.
+
+
+def _get_elo_config(db: sqlite3.Connection) -> dict:
+    """Read and normalise the active ELO configuration (defaults if absent)."""
+    row = db.execute("SELECT params FROM elo_config WHERE id = 1").fetchone()
+    raw = None
+    if row and row["params"]:
+        try:
+            raw = json.loads(row["params"])
+        except (ValueError, TypeError):
+            raw = None
+    return elo.normalize_config(raw)
+
+
+def get_elo_config() -> dict:
+    """Public helper: the active, normalised ELO configuration."""
+    db = _get_db()
+    try:
+        return _get_elo_config(db)
+    finally:
+        db.close()
+
+
+def set_elo_config(params: dict) -> dict:
+    """Persist a new ELO configuration (forward-looking; no recompute).
+
+    Returns the normalised config that was stored.
+    """
+    normalized = elo.normalize_config(params)
+    db = _get_db()
+    try:
+        db.execute(
+            "INSERT INTO elo_config (id, params, version, updated_at) "
+            "VALUES (1, ?, 1, ?) "
+            "ON CONFLICT(id) DO UPDATE SET "
+            "params = excluded.params, "
+            "version = elo_config.version + 1, "
+            "updated_at = excluded.updated_at",
+            (json.dumps(normalized), _now_iso()),
+        )
+        db.commit()
+        return normalized
+    finally:
+        db.close()
+
+
+def _fetch_pool_games(
+    db: sqlite3.Connection, group_id: int, game_mode: str
+) -> list[dict]:
+    """All games of one pool (group + mode) with their results, chronological."""
+    rows = db.execute(
+        """
+        SELECT g.id AS game_id,
+               r.player_id, r.rank, r.correct_bids, r.total_rounds, r.final_score
+        FROM games   g
+        JOIN results r ON r.game_id = g.id
+        WHERE g.group_id = ? AND g.game_mode = ?
+        ORDER BY g.played_at, g.id
+        """,
+        (group_id, game_mode),
+    ).fetchall()
+
+    games: dict[int, dict] = {}
+    order: list[int] = []
+    for row in rows:
+        gid = row["game_id"]
+        if gid not in games:
+            games[gid] = {"game_id": gid, "players": []}
+            order.append(gid)
+        games[gid]["players"].append(
+            {
+                "player_id": row["player_id"],
+                "rank": row["rank"],
+                "correct_bids": row["correct_bids"],
+                "total_rounds": row["total_rounds"],
+                "final_score": row["final_score"],
+            }
+        )
+    return [games[gid] for gid in order]
+
+
+def _recompute_pool(
+    db: sqlite3.Connection, group_id: int, game_mode: str, config: dict
+) -> None:
+    """Replay one pool from scratch and rewrite its ratings + deltas.
+
+    Runs inside the caller's transaction. Recomputing the whole pool on every
+    submit keeps ratings exact even when games arrive out of chronological
+    order (e.g. a pending-sync game uploaded days later).
+    """
+    games = _fetch_pool_games(db, group_id, game_mode)
+    ratings, deltas = elo.replay_pool(games, config)
+    now = _now_iso()
+
+    db.execute(
+        "DELETE FROM player_ratings WHERE group_id = ? AND game_mode = ?",
+        (group_id, game_mode),
+    )
+    for player_id, state in ratings.items():
+        db.execute(
+            "INSERT INTO player_ratings "
+            "(player_id, group_id, game_mode, rating, games, streak, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                player_id,
+                group_id,
+                game_mode,
+                state["rating"],
+                state["games"],
+                state["streak"],
+                now,
+            ),
+        )
+
+    db.execute(
+        "DELETE FROM game_elo_deltas WHERE game_id IN "
+        "(SELECT id FROM games WHERE group_id = ? AND game_mode = ?)",
+        (group_id, game_mode),
+    )
+    for d in deltas:
+        db.execute(
+            "INSERT INTO game_elo_deltas "
+            "(game_id, player_id, rating_before, rating_after, delta) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (
+                d["game_id"],
+                d["player_id"],
+                d["rating_before"],
+                d["rating_after"],
+                d["delta"],
+            ),
+        )
+
+
+def _game_elo_payload(db: sqlite3.Connection, game_id: int) -> list[dict]:
+    """Per-player ELO result for one game, for the API response / app display."""
+    rows = db.execute(
+        """
+        SELECT p.name, d.delta, d.rating_after AS rating, r.rank
+        FROM game_elo_deltas d
+        JOIN players p ON p.id = d.player_id
+        JOIN results r ON r.game_id = d.game_id AND r.player_id = d.player_id
+        WHERE d.game_id = ?
+        ORDER BY r.rank
+        """,
+        (game_id,),
+    ).fetchall()
+    return [
+        {
+            "name": row["name"],
+            "delta": round(row["delta"], 1),
+            "rating": round(row["rating"]),
+            "rank": row["rank"],
+        }
+        for row in rows
+    ]
+
+
+def recompute_all_elo() -> int:
+    """Recompute every pool from scratch. Returns the number of pools processed.
+
+    Used for the very first introduction of the ELO system (or a deliberate
+    reset). The Admin Tool offers this as an explicit button.
+    """
+    db = _get_db()
+    try:
+        config = _get_elo_config(db)
+        pools = db.execute(
+            "SELECT DISTINCT group_id, game_mode FROM games "
+            "WHERE group_id IS NOT NULL"
+        ).fetchall()
+        for pool in pools:
+            _recompute_pool(db, pool["group_id"], pool["game_mode"], config)
+        db.commit()
+        return len(pools)
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
 # ── Game submission ────────────────────────────────────────────────────────────
 
 
@@ -205,15 +434,22 @@ def submit_game(
     played_at: str,
     player_results: list[dict],
     group_id: Optional[int] = None,
-) -> bool:
-    """Insert a completed game.  Returns False if game_hash already exists."""
+) -> dict:
+    """Insert a completed game and update the ELO ratings of its pool.
+
+    Returns ``{"created": bool, "elo": [...]}``. ``created`` is False when the
+    game_hash already exists (duplicate); in that case the previously computed
+    ELO deltas are still returned so a re-submitting client can show them.
+    ``elo`` is an empty list for games without a group (no rating pool).
+    """
     db = _get_db()
     try:
-        if db.execute(
-            "SELECT 1 FROM games WHERE game_hash = ?", (game_hash,)
-        ).fetchone():
-            db.close()
-            return False
+        existing = db.execute(
+            "SELECT id FROM games WHERE game_hash = ?", (game_hash,)
+        ).fetchone()
+        if existing:
+            payload = _game_elo_payload(db, existing["id"])
+            return {"created": False, "elo": payload}
 
         cursor = db.execute(
             "INSERT INTO games (game_hash, game_mode, num_players, played_at, group_id) "
@@ -237,8 +473,18 @@ def submit_game(
                     pr["total_rounds"],
                 ),
             )
+
+        # Only grouped games have a rating pool. Recompute the whole pool so the
+        # result is correct even if this game was played before others already
+        # uploaded for the same group/mode.
+        elo_payload: list[dict] = []
+        if group_id is not None:
+            config = _get_elo_config(db)
+            _recompute_pool(db, group_id, game_mode, config)
+            elo_payload = _game_elo_payload(db, game_id)
+
         db.commit()
-        return True
+        return {"created": True, "elo": elo_payload}
     except Exception:
         db.rollback()
         raise
@@ -301,10 +547,15 @@ def get_group_player_leaderboard(code: str, game_mode: str) -> Optional[list[dic
                    CAST(SUM(r.correct_bids) AS REAL)
                    / NULLIF(SUM(r.total_rounds), 0) * 100, 1
                )                                                           AS hit_rate,
-               MAX(r.final_score)                                          AS highest_score
+               MAX(r.final_score)                                          AS highest_score,
+               CAST(ROUND(MAX(pr.rating)) AS INTEGER)                      AS elo
         FROM results r
         JOIN players p ON r.player_id = p.id
         JOIN games   g ON r.game_id  = g.id
+        LEFT JOIN player_ratings pr
+               ON pr.player_id = p.id
+              AND pr.group_id  = g.group_id
+              AND pr.game_mode = g.game_mode
         WHERE g.game_mode = ? AND g.group_id = ?
         GROUP BY p.id
         """,
@@ -348,18 +599,20 @@ def _build_player_stats(
                 current_streak = 0
 
         games = row["games"] or 1
-        result.append(
-            {
-                "name": row["name"],
-                "wins": row["wins"] or 0,
-                "games": games,
-                "win_rate": round((row["wins"] or 0) / games * 100, 1),
-                "avg_score": row["avg_score"] or 0,
-                "hit_rate": row["hit_rate"] or 0,
-                "highest_score": row["highest_score"] or 0,
-                "win_streak": max_streak,
-            }
-        )
+        stats = {
+            "name": row["name"],
+            "wins": row["wins"] or 0,
+            "games": games,
+            "win_rate": round((row["wins"] or 0) / games * 100, 1),
+            "avg_score": row["avg_score"] or 0,
+            "hit_rate": row["hit_rate"] or 0,
+            "highest_score": row["highest_score"] or 0,
+            "win_streak": max_streak,
+        }
+        # ELO is only present in group-scoped leaderboards (per-group pools).
+        if "elo" in row.keys():
+            stats["elo"] = row["elo"]
+        result.append(stats)
     return result
 
 

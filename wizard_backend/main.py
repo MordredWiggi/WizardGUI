@@ -138,7 +138,7 @@ def submit_game(game: GameSubmission) -> dict:
             raise HTTPException(status_code=404, detail="Group not found")
         group_id = group["id"]
 
-    created = db.submit_game(
+    result = db.submit_game(
         game_hash=game.game_hash,
         game_mode=game.game_mode,
         num_players=game.num_players,
@@ -146,9 +146,13 @@ def submit_game(game: GameSubmission) -> dict:
         player_results=[p.model_dump() for p in game.players],
         group_id=group_id,
     )
-    if created:
-        return {"status": "created"}
-    return {"status": "duplicate"}
+    # ``elo`` carries the per-player rating change for this game (empty list for
+    # games without a group). It is returned for both new and duplicate
+    # submissions so the app can always display the result.
+    return {
+        "status": "created" if result["created"] else "duplicate",
+        "elo": result["elo"],
+    }
 
 
 @app.get("/api/players/check")

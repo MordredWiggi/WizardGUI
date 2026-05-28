@@ -18,12 +18,25 @@ class GameNotifier extends ChangeNotifier {
   /// Name of the active save slot — set on manual save or load, used by autoSave.
   String? _currentSaveName;
 
+  /// Per-player ELO change for the just-finished game, as returned by the
+  /// leaderboard server: `[{name, delta, rating, rank}, ...]`. Null until a
+  /// game with a group has been submitted; cleared at the start of each game.
+  List<Map<String, dynamic>>? _lastEloDeltas;
+
   GameNotifier({SaveManager? saveManager})
     : _saveManager = saveManager ?? SaveManager();
 
   GameControl? get game => _game;
   bool get hasGame => _game != null;
   Map<String, dynamic>? get activeGroup => _activeGroup;
+  List<Map<String, dynamic>>? get lastEloDeltas => _lastEloDeltas;
+
+  /// Store (or clear) the ELO deltas of the latest finished game and notify
+  /// listeners so the podium can render them.
+  void setEloDeltas(List<Map<String, dynamic>>? deltas) {
+    _lastEloDeltas = deltas;
+    notifyListeners();
+  }
 
   // ── Group management ────────────────────────────────────────────────────────
 
@@ -46,6 +59,7 @@ class GameNotifier extends ChangeNotifier {
           ? GameMode.multiplicative
           : GameMode.standard,
     );
+    _lastEloDeltas = null; // don't let the previous game's ELO leak in
     notifyListeners();
     // Persist immediately so the game is recoverable even if the app is
     // killed before the first round completes — no lifecycle event needed.

@@ -105,11 +105,52 @@ class _PodiumScreenState extends State<PodiumScreen> {
     }
   }
 
+  /// Map player name -> ELO delta for the just-finished game (may be empty).
+  Map<String, num> _eloByName(List<Map<String, dynamic>>? deltas) {
+    final map = <String, num>{};
+    if (deltas != null) {
+      for (final e in deltas) {
+        final name = e['name'];
+        final delta = e['delta'];
+        if (name is String && delta is num) map[name] = delta;
+      }
+    }
+    return map;
+  }
+
+  /// A small coloured "+12 / −8" ELO badge. Returns an empty box when no delta
+  /// is available (e.g. the game was played without a group).
+  Widget _eloBadge(num? delta) {
+    if (delta == null) return const SizedBox.shrink();
+    final rounded = delta.round();
+    final isUp = rounded >= 0;
+    final color = isUp ? const Color(0xFF4ADE80) : const Color(0xFFF87171);
+    final text = '${isUp ? '+' : '−'}${rounded.abs()}';
+    return Container(
+      margin: const EdgeInsets.only(left: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.6), width: 1),
+      ),
+      child: Text(
+        'ELO $text',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<AppSettings>();
     final t = settings.t;
     final theme = Theme.of(context);
+    final eloByName = _eloByName(context.watch<GameNotifier>().lastEloDeltas);
 
     // Compute competition ranks (1224) so multiple players with identical
     // scores share the same place — and the same emoji.
@@ -199,6 +240,7 @@ class _PodiumScreenState extends State<PodiumScreen> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+                      _eloBadge(eloByName[name]),
                     ],
                   ),
                 );
@@ -234,6 +276,7 @@ class _PodiumScreenState extends State<PodiumScreen> {
                             color: kAccentDim,
                           ),
                         ),
+                        _eloBadge(eloByName[name]),
                       ],
                     ),
                   );

@@ -78,7 +78,8 @@ class _PendingSyncSheetState extends State<_PendingSyncSheet> {
         groupCode: code,
       );
       try {
-        if (await widget.service.submitGame(payload)) {
+        // A non-null response means the server accepted (created or duplicate).
+        if (await widget.service.submitGame(payload) != null) {
           await notifier.markSynced(p.filePath);
           synced++;
         }

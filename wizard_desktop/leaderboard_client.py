@@ -143,10 +143,18 @@ class LeaderboardClient:
             return None
         return data.get("exists", False)
 
-    def submit_game(self, payload: dict) -> bool:
+    def submit_game(self, payload: dict) -> Optional[dict]:
+        """Submit a finished game. Returns the parsed server response on
+        success (which contains the per-player ``elo`` deltas), or ``None`` on
+        any network/parse failure so the caller can fall back to offline retry.
+
+        Response shape::
+
+            {"status": "created"|"duplicate",
+             "elo": [{"name", "delta", "rating", "rank"}, ...]}
+        """
         url = f"{self.base_url}/api/games"
-        result = _post_json(url, payload)
-        return result is not None
+        return _post_json(url, payload)
 
     def get_leaderboard(self, mode: str = "standard") -> Optional[list]:
         """Fetch global player leaderboard data. Returns list of dicts or None on error."""
@@ -243,9 +251,13 @@ class GroupPlayerCheckWorker(QtCore.QThread):
 
 
 class GameSubmitWorker(QtCore.QThread):
-    """Submit a completed game in the background."""
+    """Submit a completed game in the background.
 
-    finished = QtCore.pyqtSignal(bool)
+    The ``finished`` signal carries the parsed server response (a ``dict`` with
+    ``status`` and ``elo``) on success, or ``None`` on any failure.
+    """
+
+    finished = QtCore.pyqtSignal(object)
 
     def __init__(self, client: LeaderboardClient, payload: dict) -> None:
         super().__init__()
@@ -253,8 +265,8 @@ class GameSubmitWorker(QtCore.QThread):
         self._payload = payload
 
     def run(self) -> None:
-        success = self._client.submit_game(self._payload)
-        self.finished.emit(success)
+        result = self._client.submit_game(self._payload)
+        self.finished.emit(result)
 
 
 class LeaderboardFetchWorker(QtCore.QThread):

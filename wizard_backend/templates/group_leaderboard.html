@@ -115,12 +115,12 @@
 <script>
     const GROUP_CODE = "{{ group.code }}";
     let currentMode = "standard";
-    // Default sort mirrors the mobile app: avg_score descending.
-    let currentSort = "avg_score";
+    // ELO is the headline stat — default sort is ELO descending.
+    let currentSort = "elo";
     let sortAsc = false;
     let leaderboardData = [];
     const NUMERIC_SORTS = new Set([
-        "games", "wins", "win_rate", "avg_score",
+        "elo", "games", "wins", "win_rate", "avg_score",
         "hit_rate", "highest_score", "win_streak"
     ]);
 
@@ -176,6 +176,7 @@
         html += `<thead><tr>
             <th>#</th>
             <th class="${headerCls('name')}" data-sort="name">{{ _("lb_name", lang) }}${arrow('name')}</th>
+            <th class="${headerCls('elo')}" data-sort="elo">{{ _("lb_table_elo", lang) }}${arrow('elo')}</th>
             <th class="${headerCls('games')}" data-sort="games">{{ _("lb_table_games", lang) }}${arrow('games')}</th>
             <th class="${headerCls('wins')}" data-sort="wins">{{ _("lb_table_wins", lang) }}${arrow('wins')}</th>
             <th class="${headerCls('win_rate')}" data-sort="win_rate">{{ _("lb_table_quote", lang) }}${arrow('win_rate')}</th>
@@ -195,6 +196,7 @@
             html += `<tr>
                 <td${rankClass}>${medal || rank}</td>
                 <td class="player-name"${currentSort === "name" ? ' style="color:#c9a84c;"' : ''}>${escHtml(p.name)}</td>
+                <td${isHighlight("elo")}>${p.elo == null ? "&ndash;" : p.elo}</td>
                 <td${isHighlight("games")}>${p.games}</td>
                 <td${isHighlight("wins")}>${p.wins}</td>
                 <td${isHighlight("win_rate")}>${p.win_rate}%</td>

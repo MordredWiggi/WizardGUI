@@ -333,13 +333,20 @@ class _GameScreenState extends State<GameScreen>
     final groupCode = notifier.activeGroup?['code'] as String?;
     final payload = buildGameSubmission(game.toJson(), groupCode: groupCode);
 
-    LeaderboardService(url).submitGame(payload).then((success) async {
+    LeaderboardService(url).submitGame(payload).then((resp) async {
+      final success = resp != null;
       if (!success) {
         // Persist offline so the next launch can retry.
         try {
           await notifier.savePendingGame(groupCode: groupCode);
         } catch (_) {
           /* ignore */
+        }
+      } else {
+        // Surface the ELO change on the podium screen.
+        final elo = resp['elo'];
+        if (elo is List) {
+          notifier.setEloDeltas(elo.cast<Map<String, dynamic>>());
         }
       }
       final messenger = rootScaffoldMessengerKey.currentState;

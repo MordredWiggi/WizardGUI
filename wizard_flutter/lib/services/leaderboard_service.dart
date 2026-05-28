@@ -123,12 +123,20 @@ class LeaderboardService {
 
   // ── Game submission ─────────────────────────────────────────────────────
 
-  Future<bool> submitGame(Map<String, dynamic> payload) async {
+  /// Submit a finished game. Returns the decoded server response on success
+  /// (which contains the per-player `elo` deltas), or `null` on any failure so
+  /// the caller can fall back to offline retry.
+  ///
+  /// Response shape:
+  ///   `{"status": "created"|"duplicate", "elo": [{"name","delta","rating","rank"}, ...]}`
+  Future<Map<String, dynamic>?> submitGame(Map<String, dynamic> payload) async {
     try {
       final resp = await _post('/api/games', payload);
-      return resp.statusCode == 200;
+      if (resp.statusCode != 200) return null;
+      final decoded = jsonDecode(resp.body);
+      return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
     } catch (_) {
-      return false;
+      return null;
     }
   }
 
