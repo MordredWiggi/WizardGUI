@@ -10,6 +10,7 @@ Includes:
   - ResultEditDialog            edit a single per-player result
   - GroupPlayerRenameDialog     rename a player inside a single group
   - GroupPlayerMergeDialog      merge two players inside a single group
+  - PlayerEloHistoryDialog      per-player ELO timeline within one group
 """
 
 from __future__ import annotations
@@ -816,3 +817,245 @@ class GroupPlayerMergeDialog(_Themed):
     @property
     def new_name(self) -> str:
         return self._edit.text().strip()
+
+
+# ---------------------------------------------------------------------------
+# PlayerEloHistoryDialog
+# ---------------------------------------------------------------------------
+
+
+class PlayerEloHistoryDialog(_Themed):
+    """A timeline of one player's ELO inside one group.
+
+    Layout: a Standard/Multiplicative mode toggle on top, then a table with
+    one row per game in that pool, oldest first, with each game's rank,
+    rating before, signed delta, and rating after. The current rating in
+    that mode is shown in the header for quick comparison.
+    """
+
+    def __init__(
+        self,
+        parent: Optional[QtWidgets.QWidget],
+        *,
+        backend,
+        player: dict,
+        group: dict,
+        initial_mode: str = "standard",
+    ) -> None:
+        super().__init__(parent)
+        self._backend = backend
+        self._player = player
+        self._group = group
+        self._mode = initial_mode
+        self.setWindowTitle("ELO history")
+        self.setMinimumSize(640, 480)
+        self.resize(720, 540)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(20, 18, 20, 16)
+        layout.setSpacing(10)
+
+        layout.addWidget(_header(player.get("name", "?")))
+        self._subtitle = QtWidgets.QLabel("")
+        self._subtitle.setStyleSheet(
+            f"color: {TEXT_DIM}; font-size: 12px; background: transparent;"
+        )
+        layout.addWidget(self._subtitle)
+        layout.addWidget(_sep())
+
+        # Mode toggle
+        mode_row = QtWidgets.QHBoxLayout()
+        mode_row.setSpacing(6)
+        self._btn_standard = QtWidgets.QPushButton("Standard")
+        self._btn_multi = QtWidgets.QPushButton("Multiplicative")
+        for btn in (self._btn_standard, self._btn_multi):
+            btn.setCheckable(True)
+            btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self._btn_standard.clicked.connect(lambda: self._set_mode("standard"))
+        self._btn_multi.clicked.connect(lambda: self._set_mode("multiplicative"))
+        mode_row.addWidget(self._btn_standard)
+        mode_row.addWidget(self._btn_multi)
+        mode_row.addStretch()
+        layout.addLayout(mode_row)
+
+        # Table
+        self._table = QtWidgets.QTableWidget(0, 5)
+        self._table.setHorizontalHeaderLabels(
+            ["Played at", "Game ID", "Rank", "ELO before", "ELO progress"]
+        )
+        self._table.verticalHeader().setVisible(False)
+        self._table.setEditTriggers(
+            QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers
+        )
+        self._table.setSelectionBehavior(
+            QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self._table.setAlternatingRowColors(True)
+        self._table.horizontalHeader().setStretchLastSection(True)
+        self._table.horizontalHeader().setSectionResizeMode(
+            QtWidgets.QHeaderView.ResizeMode.Interactive
+        )
+        # We deliberately keep sorting OFF — the timeline is meant to be in
+        # chronological order, which is what the SQL already gives us.
+        self._table.setSortingEnabled(False)
+        layout.addWidget(self._table, 1)
+
+        self._status = QtWidgets.QLabel("")
+        self._status.setStyleSheet(
+            f"color: {TEXT_DIM}; font-size: 12px; background: transparent;"
+        )
+        layout.addWidget(self._status)
+
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_row.addStretch()
+        btn_close = QtWidgets.QPushButton("Close")
+        btn_close.setObjectName("primary")
+        btn_close.setMinimumWidth(100)
+        btn_close.clicked.connect(self.accept)
+        btn_row.addWidget(btn_close)
+        layout.addLayout(btn_row)
+
+        self._apply_mode_style()
+        self._reload()
+
+    # ── Mode handling ──────────────────────────────────────────────────────
+
+    def _set_mode(self, mode: str) -> None:
+        if mode == self._mode:
+            return
+        self._mode = mode
+        self._apply_mode_style()
+        self._reload()
+
+    def _apply_mode_style(self) -> None:
+        for btn, mode in (
+            (self._btn_standard, "standard"),
+            (self._btn_multi, "multiplicative"),
+        ):
+            active = self._mode == mode
+            btn.setChecked(active)
+            if active:
+                btn.setStyleSheet(
+                    f"QPushButton {{ background: {ACCENT}; color: #1a1a2e; "
+                    f"font-weight: 700; border: 1px solid {ACCENT}; "
+                    f"border-radius: 5px; padding: 6px 16px; }}"
+                )
+            else:
+                btn.setStyleSheet(
+                    f"QPushButton {{ background: transparent; color: {TEXT_DIM}; "
+                    f"border: 1px solid #3a3a6a; border-radius: 5px; "
+                    f"padding: 6px 16px; }}"
+                    f"QPushButton:hover {{ color: {TEXT_MAIN}; border-color: {ACCENT}; }}"
+                )
+
+    # ── Data loading ───────────────────────────────────────────────────────
+
+    def _reload(self) -> None:
+        try:
+            current = self._backend.query(
+                """
+                SELECT CAST(ROUND(rating) AS INTEGER) AS rating,
+                       games, streak
+                  FROM player_ratings
+                 WHERE player_id = ? AND group_id = ? AND game_mode = ?
+                """,
+                (self._player["id"], self._group["id"], self._mode),
+            )
+            rows = self._backend.query(
+                """
+                SELECT g.id          AS game_id,
+                       g.played_at,
+                       r.rank,
+                       d.rating_before,
+                       d.delta,
+                       d.rating_after
+                  FROM game_elo_deltas d
+                  JOIN games   g ON g.id = d.game_id
+                  JOIN results r ON r.game_id = d.game_id
+                               AND r.player_id = d.player_id
+                 WHERE d.player_id = ?
+                   AND g.group_id  = ?
+                   AND g.game_mode = ?
+              ORDER BY g.played_at, g.id
+                """,
+                (self._player["id"], self._group["id"], self._mode),
+            )
+        except Exception as exc:  # pragma: no cover - surfaced to UI
+            self._status.setText(f"Error: {exc}")
+            self._render([])
+            self._subtitle.setText(
+                f"Group {self._group.get('name', '?')}  ·  Mode: {self._mode}"
+            )
+            return
+
+        rating = current[0]["rating"] if current else None
+        games = current[0]["games"] if current else 0
+        streak = current[0]["streak"] if current else 0
+        self._render(rows)
+        self._subtitle.setText(
+            f"Group {self._group['name']} (code {self._group['code']})  ·  "
+            f"Mode: {self._mode}  ·  "
+            f"Current ELO: {rating if rating is not None else '—'}  ·  "
+            f"Games: {games}  ·  Streak: {streak}"
+        )
+        if not rows:
+            self._status.setText(
+                "No rated games yet for this player in this mode."
+            )
+        else:
+            self._status.setText(f"{len(rows)} rated game(s).")
+
+    def _render(self, rows: list[dict]) -> None:
+        self._table.setRowCount(len(rows))
+        for r_idx, row in enumerate(rows):
+            played_at = str(row.get("played_at") or "")
+            game_id = row.get("game_id")
+            rank = row.get("rank")
+            before = row.get("rating_before")
+            after = row.get("rating_after")
+            delta = row.get("delta")
+
+            # Pre-formatted, signed delta string ("+12" / "−8") with colour.
+            if delta is None:
+                delta_text = "—"
+                delta_color = TEXT_DIM
+            else:
+                rounded = round(float(delta))
+                delta_text = (
+                    f"+{rounded}" if rounded >= 0 else f"−{abs(rounded)}"
+                )
+                delta_color = SUCCESS if rounded >= 0 else DANGER
+
+            def cell(text: str, color: Optional[str] = None, right: bool = False):
+                item = QtWidgets.QTableWidgetItem(text)
+                item.setFlags(item.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)
+                if color:
+                    item.setForeground(QtGui.QColor(color))
+                if right:
+                    item.setTextAlignment(
+                        QtCore.Qt.AlignmentFlag.AlignRight
+                        | QtCore.Qt.AlignmentFlag.AlignVCenter
+                    )
+                return item
+
+            self._table.setItem(r_idx, 0, cell(played_at))
+            self._table.setItem(
+                r_idx, 1, cell(str(game_id) if game_id is not None else "", right=True)
+            )
+            self._table.setItem(
+                r_idx, 2, cell(str(rank) if rank is not None else "", right=True)
+            )
+            self._table.setItem(
+                r_idx,
+                3,
+                cell(
+                    str(round(float(before))) if before is not None else "—",
+                    right=True,
+                ),
+            )
+            progress = (
+                f"{round(float(before)) if before is not None else '?'}  →  "
+                f"{round(float(after)) if after is not None else '?'}   {delta_text}"
+            )
+            self._table.setItem(r_idx, 4, cell(progress, color=delta_color))
+        self._table.resizeColumnsToContents()

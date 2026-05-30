@@ -130,20 +130,36 @@ def delete_player_in_group(
 def fetch_players_in_group(
     backend: DbBackend, group_id: int
 ) -> list[dict]:
-    """Players who have at least one result in a game of ``group_id``."""
+    """Players who have at least one result in a game of ``group_id``.
+
+    The ELO columns (``elo_standard``, ``elo_multiplicative``) come from the
+    per-mode ``player_ratings`` rows; they are ``None`` for players who have
+    no rating yet in that mode (e.g. they only played the other mode, or
+    ratings haven't been computed yet on this DB).
+    """
     return backend.query(
         """
         SELECT p.id,
                p.name,
                COUNT(r.game_id)                            AS games,
                SUM(CASE WHEN r.rank = 1 THEN 1 ELSE 0 END) AS wins,
-               ROUND(AVG(r.final_score), 1)               AS avg_score
+               ROUND(AVG(r.final_score), 1)               AS avg_score,
+               CAST(ROUND(MAX(pr_std.rating)) AS INTEGER) AS elo_standard,
+               CAST(ROUND(MAX(pr_mlt.rating)) AS INTEGER) AS elo_multiplicative
           FROM players p
           JOIN results r ON r.player_id = p.id
           JOIN games   g ON g.id = r.game_id
+     LEFT JOIN player_ratings pr_std
+            ON pr_std.player_id = p.id
+           AND pr_std.group_id  = ?
+           AND pr_std.game_mode = 'standard'
+     LEFT JOIN player_ratings pr_mlt
+            ON pr_mlt.player_id = p.id
+           AND pr_mlt.group_id  = ?
+           AND pr_mlt.game_mode = 'multiplicative'
          WHERE g.group_id = ?
       GROUP BY p.id
       ORDER BY p.name COLLATE NOCASE
         """,
-        (group_id,),
+        (group_id, group_id, group_id),
     )

@@ -118,9 +118,10 @@ In the login dialog: pick a connection, type the shared password, hit Enter.
 | Dashboard   | Counts + top-10 groups + top-15 players                                        |
 | Groups      | Create, edit, **cascade-delete**, search, double-click -> open games           |
 | Games       | Per group: create, edit, move to another group, delete                         |
-| Results     | Per game: per-player results (score / rank / bids / rounds) - add, edit, delete |
-| Players     | Rename, **merge** (reassign all results), delete                               |
+| Results     | Per game: per-player results (score / rank / bids / rounds) - add, edit, delete; **ELO Δ** column shows how each player's rating moved on this game |
+| Players     | Per group: shows **ELO (Std)** and **ELO (Mult)** columns. Double-click (or hit **📈 ELO history**) for a chronological timeline of that player's ELO in this group, switchable between Standard / Multiplicative. Rename, **merge** (reassign all results), delete |
 | Feedback    | Edit message, reset votes, delete                                              |
+| ELO         | Edit every parameter of the rating formula; one-click full recompute of every group's ELO from scratch (used at first rollout or after a reset) |
 | SQL Console | Run any SQL; write mode must be enabled and confirmed                          |
 | Backup      | One-click DB snapshot to `admin_tool/backups/` (local file or via scp)         |
 
@@ -152,11 +153,14 @@ admin_tool/
 |-- dashboard_view.py
 |-- groups_view.py
 |-- games_view.py
+|-- group_players_view.py       # per-group player list (with ELO columns)
 |-- players_view.py
 |-- feedback_view.py
+|-- elo_view.py                 # ELO config + recompute + shared schema helper
+|-- player_ops.py               # group-scoped player operations
 |-- sql_console.py
 |-- backup_view.py
-|-- dialogs.py                  # CRUD dialogs + confirmations
+|-- dialogs.py                  # CRUD dialogs + confirmations + ELO history
 |-- style.py
 |-- requirements.txt
 |-- run.bat                     # launch silently (pythonw)

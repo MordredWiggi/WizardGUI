@@ -16,7 +16,12 @@ from typing import Optional
 from PyQt6 import QtCore, QtWidgets
 
 from db_backend import DbBackend, DbError
-from dialogs import GroupPlayerMergeDialog, GroupPlayerRenameDialog
+from dialogs import (
+    GroupPlayerMergeDialog,
+    GroupPlayerRenameDialog,
+    PlayerEloHistoryDialog,
+)
+from elo_view import ensure_elo_schema
 from games_view import GamesView
 from player_ops import (
     ensure_player,
@@ -54,6 +59,13 @@ class GroupPlayersView(BaseView):
 
         self.add_toolbar_stretch()
 
+        btn_history = push_button(
+            "📈  ELO history",
+            tooltip="Show how the selected player's ELO has changed over time.",
+        )
+        btn_history.clicked.connect(self._show_history)
+        self.add_toolbar_widget(btn_history)
+
         btn_rename = push_button("✎  Rename player")
         btn_rename.clicked.connect(self._rename)
         self.add_toolbar_widget(btn_rename)
@@ -63,8 +75,11 @@ class GroupPlayersView(BaseView):
         self.add_toolbar_widget(btn_merge)
 
         self._table = make_table(
-            ["Player ID", "Name", "Games", "Wins", "Avg score"]
+            ["Player ID", "Name", "ELO (Std)", "ELO (Mult)",
+             "Games", "Wins", "Avg score"]
         )
+        # Double-clicking a row is a fast path to the ELO history dialog.
+        self._table.itemDoubleClicked.connect(lambda _it: self._show_history())
         self.add_to_body(self._table, stretch=1)
 
     # -- Public API ---------------------------------------------------------
@@ -85,6 +100,9 @@ class GroupPlayersView(BaseView):
             self._rows = []
             fill_table(self._table, [], self._columns())
             return
+        # Make sure the ELO tables exist before the LEFT JOIN tries to read
+        # them — for DBs that pre-date the ELO release.
+        self.safe(ensure_elo_schema, self.backend)
         rows = self.safe(fetch_players_in_group, self.backend, self._group["id"])
         if rows is None:
             return
@@ -98,6 +116,8 @@ class GroupPlayersView(BaseView):
         return [
             ("id", "Player ID"),
             ("name", "Name"),
+            ("elo_standard", "ELO (Std)"),
+            ("elo_multiplicative", "ELO (Mult)"),
             ("games", "Games"),
             ("wins", "Wins"),
             ("avg_score", "Avg score"),
@@ -207,6 +227,20 @@ class GroupPlayersView(BaseView):
         )
         self.refresh()
         self.player_changed.emit()
+
+    def _show_history(self) -> None:
+        """Open the ELO-history dialog for the currently selected player."""
+        if not self._group:
+            self.set_status("Please pick a group first.", success=False)
+            return
+        sel = self._selected()
+        if not sel:
+            self.set_status("Select a player first.", success=False)
+            return
+        dlg = PlayerEloHistoryDialog(
+            self, backend=self.backend, player=sel, group=self._group
+        )
+        dlg.exec()
 
     def _report_error(self, exc: DbError) -> None:
         self.set_status(f"Error: {exc}", success=False)

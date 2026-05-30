@@ -20,6 +20,7 @@ from dialogs import (
     GameEditDialog,
     ResultEditDialog,
 )
+from elo_view import ensure_elo_schema
 from player_ops import ensure_player as _ensure_player_global
 from style import ACCENT, TEXT_DIM
 from views_base import BaseView, fill_table, make_table, push_button, selected_row_index
@@ -101,7 +102,8 @@ class GamesView(BaseView):
         rl.addLayout(results_header_row)
 
         self._results_table = make_table(
-            ["player_id", "Player", "Score", "Rank", "Correct", "Rounds"]
+            ["player_id", "Player", "Score", "Rank",
+             "Correct", "Rounds", "ELO Δ"]
         )
         rl.addWidget(self._results_table, 1)
 
@@ -130,6 +132,9 @@ class GamesView(BaseView):
             fill_table(self._games_table, [], self._game_columns())
             self._render_results([])
             return
+        # Make sure the ELO tables exist before the results panel LEFT JOINs
+        # them — for DBs that pre-date the ELO release.
+        self.safe(ensure_elo_schema, self.backend)
         self._players_cache = self.safe(self._fetch_players) or []
         self._groups_cache = self.safe(self._fetch_groups) or []
         rows = self.safe(self._fetch_games_for_group, self._group["id"])
@@ -173,9 +178,13 @@ class GamesView(BaseView):
             SELECT r.player_id, p.name,
                    r.final_score, r.rank,
                    r.correct_bids, r.total_rounds,
-                   r.game_id
+                   r.game_id,
+                   d.delta AS elo_delta
               FROM results r
               JOIN players p ON p.id = r.player_id
+         LEFT JOIN game_elo_deltas d
+                ON d.game_id   = r.game_id
+               AND d.player_id = r.player_id
              WHERE r.game_id = ?
           ORDER BY r.rank, r.final_score DESC
             """,
@@ -219,9 +228,24 @@ class GamesView(BaseView):
         self._render_results(rows or [])
 
     def _render_results(self, rows: list[dict]) -> None:
+        # Pre-format the ELO delta with an explicit sign ("+12" / "−8") and
+        # an em-dash for games that have no rating yet. ``fill_table`` keeps
+        # this as a text column so the sign is preserved.
+        decorated: list[dict] = []
+        for r in rows:
+            row = dict(r)
+            d = row.get("elo_delta")
+            if d is None:
+                row["elo_delta_display"] = "—"
+            else:
+                rounded = round(float(d))
+                row["elo_delta_display"] = (
+                    f"+{rounded}" if rounded >= 0 else f"−{abs(rounded)}"
+                )
+            decorated.append(row)
         fill_table(
             self._results_table,
-            rows,
+            decorated,
             [
                 ("player_id", "Player ID"),
                 ("name", "Player"),
@@ -229,6 +253,7 @@ class GamesView(BaseView):
                 ("rank", "Rank"),
                 ("correct_bids", "Correct"),
                 ("total_rounds", "Rounds"),
+                ("elo_delta_display", "ELO Δ"),
             ],
         )
 

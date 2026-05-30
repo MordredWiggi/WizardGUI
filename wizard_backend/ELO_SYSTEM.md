@@ -293,6 +293,25 @@ The recompute runs locally in the Admin Tool (which imports the same
 works against the local SQLite file just as well as against the remote
 production DB over SSH, without needing any extra HTTP endpoint.
 
+### 4.6 Inspecting ratings (Admin Tool)
+
+Beyond the ELO tab, ratings are surfaced wherever they are relevant:
+
+- **Group → Players tab**: each row shows the player's current
+  `ELO (Std)` and `ELO (Mult)` next to the regular stats.
+- **Group → Games tab**: the per-game **results panel** has an `ELO Δ`
+  column showing exactly how much each player's rating moved on that game
+  (joined from `game_elo_deltas`).
+- **Per-player ELO history**: select a player in the Players tab and click
+  **📈 ELO history** (or double-click the row) to open a chronological
+  timeline of that player's rating in the group: played-at, rank, ELO
+  before, signed delta, ELO after — switchable between Standard and
+  Multiplicative.
+
+All these views call the shared `ensure_elo_schema()` helper before they
+join the ELO tables, so the admin tool also works against a DB that
+pre-dates the ELO release.
+
 ---
 
 ## 5. First-time rollout

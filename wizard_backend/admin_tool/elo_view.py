@@ -59,6 +59,40 @@ _SPECS: list[tuple[str, int, float, float, float]] = [
 _DESCRIPTIONS: dict[str, str] = dict(elo.CONFIG_FIELDS)
 
 
+# ── Schema bootstrap ────────────────────────────────────────────────────────
+
+
+_ENSURE_ELO_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS elo_config (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    params TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS player_ratings (
+    player_id INTEGER NOT NULL, group_id INTEGER NOT NULL,
+    game_mode TEXT NOT NULL, rating REAL NOT NULL,
+    games INTEGER NOT NULL DEFAULT 0, streak INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (player_id, group_id, game_mode)
+);
+CREATE TABLE IF NOT EXISTS game_elo_deltas (
+    game_id INTEGER NOT NULL, player_id INTEGER NOT NULL,
+    rating_before REAL NOT NULL, rating_after REAL NOT NULL,
+    delta REAL NOT NULL, PRIMARY KEY (game_id, player_id)
+);
+"""
+
+
+def ensure_elo_schema(backend) -> None:
+    """Create the ELO tables on the connected DB if they are missing.
+
+    Called by every view that joins ``player_ratings`` or ``game_elo_deltas``
+    so the admin tool also works against a DB that pre-dates the ELO release.
+    Idempotent.
+    """
+    backend.executescript(_ENSURE_ELO_SCHEMA_SQL)
+
+
 class EloView(BaseView):
     def __init__(self, backend) -> None:
         super().__init__(backend)
@@ -157,28 +191,7 @@ class EloView(BaseView):
 
     def _ensure_schema(self) -> None:
         """Create the ELO tables if the connected DB predates them."""
-        self.safe(
-            self.backend.executescript,
-            """
-            CREATE TABLE IF NOT EXISTS elo_config (
-                id INTEGER PRIMARY KEY CHECK (id = 1),
-                params TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1,
-                updated_at TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS player_ratings (
-                player_id INTEGER NOT NULL, group_id INTEGER NOT NULL,
-                game_mode TEXT NOT NULL, rating REAL NOT NULL,
-                games INTEGER NOT NULL DEFAULT 0, streak INTEGER NOT NULL DEFAULT 0,
-                updated_at TEXT NOT NULL,
-                PRIMARY KEY (player_id, group_id, game_mode)
-            );
-            CREATE TABLE IF NOT EXISTS game_elo_deltas (
-                game_id INTEGER NOT NULL, player_id INTEGER NOT NULL,
-                rating_before REAL NOT NULL, rating_after REAL NOT NULL,
-                delta REAL NOT NULL, PRIMARY KEY (game_id, player_id)
-            );
-            """,
-        )
+        self.safe(ensure_elo_schema, self.backend)
 
     def _load_config(self) -> dict:
         rows = self.safe(
