@@ -105,41 +105,59 @@ class _PodiumScreenState extends State<PodiumScreen> {
     }
   }
 
-  /// Map player name -> ELO delta for the just-finished game (may be empty).
+  // Reserved horizontal space for the ELO column so the badge appearing
+  // (after the leaderboard response arrives) doesn't shift the rest of
+  // the row to the left. Matches the desktop's min-width: 70 reservation.
+  static const double _eloColumnWidth = 76.0;
+
+  /// Normalise a player name for matching deltas between the local podium
+  /// (whatever case the user typed) and the server response (the *canonical*
+  /// name stored in the DB, which may differ in case because the players
+  /// table is matched COLLATE NOCASE). Trim + lowercase covers the common
+  /// auto-capitalisation case from mobile keyboards.
+  String _normName(String n) => n.trim().toLowerCase();
+
+  /// Map normalised player name -> ELO delta for the just-finished game.
   Map<String, num> _eloByName(List<Map<String, dynamic>>? deltas) {
     final map = <String, num>{};
     if (deltas != null) {
       for (final e in deltas) {
         final name = e['name'];
         final delta = e['delta'];
-        if (name is String && delta is num) map[name] = delta;
+        if (name is String && delta is num) map[_normName(name)] = delta;
       }
     }
     return map;
   }
 
-  /// A small coloured "+12 / −8" ELO badge. Returns an empty box when no delta
-  /// is available (e.g. the game was played without a group).
+  /// A small coloured "+12 / −8" ELO badge. When no delta is available
+  /// (response not yet arrived, or no group), returns an empty box of the
+  /// reserved width so the row layout stays stable.
   Widget _eloBadge(num? delta) {
-    if (delta == null) return const SizedBox.shrink();
+    if (delta == null) return const SizedBox(width: _eloColumnWidth);
     final rounded = delta.round();
     final isUp = rounded >= 0;
     final color = isUp ? const Color(0xFF4ADE80) : const Color(0xFFF87171);
     final text = '${isUp ? '+' : '−'}${rounded.abs()}';
-    return Container(
-      margin: const EdgeInsets.only(left: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.6), width: 1),
-      ),
-      child: Text(
-        'ELO $text',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: color,
+    return SizedBox(
+      width: _eloColumnWidth,
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withValues(alpha: 0.6), width: 1),
+          ),
+          child: Text(
+            'ELO $text',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
         ),
       ),
     );
@@ -240,7 +258,7 @@ class _PodiumScreenState extends State<PodiumScreen> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      _eloBadge(eloByName[name]),
+                      _eloBadge(eloByName[_normName(name)]),
                     ],
                   ),
                 );
@@ -276,7 +294,7 @@ class _PodiumScreenState extends State<PodiumScreen> {
                             color: kAccentDim,
                           ),
                         ),
-                        _eloBadge(eloByName[name]),
+                        _eloBadge(eloByName[_normName(name)]),
                       ],
                     ),
                   );

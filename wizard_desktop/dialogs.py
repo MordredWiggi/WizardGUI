@@ -698,16 +698,22 @@ class PodiumDialog(ThemedDialog):
         """Populate each player's ELO badge from the leaderboard response.
 
         ``deltas`` is a list of ``{"name", "delta", "rating", "rank"}`` dicts
-        as returned by ``POST /api/games``. Players whose name we don't have
-        a row for (shouldn't happen) are silently skipped. Safe to call
-        multiple times.
+        as returned by ``POST /api/games``. The server's ``name`` is the
+        canonical row from the ``players`` table (matched COLLATE NOCASE), so
+        it may differ in case from what the user typed locally — we match
+        case-insensitively to avoid silently dropping the badge in that case.
         """
+        # Build a case-insensitive view of the local labels once per call.
+        labels_by_key = {
+            name.strip().casefold(): lbl
+            for name, lbl in self._elo_labels.items()
+        }
         for entry in deltas or []:
             name = entry.get("name") if isinstance(entry, dict) else None
             delta = entry.get("delta") if isinstance(entry, dict) else None
             if not isinstance(name, str) or not isinstance(delta, (int, float)):
                 continue
-            lbl = self._elo_labels.get(name)
+            lbl = labels_by_key.get(name.strip().casefold())
             if lbl is None:
                 continue
             rounded = round(float(delta))
