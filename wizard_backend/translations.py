@@ -83,6 +83,14 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "lb_code_wrong": "Wrong or unknown code.",
         "lb_back_to_groups": "Back to groups",
         "cancel": "Cancel",
+        # Per-player ELO history
+        "lb_click_player_hint": "Click a player to see their ELO history.",
+        "lb_elo_history": "ELO History",
+        "lb_elo_current": "Current ELO",
+        "lb_elo_date": "Date",
+        "lb_elo_rank": "Rank",
+        "lb_elo_empty": "No rated games yet for this player in this mode.",
+        "lb_close": "Close",
     },
     "de": {
         # Nav
@@ -157,6 +165,14 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "lb_code_wrong": "Code falsch oder unbekannt.",
         "lb_back_to_groups": "Zurück zu den Gruppen",
         "cancel": "Abbrechen",
+        # Per-player ELO history
+        "lb_click_player_hint": "Klicke einen Spieler an, um seinen ELO-Verlauf zu sehen.",
+        "lb_elo_history": "ELO-Verlauf",
+        "lb_elo_current": "Aktuelle ELO",
+        "lb_elo_date": "Datum",
+        "lb_elo_rank": "Platz",
+        "lb_elo_empty": "Noch keine gewerteten Spiele für diesen Spieler in diesem Modus.",
+        "lb_close": "Schließen",
     },
     "fr": {
         # Nav
@@ -229,6 +245,14 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "lb_code_wrong": "Code incorrect ou inconnu.",
         "lb_back_to_groups": "Retour aux groupes",
         "cancel": "Annuler",
+        # Per-player ELO history
+        "lb_click_player_hint": "Cliquez sur un joueur pour voir son historique ELO.",
+        "lb_elo_history": "Historique ELO",
+        "lb_elo_current": "ELO actuel",
+        "lb_elo_date": "Date",
+        "lb_elo_rank": "Rang",
+        "lb_elo_empty": "Aucune partie classée pour ce joueur dans ce mode.",
+        "lb_close": "Fermer",
     },
     "hi": {
         # Nav
@@ -301,5 +325,13 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "lb_code_wrong": "गलत या अज्ञात कोड।",
         "lb_back_to_groups": "समूहों पर वापस जाएं",
         "cancel": "रद्द करें",
+        # Per-player ELO history
+        "lb_click_player_hint": "किसी खिलाड़ी का ELO इतिहास देखने के लिए उस पर क्लिक करें।",
+        "lb_elo_history": "ELO इतिहास",
+        "lb_elo_current": "वर्तमान ELO",
+        "lb_elo_date": "तारीख",
+        "lb_elo_rank": "रैंक",
+        "lb_elo_empty": "इस मोड में इस खिलाड़ी के लिए अभी तक कोई रेटेड गेम नहीं।",
+        "lb_close": "बंद करें",
     },
 }

@@ -616,6 +616,101 @@ def _build_player_stats(
     return result
 
 
+def get_player_elo_history(
+    code: str, name: str, game_mode: str
+) -> Optional[dict]:
+    """Return one player's ELO timeline within a group, for a given mode.
+
+    This is the data behind the website's per-player ELO history view (and is
+    the public counterpart of the Admin Tool's ELO-history dialog). The shape:
+
+        {
+            "name": "<canonical player name>",
+            "mode": "standard",
+            "current": {"rating": 1102, "games": 12, "streak": 2} | None,
+            "history": [
+                {"game_id": 7, "played_at": "...", "rank": 2,
+                 "rating_before": 1000.0, "delta": 12.3, "rating_after": 1012.3},
+                ...
+            ],  # chronological, oldest first
+        }
+
+    Returns ``None`` only when the group code itself is unknown, so the caller
+    can answer 404. An existing group with no rated games for the player yields
+    ``current = None`` and an empty ``history`` list (a valid, empty timeline).
+    """
+    db = _get_db()
+    try:
+        group_row = db.execute(
+            "SELECT id FROM groups WHERE code = ?", (code,)
+        ).fetchone()
+        if group_row is None:
+            return None
+        group_id = group_row["id"]
+
+        # Player names are globally unique (case-insensitive); resolve to an id.
+        # An unknown name simply has no rated games in this pool.
+        player_row = db.execute(
+            "SELECT id, name FROM players WHERE name = ? COLLATE NOCASE", (name,)
+        ).fetchone()
+        if player_row is None:
+            return {"name": name, "mode": game_mode, "current": None, "history": []}
+        player_id = player_row["id"]
+
+        current_row = db.execute(
+            """
+            SELECT CAST(ROUND(rating) AS INTEGER) AS rating, games, streak
+            FROM player_ratings
+            WHERE player_id = ? AND group_id = ? AND game_mode = ?
+            """,
+            (player_id, group_id, game_mode),
+        ).fetchone()
+
+        history_rows = db.execute(
+            """
+            SELECT g.id        AS game_id,
+                   g.played_at AS played_at,
+                   r.rank      AS rank,
+                   d.rating_before,
+                   d.delta,
+                   d.rating_after
+            FROM game_elo_deltas d
+            JOIN games   g ON g.id = d.game_id
+            JOIN results r ON r.game_id = d.game_id AND r.player_id = d.player_id
+            WHERE d.player_id = ? AND g.group_id = ? AND g.game_mode = ?
+            ORDER BY g.played_at DESC, g.id DESC
+            """,
+            (player_id, group_id, game_mode),
+        ).fetchall()
+
+        current = None
+        if current_row is not None:
+            current = {
+                "rating": current_row["rating"],
+                "games": current_row["games"],
+                "streak": current_row["streak"],
+            }
+        history = [
+            {
+                "game_id": row["game_id"],
+                "played_at": row["played_at"],
+                "rank": row["rank"],
+                "rating_before": round(row["rating_before"], 1),
+                "delta": round(row["delta"], 1),
+                "rating_after": round(row["rating_after"], 1),
+            }
+            for row in history_rows
+        ]
+        return {
+            "name": player_row["name"],
+            "mode": game_mode,
+            "current": current,
+            "history": history,
+        }
+    finally:
+        db.close()
+
+
 # ── Global groups leaderboard ─────────────────────────────────────────────────
 
 

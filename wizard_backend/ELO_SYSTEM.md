@@ -268,6 +268,23 @@ for games without a group.
 (`/api/leaderboard`, `/api/leaderboard/groups`) deliberately have **no** ELO,
 because ELO is only defined inside a single group.
 
+**Per-player ELO history (website).** The public group leaderboard page
+([`templates/group_leaderboard.html`](templates/group_leaderboard.html)) lets a
+visitor click any player row to open an ELO-history modal — the read-only,
+public counterpart of the Admin Tool dialog described in §4.6. It is backed by
+
+```
+GET /api/leaderboard/group/{code}/player/elo?name=<player>&mode=<standard|multiplicative>
+```
+
+→ [`get_player_elo_history()`](database.py), which returns the player's current
+rating snapshot (`rating`, `games`, `streak`) plus one entry per rated game
+(`played_at`, `rank`, `rating_before`, `delta`, `rating_after`), ordered
+newest-first, read from `player_ratings` and `game_elo_deltas`. The endpoint is purely
+read-only — it never writes ratings. Like every other group endpoint it
+requires the group's 4-digit `code`, and the player `name` travels in the query
+string so names with URL-significant characters are handled cleanly.
+
 ### 4.4 In-app display
 
 - **Leaderboard:** In the per-group leaderboard (Flutter and Desktop), **ELO**
@@ -303,8 +320,8 @@ Beyond the ELO tab, ratings are surfaced wherever they are relevant:
   column showing exactly how much each player's rating moved on that game
   (joined from `game_elo_deltas`).
 - **Per-player ELO history**: select a player in the Players tab and click
-  **📈 ELO history** (or double-click the row) to open a chronological
-  timeline of that player's rating in the group: played-at, rank, ELO
+  **📈 ELO history** (or double-click the row) to open a timeline of that
+  player's rating in the group (newest game first): played-at, rank, ELO
   before, signed delta, ELO after — switchable between Standard and
   Multiplicative.
 

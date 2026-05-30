@@ -828,7 +828,7 @@ class PlayerEloHistoryDialog(_Themed):
     """A timeline of one player's ELO inside one group.
 
     Layout: a Standard/Multiplicative mode toggle on top, then a table with
-    one row per game in that pool, oldest first, with each game's rank,
+    one row per game in that pool, newest first, with each game's rank,
     rating before, signed delta, and rating after. The current rating in
     that mode is shown in the header for quick comparison.
     """
@@ -896,7 +896,8 @@ class PlayerEloHistoryDialog(_Themed):
             QtWidgets.QHeaderView.ResizeMode.Interactive
         )
         # We deliberately keep sorting OFF — the timeline is meant to be in
-        # chronological order, which is what the SQL already gives us.
+        # reverse-chronological order (newest first), which is the order the
+        # SQL already gives us.
         self._table.setSortingEnabled(False)
         layout.addWidget(self._table, 1)
 
@@ -976,7 +977,7 @@ class PlayerEloHistoryDialog(_Themed):
                  WHERE d.player_id = ?
                    AND g.group_id  = ?
                    AND g.game_mode = ?
-              ORDER BY g.played_at, g.id
+              ORDER BY g.played_at DESC, g.id DESC
                 """,
                 (self._player["id"], self._group["id"], self._mode),
             )

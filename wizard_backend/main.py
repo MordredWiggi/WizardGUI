@@ -10,6 +10,7 @@ Endpoints:
   GET  /api/groups/{code}                – get group by 4-digit code
   GET  /api/leaderboard/groups           – global groups leaderboard
   GET  /api/leaderboard/group/{code}     – player leaderboard for a specific group
+  GET  /api/leaderboard/group/{code}/player/elo – one player's ELO history in a group
   GET  /api/feedback                     – list all feedback messages
   POST /api/feedback                     – submit a new feedback message
   POST /api/feedback/{id}/vote           – upvote or downvote a message
@@ -244,6 +245,27 @@ def group_player_leaderboard(
     if len(code) != 4 or not code.isdigit():
         raise HTTPException(status_code=400, detail="Code must be exactly 4 digits")
     result = db.get_group_player_leaderboard(code=code, game_mode=mode)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return result
+
+
+@app.get("/api/leaderboard/group/{code}/player/elo")
+def group_player_elo_history(
+    code: str,
+    name: str = Query(..., min_length=1),
+    mode: str = Query("standard"),
+) -> dict:
+    """Return one player's ELO timeline within a group, for the given mode.
+
+    The player is identified by ``name`` (case-insensitive); ``code`` is the
+    group's 4-digit shared secret, mirroring the other group endpoints. The
+    name lives in the query string (not the path) so player names containing
+    slashes or other URL-significant characters are handled cleanly.
+    """
+    if len(code) != 4 or not code.isdigit():
+        raise HTTPException(status_code=400, detail="Code must be exactly 4 digits")
+    result = db.get_player_elo_history(code=code, name=name, game_mode=mode)
     if result is None:
         raise HTTPException(status_code=404, detail="Group not found")
     return result

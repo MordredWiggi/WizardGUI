@@ -88,10 +88,112 @@
     }
     .back-link:hover { color: #c9a84c; }
 
+    /* Clickable player rows open the ELO-history modal */
+    .table-wrap tbody tr { cursor: pointer; }
+    .player-hint { text-align: center; color: #555577; font-size: 0.75rem; margin-top: 22px; }
+
+    /* ── ELO history modal ── */
+    .modal-overlay {
+        position: fixed; inset: 0;
+        background: rgba(6, 6, 18, 0.8);
+        backdrop-filter: blur(4px);
+        display: none;
+        align-items: center; justify-content: center;
+        z-index: 50;
+        padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+        background: #12122b;
+        border: 1px solid #2a2a4a;
+        border-radius: 12px;
+        padding: 24px 24px 20px;
+        width: 640px; max-width: 95vw;
+        max-height: 88vh;
+        display: flex; flex-direction: column;
+        position: relative;
+    }
+    .modal h2 {
+        color: #c9a84c;
+        font-weight: 700; letter-spacing: 1px;
+        font-size: 1.1rem; text-align: center;
+        margin-bottom: 4px; word-break: break-word;
+    }
+    .elo-sub {
+        color: #888aaa; font-size: 0.8rem; text-align: center;
+        margin-bottom: 14px; min-height: 1.1em;
+    }
+    .elo-close-x {
+        position: absolute; top: 10px; right: 14px;
+        background: none; border: none; color: #888aaa;
+        font-size: 1.5rem; line-height: 1; cursor: pointer;
+        transition: color 0.15s;
+    }
+    .elo-close-x:hover { color: #c9a84c; }
+
+    .elo-mode-tabs {
+        display: flex; justify-content: center; gap: 8px;
+        margin-bottom: 14px;
+    }
+    .elo-mode-tab {
+        padding: 7px 20px;
+        border: 1px solid #3a3a6a;
+        border-radius: 7px;
+        background: #1a1a3a;
+        color: #888aaa;
+        cursor: pointer;
+        font-size: 0.85rem; font-weight: 600;
+        transition: all 0.15s;
+    }
+    .elo-mode-tab:hover { border-color: #c9a84c; color: #e8e8f0; }
+    .elo-mode-tab.active {
+        background: #7a6230; border-color: #c9a84c; color: #fff8e0;
+    }
+
+    .elo-body {
+        overflow-y: auto; flex: 1;
+        border: 1px solid #2a2a4a; border-radius: 8px;
+    }
+    .elo-table { width: 100%; border-collapse: collapse; }
+    .elo-table th {
+        position: sticky; top: 0; z-index: 1;
+        background: #1a1a3a;
+        color: #7a6230;
+        font-size: 0.68rem; font-weight: 600;
+        letter-spacing: 1px; text-transform: uppercase;
+        padding: 9px 10px; text-align: right; white-space: nowrap;
+    }
+    .elo-table th:first-child { text-align: center; }
+    .elo-table th:nth-child(2) { text-align: left; }
+    .elo-table td {
+        padding: 8px 10px;
+        border-top: 1px solid #1a1a3a;
+        font-size: 0.82rem; white-space: nowrap;
+        text-align: right; font-variant-numeric: tabular-nums;
+    }
+    .elo-table td:first-child { text-align: center; color: #7a6230; font-weight: 700; }
+    .elo-table td:nth-child(2) { text-align: left; color: #888aaa; }
+    .elo-table tr:hover td { background: #181835; }
+    .elo-up   { color: #5cc46a; font-weight: 700; }
+    .elo-down { color: #d94a4a; font-weight: 700; }
+
+    .modal-btn-row { display: flex; gap: 8px; margin-top: 14px; }
+    .modal-btn {
+        flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #3a3a6a;
+        background: #1a1a3a; color: #e8e8f0; font-weight: 600; cursor: pointer;
+        font-size: 0.9rem; transition: all 0.15s;
+    }
+    .modal-btn:hover { border-color: #c9a84c; color: #c9a84c; }
+    .modal-btn.primary { background: #7a6230; border-color: #c9a84c; color: #fff8e0; }
+    .modal-btn.primary:hover { background: #c9a84c; color: #0d0d1a; }
+
     @media (max-width: 600px) {
         .tab { padding: 8px 18px; font-size: 0.85rem; }
         .sort-btn { padding: 5px 10px; font-size: 0.75rem; }
         td, th { padding: 8px 8px; font-size: 0.8rem; }
+        .modal { padding: 18px 14px 14px; }
+        .elo-mode-tab { padding: 6px 14px; font-size: 0.8rem; }
+        .elo-table th, .elo-table td { padding: 7px 6px; font-size: 0.75rem; }
     }
 </style>
 {% endblock %}
@@ -108,17 +210,42 @@
     </div>
 
     <div id="content" class="loading">{{ _("lb_loading", lang) }}</div>
+
+    <p class="player-hint">{{ _("lb_click_player_hint", lang) }}</p>
+</div>
+
+<!-- ── Player ELO history modal ── -->
+<div id="eloModal" class="modal-overlay">
+    <div class="modal">
+        <button class="elo-close-x" onclick="closeEloModal()" aria-label="{{ _('lb_close', lang) }}">&times;</button>
+        <h2 id="eloModalName">&mdash;</h2>
+        <p id="eloModalSub" class="elo-sub"></p>
+        <div class="elo-mode-tabs">
+            <button class="elo-mode-tab active" data-mode="standard">{{ _("lb_tab_standard", lang) }}</button>
+            <button class="elo-mode-tab" data-mode="multiplicative">{{ _("lb_tab_mult", lang) }}</button>
+        </div>
+        <div id="eloModalBody" class="elo-body">
+            <div class="loading">{{ _("lb_loading", lang) }}</div>
+        </div>
+        <div class="modal-btn-row">
+            <button class="modal-btn primary" onclick="closeEloModal()">{{ _("lb_close", lang) }}</button>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
     const GROUP_CODE = "{{ group.code }}";
+    const LANG = "{{ lang }}";
+    const LOCALE_MAP = { en: "en-GB", de: "de-DE", fr: "fr-FR", hi: "hi-IN" };
+    const LANG_LOCALE = LOCALE_MAP[LANG] || "en-GB";
     let currentMode = "standard";
     // ELO is the headline stat — default sort is ELO descending.
     let currentSort = "elo";
     let sortAsc = false;
     let leaderboardData = [];
+    let renderedRows = [];  // rows as currently displayed (for row-click lookup)
     const NUMERIC_SORTS = new Set([
         "elo", "games", "wins", "win_rate", "avg_score",
         "hit_rate", "highest_score", "win_streak"
@@ -166,6 +293,7 @@
             return;
         }
         const sorted = sortRows(leaderboardData.slice());
+        renderedRows = sorted;
 
         const arrow = (key) => key === currentSort
             ? `<span class="sort-arrow">${sortAsc ? "▲" : "▼"}</span>`
@@ -214,6 +342,14 @@
         content.querySelectorAll("th.sortable").forEach(th => {
             th.addEventListener("click", () => setSort(th.dataset.sort));
         });
+
+        // Wire up clickable player rows → ELO history modal.
+        content.querySelectorAll("tbody tr").forEach((tr, i) => {
+            tr.addEventListener("click", () => {
+                const row = renderedRows[i];
+                if (row) openEloModal(row.name);
+            });
+        });
     }
 
     function sortRows(rows) {
@@ -241,6 +377,150 @@
         d.textContent = s;
         return d.innerHTML;
     }
+
+    // ── Player ELO history modal ─────────────────────────────────────────
+    const ELO_I18N = {
+        history: "{{ _('lb_elo_history', lang) }}",
+        current: "{{ _('lb_elo_current', lang) }}",
+        games:   "{{ _('lb_table_games', lang) }}",
+        streak:  "{{ _('lb_table_streak', lang) }}",
+        date:    "{{ _('lb_elo_date', lang) }}",
+        rank:    "{{ _('lb_elo_rank', lang) }}",
+        elo:     "{{ _('lb_table_elo', lang) }}",
+        empty:   "{{ _('lb_elo_empty', lang) }}",
+        loading: "{{ _('lb_loading', lang) }}",
+        error:   "{{ _('lb_error', lang) }}",
+        modeLabels: {
+            standard: "{{ _('lb_tab_standard', lang) }}",
+            multiplicative: "{{ _('lb_tab_mult', lang) }}",
+        },
+    };
+
+    let eloPlayer = null;       // name of the player whose history is open
+    let eloMode = "standard";   // mode selected inside the modal
+
+    function openEloModal(name) {
+        eloPlayer = name;
+        eloMode = currentMode;  // start in the mode the page is currently showing
+        document.getElementById("eloModalName").textContent = name;
+        document.querySelectorAll(".elo-mode-tab").forEach(b => {
+            b.classList.toggle("active", b.dataset.mode === eloMode);
+        });
+        document.getElementById("eloModal").classList.add("open");
+        fetchEloHistory();
+    }
+
+    function closeEloModal() {
+        document.getElementById("eloModal").classList.remove("open");
+        eloPlayer = null;
+    }
+
+    async function fetchEloHistory() {
+        const body = document.getElementById("eloModalBody");
+        const sub = document.getElementById("eloModalSub");
+        const player = eloPlayer;
+        body.innerHTML = `<div class="loading">${ELO_I18N.loading}</div>`;
+        sub.textContent = "";
+        try {
+            const url = `/api/leaderboard/group/${GROUP_CODE}/player/elo`
+                + `?name=${encodeURIComponent(player)}&mode=${eloMode}`;
+            const resp = await fetch(url);
+            // Guard against a stale response after the user switched player/mode.
+            if (player !== eloPlayer) return;
+            if (!resp.ok) {
+                body.innerHTML = `<div class="empty">${ELO_I18N.error}</div>`;
+                return;
+            }
+            const data = await resp.json();
+            if (player !== eloPlayer) return;
+            renderEloHistory(data);
+        } catch (e) {
+            if (player === eloPlayer) {
+                body.innerHTML = `<div class="empty">${ELO_I18N.error}</div>`;
+            }
+        }
+    }
+
+    function renderEloHistory(data) {
+        const body = document.getElementById("eloModalBody");
+        const sub = document.getElementById("eloModalSub");
+
+        const modeLabel = ELO_I18N.modeLabels[data.mode] || data.mode;
+        const cur = data.current;
+        const curElo = cur && cur.rating != null ? cur.rating : "–";
+        const games = cur ? cur.games : 0;
+        const streak = cur ? cur.streak : 0;
+        sub.textContent =
+            `${ELO_I18N.history} · ${modeLabel} · ${ELO_I18N.current}: ${curElo}`
+            + ` · ${ELO_I18N.games}: ${games} · ${ELO_I18N.streak}: ${streak}`;
+
+        const hist = data.history || [];
+        if (hist.length === 0) {
+            body.innerHTML = `<div class="empty">${ELO_I18N.empty}</div>`;
+            return;
+        }
+
+        let html = '<table class="elo-table"><thead><tr>'
+            + '<th>#</th>'
+            + `<th>${ELO_I18N.date}</th>`
+            + `<th>${ELO_I18N.rank}</th>`
+            + `<th>${ELO_I18N.elo}</th>`
+            + '<th>Δ</th>'
+            + '</tr></thead><tbody>';
+
+        // API returns newest-first; number games chronologically so the oldest
+        // game is #1 and the newest (top row) carries the highest number.
+        hist.forEach((h, i) => {
+            const d = Math.round(h.delta == null ? 0 : h.delta);
+            const deltaCls = d >= 0 ? "elo-up" : "elo-down";
+            const deltaTxt = d >= 0 ? `+${d}` : `−${Math.abs(d)}`;
+            const after = h.rating_after != null ? Math.round(h.rating_after) : "–";
+            html += `<tr>
+                <td>${hist.length - i}</td>
+                <td>${escHtml(fmtDate(h.played_at))}</td>
+                <td>${h.rank == null ? "–" : h.rank}</td>
+                <td>${after}</td>
+                <td class="${deltaCls}">${deltaTxt}</td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        body.innerHTML = html;
+    }
+
+    function fmtDate(s) {
+        if (!s) return "";
+        const dt = new Date(s);
+        if (isNaN(dt.getTime())) return String(s).slice(0, 10);
+        try {
+            return dt.toLocaleDateString(LANG_LOCALE, {
+                year: "numeric", month: "short", day: "numeric",
+            });
+        } catch (e) {
+            return dt.toISOString().slice(0, 10);
+        }
+    }
+
+    // Mode toggle inside the modal.
+    document.querySelectorAll(".elo-mode-tab").forEach(btn => {
+        btn.addEventListener("click", () => {
+            if (!eloPlayer) return;
+            eloMode = btn.dataset.mode;
+            document.querySelectorAll(".elo-mode-tab").forEach(b =>
+                b.classList.toggle("active", b === btn));
+            fetchEloHistory();
+        });
+    });
+
+    // ESC closes the modal; clicking the backdrop closes it too.
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" &&
+            document.getElementById("eloModal").classList.contains("open")) {
+            closeEloModal();
+        }
+    });
+    document.getElementById("eloModal").addEventListener("click", (e) => {
+        if (e.target.id === "eloModal") closeEloModal();
+    });
 
     fetchData();
 </script>
