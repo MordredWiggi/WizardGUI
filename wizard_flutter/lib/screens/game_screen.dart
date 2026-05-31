@@ -333,22 +333,41 @@ class _GameScreenState extends State<GameScreen>
     final groupCode = notifier.activeGroup?['code'] as String?;
     final payload = buildGameSubmission(game.toJson(), groupCode: groupCode);
 
-    LeaderboardService(url).submitGame(payload).then((resp) async {
+    // Persist offline-first, then submit, and only clear the pending flag on a
+    // confirmed success — mirroring the desktop flow. Doing it the other way
+    // round (save only in the failure callback) would lose the game entirely
+    // if the app is closed or killed before the network call returns, so it
+    // would never count into the players' ELO and never appear in the retry
+    // queue. The server deduplicates by game_hash, so a redundant retry of an
+    // already-stored game is harmless.
+    () async {
+      String? pendingPath;
+      try {
+        pendingPath = await notifier.savePendingGame(groupCode: groupCode);
+      } catch (_) {
+        /* ignore – still attempt the upload below */
+      }
+
+      final resp = await LeaderboardService(url).submitGame(payload);
       final success = resp != null;
-      if (!success) {
-        // Persist offline so the next launch can retry.
-        try {
-          await notifier.savePendingGame(groupCode: groupCode);
-        } catch (_) {
-          /* ignore */
+      if (success) {
+        // Upload accepted → drop the pending flag (the file remains as a
+        // normal local save, exactly like the desktop app).
+        if (pendingPath != null) {
+          try {
+            await notifier.markSynced(pendingPath);
+          } catch (_) {
+            /* ignore */
+          }
         }
-      } else {
         // Surface the ELO change on the podium screen.
         final elo = resp['elo'];
         if (elo is List) {
           notifier.setEloDeltas(elo.cast<Map<String, dynamic>>());
         }
       }
+      // On failure the pending-sync file is left in place; the next launch
+      // retries it via the pending-sync dialog.
       final messenger = rootScaffoldMessengerKey.currentState;
       if (messenger == null) return;
       messenger.showSnackBar(
@@ -359,7 +378,7 @@ class _GameScreenState extends State<GameScreen>
           duration: settings.messageDuration,
         ),
       );
-    });
+    }();
   }
 
   Future<void> _onUndo() async {

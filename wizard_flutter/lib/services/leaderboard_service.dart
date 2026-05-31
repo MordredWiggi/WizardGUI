@@ -239,15 +239,22 @@ Map<String, dynamic> buildGameSubmission(
     final rounds = (p['rounds'] as List? ?? []);
     int score;
     if (gameMode == 'multiplicative') {
-      double s = 100;
+      // Multiplicative scoring rounds after *every* round (see
+      // Player.applyRoundMultiplicative). Rounding only at the very end would
+      // produce a different final_score than the player actually saw, skewing
+      // the stored score, the rank and the points-per-round ELO bonus. Mirror
+      // the per-round rounding here.
+      int s = 100;
       for (final r in rounds) {
+        final double next;
         if (r['said'] == r['achieved']) {
-          s = s * (2 + (r['achieved'] as int));
+          next = s * (2 + (r['achieved'] as int)).toDouble();
         } else {
-          s = s / (1 + ((r['achieved'] as int) - (r['said'] as int)).abs());
+          next = s / (1 + ((r['achieved'] as int) - (r['said'] as int)).abs());
         }
+        s = next.round();
       }
-      score = s.round();
+      score = s;
     } else {
       score = 0;
       for (final r in rounds) {

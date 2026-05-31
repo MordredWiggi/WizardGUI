@@ -48,15 +48,18 @@ def build_game_submission(
     player_results: list[dict] = []
     for p in players:
         rounds = p.get("rounds", [])
-        # Recompute final score from rounds
+        # Recompute final score from rounds. Multiplicative scoring rounds
+        # after *every* round (see GameControl.apply_round_multiplicative);
+        # rounding only at the very end would yield a different final_score
+        # than the player actually saw, skewing the stored score, the rank and
+        # the points-per-round ELO bonus. Mirror the per-round rounding here.
         if game_mode == "multiplicative":
             score = 100
             for r in rounds:
                 if r["said"] == r["achieved"]:
-                    score = score * (2 + r["achieved"])
+                    score = round(score * (2 + r["achieved"]))
                 else:
-                    score = score / (1 + abs(r["achieved"] - r["said"]))
-            score = round(score)
+                    score = round(score / (1 + abs(r["achieved"] - r["said"])))
         else:
             score = 0
             for r in rounds:
