@@ -57,17 +57,27 @@
 </head>
 <body class="min-h-screen">
     <nav class="sticky top-0 z-40 border-b border-wizard-border bg-wizard-bg/90 backdrop-blur">
-        <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="relative max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
             <a href="/" class="flex items-center gap-2 text-wizard-gold font-bold tracking-widest">
                 <span class="text-2xl">&#127183;</span>
                 <span class="hidden sm:inline">WIZARD</span>
             </a>
-            <div class="flex items-center gap-1 sm:gap-2">
+
+            <button id="nav-toggle" type="button" class="sm:hidden -mr-2 p-2 text-wizard-muted hover:text-wizard-gold" aria-label="{{ _('nav_menu', lang) }}" aria-controls="nav-menu" aria-expanded="false">
+                <svg id="nav-icon-open" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                <svg id="nav-icon-close" class="hidden w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 6L18 18M18 6L6 18" />
+                </svg>
+            </button>
+
+            <div id="nav-menu" class="hidden sm:flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2 absolute sm:static top-full left-0 right-0 z-50 bg-wizard-panel sm:bg-transparent border-b border-wizard-border sm:border-0 px-4 sm:px-0 py-3 sm:py-0 shadow-lg sm:shadow-none">
                 <a href="/?lang={{ lang }}"           class="nav-link {% if active_page == 'home' %}active{% endif %}">{{ _("nav_home", lang) }}</a>
                 <a href="/leaderboard?lang={{ lang }}" class="nav-link {% if active_page == 'leaderboard' %}active{% endif %}">{{ _("nav_leaderboard", lang) }}</a>
                 <a href="/feedback?lang={{ lang }}"    class="nav-link {% if active_page == 'feedback' %}active{% endif %}">{{ _("nav_feedback", lang) }}</a>
                 
-                <div class="ml-4 flex items-center gap-2 text-sm text-wizard-muted" style="margin-left: 20px;">
+                <div class="flex items-center gap-2 text-sm text-wizard-muted w-full sm:w-auto mt-2 pt-2 border-t border-wizard-border sm:mt-0 sm:pt-0 sm:border-0 sm:ml-5">
                     <a href="?lang=en" class="hover:text-wizard-gold {% if lang == 'en' %}text-wizard-gold{% endif %}">EN</a>|
                     <a href="?lang=de" class="hover:text-wizard-gold {% if lang == 'de' %}text-wizard-gold{% endif %}">DE</a>|
                     <a href="?lang=fr" class="hover:text-wizard-gold {% if lang == 'fr' %}text-wizard-gold{% endif %}">FR</a>|
@@ -86,6 +96,24 @@
         <a href="https://github.com/MordredWiggi/WizardGUI" class="hover:text-wizard-gold" target="_blank" rel="noopener">GitHub</a> &middot;
         <a href="/privacy?lang={{ lang }}" class="hover:text-wizard-gold">{{ _("footer_privacy", lang) }}</a>
     </footer>
+
+    <script>
+        (function () {
+            var toggle = document.getElementById('nav-toggle');
+            var menu = document.getElementById('nav-menu');
+            if (!toggle || !menu) return;
+            var iconOpen = document.getElementById('nav-icon-open');
+            var iconClose = document.getElementById('nav-icon-close');
+            toggle.addEventListener('click', function () {
+                var show = menu.classList.contains('hidden');
+                menu.classList.toggle('hidden', !show);
+                menu.classList.toggle('flex', show);
+                toggle.setAttribute('aria-expanded', show ? 'true' : 'false');
+                if (iconOpen) iconOpen.classList.toggle('hidden', show);
+                if (iconClose) iconClose.classList.toggle('hidden', !show);
+            });
+        })();
+    </script>
 
     {% block scripts %}{% endblock %}
 </body>

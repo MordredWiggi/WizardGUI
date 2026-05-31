@@ -13,6 +13,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_home": "Home",
         "nav_leaderboard": "Leaderboard",
         "nav_feedback": "Feedback",
+        "nav_menu": "Menu",
         # Hero
         "hero_badge": "Wizard Score Tracker",
         "hero_title_1": "Every trick.",
@@ -97,6 +98,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_home": "Startseite",
         "nav_leaderboard": "Bestenliste",
         "nav_feedback": "Feedback",
+        "nav_menu": "Menü",
         # Hero
         "hero_badge": "Wizard Punkte-Tracker",
         "hero_title_1": "Jeder Stich.",
@@ -179,6 +181,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_home": "Accueil",
         "nav_leaderboard": "Classement",
         "nav_feedback": "Retour",
+        "nav_menu": "Menu",
         # Hero
         "hero_badge": "Suivi de Score Wizard",
         "hero_title_1": "Chaque pli.",
@@ -259,6 +262,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_home": "होम (Home)",
         "nav_leaderboard": "लीडरबोर्ड (Leaderboard)",
         "nav_feedback": "प्रतिक्रिया (Feedback)",
+        "nav_menu": "मेन्यू (Menu)",
         # Hero
         "hero_badge": "विज़ार्ड स्कोर ट्रैकर",
         "hero_title_1": "हर चाल।",
