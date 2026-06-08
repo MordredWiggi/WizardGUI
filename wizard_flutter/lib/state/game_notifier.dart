@@ -55,9 +55,11 @@ class GameNotifier extends ChangeNotifier {
   void startGame(List<Map<String, dynamic>> playerData, String gameMode) {
     _game = GameControl(
       playerData: playerData,
-      gameMode: gameMode == 'multiplicative'
-          ? GameMode.multiplicative
-          : GameMode.standard,
+      gameMode: switch (gameMode) {
+        'multiplicative' => GameMode.multiplicative,
+        'anniversary' => GameMode.anniversary,
+        _ => GameMode.standard,
+      },
     );
     _lastEloDeltas = null; // don't let the previous game's ELO leak in
     notifyListeners();

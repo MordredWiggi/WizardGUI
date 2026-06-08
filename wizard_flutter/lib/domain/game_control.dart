@@ -7,6 +7,18 @@ import 'round_events.dart';
 /// Central model holding the complete state of one game.
 /// Mirrors Python GameControl class with immutable-style mutation.
 class GameControl {
+  static const List<String> anniversarySpecialCards = [
+    'Dragon',
+    'Fairy',
+    'Witch',
+    'Werewolf',
+    'Bomb',
+    'Juggler',
+    'Cloud',
+    'Vampire',
+    'Shapeshifter',
+  ];
+
   final GameMode gameMode;
   final List<Player> players;
   final int roundNumber;
@@ -43,7 +55,11 @@ class GameControl {
   List<String> get playerNames => players.map((p) => p.name).toList();
 
   /// Total rounds = 60 ÷ num_players (Wizard rule).
-  int get totalRounds => numPlayers == 0 ? 0 : 60 ~/ numPlayers;
+  int get totalRounds {
+    if (numPlayers == 0) return 0;
+    final deckSize = gameMode == GameMode.anniversary ? 69 : 60;
+    return deckSize ~/ numPlayers;
+  }
 
   bool get isGameOver => roundNumber >= totalRounds;
 

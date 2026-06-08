@@ -495,6 +495,12 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
                 selected: _mode == 'multiplicative',
                 onTap: () => _switchMode('multiplicative'),
               ),
+              const SizedBox(width: 8),
+              _ModeChip(
+                label: t('game_mode_anniversary'),
+                selected: _mode == 'anniversary',
+                onTap: () => _switchMode('anniversary'),
+              ),
             ],
           ),
         ),

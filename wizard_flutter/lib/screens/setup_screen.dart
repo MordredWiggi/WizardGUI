@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../domain/game_control.dart';
 import '../persistence/app_settings.dart';
 import '../persistence/save_manager.dart';
 import '../services/leaderboard_service.dart';
@@ -806,30 +807,47 @@ class _SetupScreenState extends State<SetupScreen> {
                 children: [
                   _SectionHeader(t('game_mode_label')),
                   const SizedBox(height: 10),
-                  Row(
+                  Column(
                     children: [
-                      Expanded(
-                        child: RadioListTile<String>(
-                          value: 'standard',
-                          groupValue: _gameMode,
-                          onChanged: (v) => setState(() => _gameMode = v!),
-                          title: Text(t('game_mode_standard')),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
+                      RadioListTile<String>(
+                        value: 'standard',
+                        groupValue: _gameMode,
+                        onChanged: (v) => setState(() => _gameMode = v!),
+                        title: Text(t('game_mode_standard')),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
                       ),
-                      Expanded(
-                        child: RadioListTile<String>(
-                          value: 'multiplicative',
-                          groupValue: _gameMode,
-                          onChanged: (v) => setState(() => _gameMode = v!),
-                          title: Text(t('game_mode_multiplicative')),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
+                      RadioListTile<String>(
+                        value: 'multiplicative',
+                        groupValue: _gameMode,
+                        onChanged: (v) => setState(() => _gameMode = v!),
+                        title: Text(t('game_mode_multiplicative')),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      RadioListTile<String>(
+                        value: 'anniversary',
+                        groupValue: _gameMode,
+                        onChanged: (v) => setState(() => _gameMode = v!),
+                        title: Text(t('game_mode_anniversary')),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
                       ),
                     ],
                   ),
+                  if (_isAnniversaryMode)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2, bottom: 8),
+                      child: Text(
+                        t('anniversary_special_cards', {
+                          'cards': GameControl.anniversarySpecialCards.join(', '),
+                        }),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontStyle: FontStyle.italic,
+                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
@@ -1522,3 +1540,4 @@ class _PlayerChip extends StatelessWidget {
     ),
   );
 }
+  bool get _isAnniversaryMode => _gameMode == 'anniversary';
