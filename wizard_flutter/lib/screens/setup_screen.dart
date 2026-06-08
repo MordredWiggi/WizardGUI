@@ -99,7 +99,7 @@ class _SetupScreenState extends State<SetupScreen> {
     final playersList = (game?['players'] as List?) ?? const [];
     final numPlayers = playersList.length;
     final roundNumber = (game?['round_number'] as int?) ?? 0;
-    final totalRounds = numPlayers == 0 ? 0 : 60 ~/ numPlayers;
+    final totalRounds = numPlayers == 0 ? 0 : 69 ~/ numPlayers;
     // Defensive: never offer to resume a finished game — that snapshot
     // should have been cleared when the last round was submitted, but old
     // files (or a process killed mid-cleanup) can leave one behind.

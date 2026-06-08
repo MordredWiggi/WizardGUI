@@ -42,7 +42,7 @@ def build_game_submission(
     """Convert a local game dict into the payload expected by POST /api/games."""
     players = game_data.get("players", [])
     num_players = len(players)
-    total_rounds = 60 // num_players if num_players else 0
+    total_rounds = 69 // num_players if num_players else 0
     game_mode = game_data.get("game_mode", "standard")
 
     player_results: list[dict] = []

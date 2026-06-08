@@ -42,8 +42,8 @@ class GameControl {
   int get numPlayers => players.length;
   List<String> get playerNames => players.map((p) => p.name).toList();
 
-  /// Total rounds = 60 ÷ num_players (Wizard rule).
-  int get totalRounds => numPlayers == 0 ? 0 : 60 ~/ numPlayers;
+  /// Total rounds = 69 ÷ num_players (Wizard Jubiläumsedition rule).
+  int get totalRounds => numPlayers == 0 ? 0 : 69 ~/ numPlayers;
 
   bool get isGameOver => roundNumber >= totalRounds;
 

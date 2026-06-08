@@ -210,7 +210,7 @@ class GameControl:
         """Total number of rounds in the game (round 0 doesn't count)."""
         if self.num_players == 0:
             return 0
-        return 60 // self.num_players
+        return 69 // self.num_players
 
     @property
     def is_game_over(self) -> bool:

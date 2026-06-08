@@ -931,7 +931,7 @@ class SetupView(QtWidgets.QWidget):
         players_list = game.get("players", []) or []
         num_players = len(players_list)
         round_number = game.get("round_number", 0) or 0
-        total_rounds = 0 if num_players == 0 else 60 // num_players
+        total_rounds = 0 if num_players == 0 else 69 // num_players
         # Defensive: never offer to resume a finished game — that snapshot
         # should have been cleared when the last round was submitted, but
         # old files (or a process killed mid-cleanup) can leave one behind.

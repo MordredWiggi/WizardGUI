@@ -624,7 +624,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 num_players = len(players)
                 if num_players < 2:
                     continue
-                total_rounds = 60 // num_players
+                total_rounds = 69 // num_players
                 if game.get("round_number", 0) == total_rounds:
                     completed.append((fp, payload))
             except Exception:
