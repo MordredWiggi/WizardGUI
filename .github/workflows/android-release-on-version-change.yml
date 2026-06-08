@@ -88,7 +88,13 @@ jobs:
 
           parse_version() {
             local version="$1"
-            echo "$version" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+)\+([0-9]+)$/\1 \2 \3 \4/'
+            local parsed
+            parsed="$(echo "$version" | sed -nE 's/^([0-9]+)\.([0-9]+)\.([0-9]+)\+([0-9]+)$/\1 \2 \3 \4/p')"
+            if [[ -z "$parsed" ]]; then
+              echo "Failed to parse version: $version"
+              exit 1
+            fi
+            echo "$parsed"
           }
 
           read -r _ _ PREV_PATCH PREV_BUILD <<< "$(parse_version "$PREVIOUS_VERSION")"
@@ -135,7 +141,7 @@ jobs:
           java-version: '17'
 
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
 
@@ -148,7 +154,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -d test ]] && find test -type f -name '*_test.dart' -print -quit | grep -q .; then
+          if [[ -d test ]] && find test -type f -name '*_test.dart' | grep -q .; then
             flutter test
           else
             echo "No Flutter tests found in wizard_flutter/test. Skipping tests."
@@ -177,7 +183,7 @@ jobs:
           fi
 
       - name: Upload APK to Google Play internal testing
-        uses: r0adkll/upload-google-play@v1
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1
         with:
           # Public repositories cannot auto-sync secrets.
           # Add this manually as a repository secret named PLAY_STORE_SERVICE_ACCOUNT_JSON.
@@ -188,7 +194,7 @@ jobs:
           status: completed
 
       - name: Create GitHub release with APK
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: v${{ needs.detect-version-change.outputs.current_version }}
           name: Android v${{ needs.detect-version-change.outputs.current_version }}
