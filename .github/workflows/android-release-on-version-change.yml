@@ -1,0 +1,196 @@
+name: Android Release on Version Change
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - wizard_flutter/pubspec.yaml
+
+permissions:
+  contents: write
+
+jobs:
+  detect-version-change:
+    name: Detect Flutter app version change
+    runs-on: ubuntu-latest
+    outputs:
+      version_changed: ${{ steps.compare.outputs.version_changed }}
+      previous_version: ${{ steps.compare.outputs.previous_version }}
+      current_version: ${{ steps.compare.outputs.current_version }}
+      patch_changed: ${{ steps.compare.outputs.patch_changed }}
+      build_changed: ${{ steps.compare.outputs.build_changed }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compare pubspec version values
+        id: compare
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PUBSPEC_FILE="wizard_flutter/pubspec.yaml"
+          CURRENT_VERSION="$(awk '/^version:/ {print $2; exit}' "$PUBSPEC_FILE")"
+
+          if [[ -z "$CURRENT_VERSION" ]]; then
+            echo "Could not read current version from $PUBSPEC_FILE"
+            exit 1
+          fi
+
+          if [[ ! "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$ ]]; then
+            echo "Current version is not in expected X.Y.Z+N format: $CURRENT_VERSION"
+            exit 1
+          fi
+
+          PREVIOUS_REF="${{ github.event.before }}"
+          if [[ -z "$PREVIOUS_REF" || "$PREVIOUS_REF" == "0000000000000000000000000000000000000000" ]]; then
+            PREVIOUS_REF="$(git rev-parse HEAD^ 2>/dev/null || true)"
+          fi
+
+          PREVIOUS_VERSION=""
+          if [[ -n "$PREVIOUS_REF" ]] && git cat-file -e "$PREVIOUS_REF:$PUBSPEC_FILE" 2>/dev/null; then
+            PREVIOUS_VERSION="$(git show "$PREVIOUS_REF:$PUBSPEC_FILE" | awk '/^version:/ {print $2; exit}')"
+          fi
+
+          # Safe default: if no prior version is available, skip release automation.
+          if [[ -z "$PREVIOUS_VERSION" ]]; then
+            echo "No previous version found; skipping release steps."
+            echo "version_changed=false" >> "$GITHUB_OUTPUT"
+            echo "patch_changed=false" >> "$GITHUB_OUTPUT"
+            echo "build_changed=false" >> "$GITHUB_OUTPUT"
+            echo "previous_version=" >> "$GITHUB_OUTPUT"
+            echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ ! "$PREVIOUS_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$ ]]; then
+            echo "Previous version is not in expected X.Y.Z+N format: $PREVIOUS_VERSION"
+            exit 1
+          fi
+
+          if [[ "$CURRENT_VERSION" == "$PREVIOUS_VERSION" ]]; then
+            echo "Version line did not change."
+            echo "version_changed=false" >> "$GITHUB_OUTPUT"
+            echo "patch_changed=false" >> "$GITHUB_OUTPUT"
+            echo "build_changed=false" >> "$GITHUB_OUTPUT"
+            echo "previous_version=$PREVIOUS_VERSION" >> "$GITHUB_OUTPUT"
+            echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          parse_version() {
+            local version="$1"
+            echo "$version" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+)\+([0-9]+)$/\1 \2 \3 \4/'
+          }
+
+          read -r _ _ PREV_PATCH PREV_BUILD <<< "$(parse_version "$PREVIOUS_VERSION")"
+          read -r _ _ CURR_PATCH CURR_BUILD <<< "$(parse_version "$CURRENT_VERSION")"
+
+          PATCH_CHANGED=false
+          BUILD_CHANGED=false
+
+          if [[ "$PREV_PATCH" != "$CURR_PATCH" ]]; then
+            PATCH_CHANGED=true
+          fi
+
+          if [[ "$PREV_BUILD" != "$CURR_BUILD" ]]; then
+            BUILD_CHANGED=true
+          fi
+
+          VERSION_CHANGED=false
+          if [[ "$PATCH_CHANGED" == "true" || "$BUILD_CHANGED" == "true" ]]; then
+            VERSION_CHANGED=true
+          fi
+
+          echo "version_changed=$VERSION_CHANGED" >> "$GITHUB_OUTPUT"
+          echo "patch_changed=$PATCH_CHANGED" >> "$GITHUB_OUTPUT"
+          echo "build_changed=$BUILD_CHANGED" >> "$GITHUB_OUTPUT"
+          echo "previous_version=$PREVIOUS_VERSION" >> "$GITHUB_OUTPUT"
+          echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+
+  build-upload-release:
+    name: Test, build APK, upload to Play Console and create GitHub release
+    runs-on: ubuntu-latest
+    needs: detect-version-change
+    if: needs.detect-version-change.outputs.version_changed == 'true'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java for Android build
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install Flutter dependencies
+        working-directory: wizard_flutter
+        run: flutter pub get
+
+      - name: Run Flutter tests (if any exist)
+        working-directory: wizard_flutter
+        shell: bash
+        run: |
+          set -euo pipefail
+          if find test -type f -name '*_test.dart' -print -quit | grep -q .; then
+            flutter test
+          else
+            echo "No Flutter tests found in wizard_flutter/test. Skipping tests."
+          fi
+
+      - name: Build release APK
+        working-directory: wizard_flutter
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wizard-android-apk-${{ needs.detect-version-change.outputs.current_version }}
+          path: wizard_flutter/build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Validate Google Play service account secret
+        shell: bash
+        run: |
+          if [[ -z "${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}" ]]; then
+            echo "Missing PLAY_STORE_SERVICE_ACCOUNT_JSON secret."
+            echo "Add it in GitHub: Settings > Secrets and variables > Actions > New repository secret."
+            echo "Paste the full Google Play service-account JSON as the secret value."
+            exit 1
+          fi
+
+      - name: Upload APK to Google Play internal testing
+        uses: r0adkll/upload-google-play@v1
+        with:
+          # Public repositories cannot auto-sync secrets.
+          # Add this manually as a repository secret named PLAY_STORE_SERVICE_ACCOUNT_JSON.
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}
+          packageName: com.playwizard.app
+          releaseFiles: wizard_flutter/build/app/outputs/flutter-apk/app-release.apk
+          track: internal
+          status: completed
+
+      - name: Create GitHub release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.detect-version-change.outputs.current_version }}
+          name: Android v${{ needs.detect-version-change.outputs.current_version }}
+          body: |
+            Automated Android release for wizard_flutter.
+
+            - Previous version: `${{ needs.detect-version-change.outputs.previous_version }}`
+            - New version: `${{ needs.detect-version-change.outputs.current_version }}`
+            - Patch changed: `${{ needs.detect-version-change.outputs.patch_changed }}`
+            - Build number changed: `${{ needs.detect-version-change.outputs.build_changed }}`
+            - Package: `com.playwizard.app`
+            - Play Console track: `internal`
+          files: wizard_flutter/build/app/outputs/flutter-apk/app-release.apk
