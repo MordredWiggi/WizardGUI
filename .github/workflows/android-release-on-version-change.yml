@@ -48,7 +48,11 @@ jobs:
 
           PREVIOUS_REF="${{ github.event.before }}"
           if [[ -z "$PREVIOUS_REF" || "$PREVIOUS_REF" == "0000000000000000000000000000000000000000" ]]; then
-            PREVIOUS_REF="$(git rev-parse HEAD^ 2>/dev/null || true)"
+            if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+              PREVIOUS_REF="$(git rev-parse HEAD^)"
+            else
+              PREVIOUS_REF=""
+            fi
           fi
 
           PREVIOUS_VERSION=""
@@ -117,6 +121,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: detect-version-change
     if: needs.detect-version-change.outputs.version_changed == 'true'
+    env:
+      APP_PACKAGE_NAME: com.playwizard.app
 
     steps:
       - name: Checkout repository
@@ -142,7 +148,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if find test -type f -name '*_test.dart' -print -quit | grep -q .; then
+          if [[ -d test ]] && find test -type f -name '*_test.dart' -print -quit | grep -q .; then
             flutter test
           else
             echo "No Flutter tests found in wizard_flutter/test. Skipping tests."
@@ -159,14 +165,13 @@ jobs:
           path: wizard_flutter/build/app/outputs/flutter-apk/app-release.apk
 
       - name: Validate Google Play service account secret
+        if: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON == '' }}
         shell: bash
         run: |
-          if [[ -z "${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}" ]]; then
-            echo "Missing PLAY_STORE_SERVICE_ACCOUNT_JSON secret."
-            echo "Add it in GitHub: Settings > Secrets and variables > Actions > New repository secret."
-            echo "Paste the full Google Play service-account JSON as the secret value."
-            exit 1
-          fi
+          echo "Missing PLAY_STORE_SERVICE_ACCOUNT_JSON secret."
+          echo "Add it in GitHub: Settings > Secrets and variables > Actions > New repository secret."
+          echo "Paste the full Google Play service-account JSON as the secret value."
+          exit 1
 
       - name: Upload APK to Google Play internal testing
         uses: r0adkll/upload-google-play@v1
@@ -174,7 +179,7 @@ jobs:
           # Public repositories cannot auto-sync secrets.
           # Add this manually as a repository secret named PLAY_STORE_SERVICE_ACCOUNT_JSON.
           serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}
-          packageName: com.playwizard.app
+          packageName: ${{ env.APP_PACKAGE_NAME }}
           releaseFiles: wizard_flutter/build/app/outputs/flutter-apk/app-release.apk
           track: internal
           status: completed
@@ -191,6 +196,6 @@ jobs:
             - New version: `${{ needs.detect-version-change.outputs.current_version }}`
             - Patch changed: `${{ needs.detect-version-change.outputs.patch_changed }}`
             - Build number changed: `${{ needs.detect-version-change.outputs.build_changed }}`
-            - Package: `com.playwizard.app`
+            - Package: `${{ env.APP_PACKAGE_NAME }}`
             - Play Console track: `internal`
           files: wizard_flutter/build/app/outputs/flutter-apk/app-release.apk
