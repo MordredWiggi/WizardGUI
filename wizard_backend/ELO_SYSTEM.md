@@ -29,7 +29,8 @@ upload those anyway — they are only saved locally).
 | Property | How it is achieved |
 |---|---|
 | Win ≈ **+100** (with 4 players) | `k_base` tuned accordingly |
-| Beating stronger opponents pays more | Pairwise ELO expectation `E_ij` |
+| **Upper half always gains, lower half always loses** | Rank component of the core (placement-only) |
+| Beating stronger opponents pays more | Skill component `E_ij`, weighted by `expectation_weight` |
 | More players → 2nd / 3rd place worth more | Sum over all duels + `gamma` scaling |
 | You can **lose** ELO | Placement core is **zero-sum** |
 | No "farming" by playing a lot | Zero-sum core: against equal opponents ≈ 0 |
@@ -61,16 +62,38 @@ E_ij = 1 / (1 + 10^((R_j − R_i) / d))      ← expected probability that i
 S_ij = 1.0   if rank_i < rank_j   (i beat j)
        0.5   if rank_i = rank_j   (tie)
        0.0   if rank_i > rank_j   (i lost to j)
-
-Core_i = Σ_{j≠i} (S_ij − E_ij)
 ```
 
-- Beating a **higher-rated** player (small `E_ij`) earns close to the full
-  point → bigger reward.
-- **Important:** `Σ_i Core_i = 0` exactly — across the whole table the core
-  sums to zero. What the winners gain, the losers lose. This is the
-  structural anti-inflation guarantee: playing average against equal opponents
-  nets ≈ 0, no matter how often.
+The pairwise sum `Σ_{j≠i}(S_ij − E_ij)` splits **exactly** into two halves —
+add and subtract `0.5` per duel — and the core keeps only a **dampened** share
+`β = expectation_weight` of the second half:
+
+```
+Core_i =   Σ_{j≠i} (S_ij − 0.5)          ← rank component (placement only)
+         + β · Σ_{j≠i} (0.5 − E_ij)      ← skill component (ELO-gap reward)
+```
+
+- **Rank component** depends *only* on where you placed, not on opponent
+  ratings. For rank `r` of `n` (no ties) it equals exactly `(n − r) − (n−1)/2`,
+  which is **positive for the whole upper half and negative for the lower
+  half** of the table — no matter how strong or weak the opponents are. This is
+  what guarantees that a high-rated player who finishes in the upper half
+  always gains *some* ELO, and a low-rated player who finishes in the lower
+  half always loses some.
+- **Skill component** is the classic "did you beat who you were expected to
+  beat". Beating a **higher-rated** player (small `E_ij`) adds toward the
+  reward; losing to a weaker one subtracts. `β = expectation_weight` controls
+  how much this ELO-gap term matters relative to pure placement:
+  - `β = 1.0` → the original behaviour (placement *and* the full ELO gap; a
+    strong player placing mid-table could go negative).
+  - `β = 0.0` → pure placement; opponent ratings are irrelevant.
+  - `β = 0.25` (default) → placement dominates, the ELO gap only nudges the
+    amount. A very strong player coming 3rd of 6 gets a small positive (≈ +3),
+    not a loss; an underdog still earns a meaningful bonus for an upset.
+- **Both halves are individually zero-sum**, so `Σ_i Core_i = 0` exactly for
+  *any* `β` — the structural anti-inflation guarantee is untouched. Note also
+  that **against equal opponents the skill component is exactly 0**, so `β` has
+  no effect on the headline calibration (a 4-player win is still ≈ +100).
 
 ### (b) Player-count modifier `M(n)`
 
@@ -166,6 +189,7 @@ JSON blob in the `elo_config` table.
 | `k_base` | 115 | Base step size (≈ +100 for a 4-player win) |
 | `d` | 400 | ELO logistic divisor (classic) |
 | `gamma` | 0.5 | Player-count weight of placement |
+| `expectation_weight` | 0.25 | Weight of the ELO-gap skill term vs pure placement (0 = placement only, 1 = classic) |
 | `w_hit` | 30 | Weight of the hit-rate bonus |
 | `a_hit` | 1.0 | How strongly the hit-rate bonus shrinks with more players |
 | `ref_n` | 4 | Reference player count for the dampening |
@@ -178,13 +202,32 @@ JSON blob in the `elo_config` table.
 
 ### Sample magnitudes (4 equal settled players, defaults)
 
-With `gamma = 0.5`, `k_base = 115`: `M(4) = 3^(−0.5) ≈ 0.577`.
+With `gamma = 0.5`, `k_base = 115`: `M(4) = 3^(−0.5) ≈ 0.577`. Among equal
+players the skill component is 0, so `expectation_weight` does not enter here:
+the rank component for the winner is `(4−1) − 1.5 = 1.5`.
 
-- **Winner** (beats 3 opponents): `Core = 3·0.5 = 1.5` → `115 · 1.5 · 0.577 ≈ +100`
+- **Winner** (beats 3 opponents): `Core = 1.5` → `115 · 1.5 · 0.577 ≈ +100`
   plus the (always non-negative) hit/ppr/streak bonuses.
 - **Last place**: pure placement only (no bonus, no penalty) ≈ **−100**.
 - In **6-player** games the placement swings are larger (~ +130 for 1st);
   in **3-player** games smaller (~ +81).
+
+### How `expectation_weight` reshapes the table (6 players, one strong outlier)
+
+A player rated **+300** above an otherwise equal field, by finishing position
+(others all 1000), at the default `β = 0.25`:
+
+| Finish | `β = 1.0` (old) | `β = 0.25` (default) |
+|---|---:|---:|
+| 2nd of 6 | mildly positive / neutral | **≈ +55** |
+| 3rd of 6 | **negative** (the old complaint) | **≈ +3** (small but positive) |
+| 4th of 6 | strongly negative | strongly negative |
+
+The upper half stays positive for outliers up to roughly **+350** above the
+*entire* field; only a near-impossible +400-and-up gap nudges a mid-table
+finish slightly negative. Meanwhile an underdog (−300) winning a 6-player game
+still earns ≈ +151 vs ≈ +130 for an equal-rated winner — beating stronger
+opponents continues to pay, just proportionally less than before.
 
 ---
 

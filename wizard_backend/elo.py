@@ -45,6 +45,8 @@ DEFAULT_CONFIG: dict = {
     "k_base": 115.0,            # base step size (≈ +100 for a 4-player win)
     "d": 400.0,                 # ELO logistic divisor (classic 400)
     "gamma": 0.5,               # player-count weighting of placement (0..1)
+    "expectation_weight": 0.25, # weight of the ELO-gap (pairwise expectation) vs
+                                # pure placement (0 = placement only, 1 = classic)
     # Hit-rate bonus (one-sided: only above-mean players gain; never penalises)
     "w_hit": 30.0,              # weight of the hit-rate bonus
     "a_hit": 1.0,               # how strongly the bonus is dampened by player count
@@ -68,6 +70,7 @@ CONFIG_FIELDS: list[tuple[str, str]] = [
     ("k_base", "Base step size. Higher = bigger swings (≈+100 for a 4p win)."),
     ("d", "ELO logistic divisor. 400 is the classic chess value."),
     ("gamma", "Player-count weight of placement (0 = ignore count, 1 = full)."),
+    ("expectation_weight", "ELO-gap weight: 0 = placement only (upper half always gains), 1 = classic pairwise expectation."),
     ("w_hit", "Weight of the hit-rate bonus (deviation from the table mean)."),
     ("a_hit", "How strongly the hit-rate bonus shrinks with more players."),
     ("ref_n", "Reference player count for the hit-rate dampening."),
@@ -178,8 +181,19 @@ def compute_game_deltas(players: list[dict], config: dict) -> list[dict]:
     for idx, p in enumerate(players):
         rating_i = float(p["rating"])
 
-        # (a) Placement core — sum of (actual − expected) over every opponent.
-        core = 0.0
+        # (a) Placement core — the pairwise sum split into two zero-sum halves:
+        #   • rank  component  Σ(actual − 0.5): depends ONLY on placement, so the
+        #     upper half of the table is always positive and the lower half
+        #     negative, regardless of opponent ratings. For rank r of n this is
+        #     exactly (n − r) − (n − 1)/2.
+        #   • skill component  Σ(0.5 − expected): the pairwise ELO-gap, i.e. the
+        #     reward/penalty for beating stronger/weaker opponents.
+        # ``expectation_weight`` (0..1) dampens ONLY the skill half, so the ELO
+        # gap modulates the reward without overpowering placement. Against equal
+        # opponents the skill half is exactly 0, so calibration is unaffected.
+        # Both halves are individually zero-sum → the full core stays zero-sum.
+        rank_core = 0.0
+        skill_core = 0.0
         for jdx, q in enumerate(players):
             if jdx == idx:
                 continue
@@ -190,7 +204,9 @@ def compute_game_deltas(players: list[dict], config: dict) -> list[dict]:
                 actual = 0.5
             else:
                 actual = 0.0
-            core += actual - expected
+            rank_core += actual - 0.5
+            skill_core += 0.5 - expected
+        core = rank_core + cfg["expectation_weight"] * skill_core
 
         # (f) Reliability: provisional players move faster.
         k_i = cfg["k_base"] * (
