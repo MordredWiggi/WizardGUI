@@ -1,0 +1,92 @@
+name: Build Android Release
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Optional versionCode override (Play Console requires this to increase on every upload). Leave blank to use the +N value from pubspec.yaml."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build App Bundle (.aab) and APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.6"
+          channel: stable
+          cache: true
+
+      - name: Restore upload keystore
+        working-directory: wizard_flutter/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_BASE64" | base64 --decode > app/upload-keystore.jks
+
+      - name: Create key.properties
+        working-directory: wizard_flutter/android
+        env:
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          {
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyPassword=$KEY_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "storeFile=$GITHUB_WORKSPACE/wizard_flutter/android/app/upload-keystore.jks"
+          } > key.properties
+
+      - name: Install Dependencies
+        working-directory: wizard_flutter
+        run: flutter pub get
+
+      - name: Build App Bundle and APK
+        working-directory: wizard_flutter
+        run: |
+          EXTRA=""
+          if [ -n "${{ github.event.inputs.build_number }}" ]; then
+            EXTRA="--build-number=${{ github.event.inputs.build_number }}"
+          fi
+          flutter build appbundle --release $EXTRA
+          flutter build apk --release $EXTRA
+
+      - name: Upload App Bundle artifact (for Play Console)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: wizard_flutter/build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+
+      - name: Upload APK artifact (for sideload testing)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: wizard_flutter/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+      - name: Attach binaries to GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'release'
+        with:
+          files: |
+            wizard_flutter/build/app/outputs/bundle/release/app-release.aab
+            wizard_flutter/build/app/outputs/flutter-apk/app-release.apk
