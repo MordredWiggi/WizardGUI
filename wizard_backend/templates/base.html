@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{% block title %}Wizard Score Tracker{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -74,6 +74,7 @@
 
             <div id="nav-menu" class="hidden sm:flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2 absolute sm:static top-full left-0 right-0 z-50 bg-wizard-panel sm:bg-transparent border-b border-wizard-border sm:border-0 px-4 sm:px-0 py-3 sm:py-0 shadow-lg sm:shadow-none">
                 <a href="/?lang={{ lang }}"           class="nav-link {% if active_page == 'home' %}active{% endif %}">{{ _("nav_home", lang) }}</a>
+                <a href="/play?lang={{ lang }}"        class="nav-link {% if active_page == 'play' %}active{% endif %}">{{ _("nav_play", lang) }}</a>
                 <a href="/leaderboard?lang={{ lang }}" class="nav-link {% if active_page == 'leaderboard' %}active{% endif %}">{{ _("nav_leaderboard", lang) }}</a>
                 <a href="/feedback?lang={{ lang }}"    class="nav-link {% if active_page == 'feedback' %}active{% endif %}">{{ _("nav_feedback", lang) }}</a>
                 

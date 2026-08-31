@@ -15,6 +15,7 @@ Endpoints:
   POST /api/feedback                     – submit a new feedback message
   POST /api/feedback/{id}/vote           – upvote or downvote a message
   GET  /                                 – landing page
+  GET  /play                             – play the app in the browser
   GET  /leaderboard                      – HTML leaderboard page
   GET  /feedback                         – HTML feedback page
   GET  /privacy                          – privacy policy page
@@ -303,6 +304,19 @@ def home_page(request: Request, lang: str = "en") -> HTMLResponse:
     """Render the landing page."""
     return templates.TemplateResponse(
         request, "index.html", {"active_page": "home", "lang": lang}
+    )
+
+
+@app.get("/play", response_class=HTMLResponse)
+def play_page(request: Request, lang: str = "en") -> HTMLResponse:
+    """Render the browser version of the app.
+
+    Everything happens client-side (scoring, saving a paused game); the page
+    only talks to the same public API the mobile app uses, so no extra
+    endpoints are needed. This is the way in for iOS users, who have no app.
+    """
+    return templates.TemplateResponse(
+        request, "play.html", {"active_page": "play", "lang": lang}
     )
 
 

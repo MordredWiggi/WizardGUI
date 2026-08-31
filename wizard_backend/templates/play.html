@@ -1,0 +1,1969 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _("play_title", lang) }} &middot; Wizard{% endblock %}
+
+{% block head_extra %}
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Wizard">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d0d1a">
+<style>
+    /* ── Base / iOS ergonomics ────────────────────────────────────────────
+       Inputs are 16px so Safari does not zoom the page when they are
+       focused; taps are unhighlighted and never double-tap-zoom. */
+    .play-root { -webkit-tap-highlight-color: transparent; }
+    .play-root button, .play-root input, .play-root label { touch-action: manipulation; }
+    .play-root input, .play-root select { font-size: 16px; }
+
+    .panel {
+        background: #12122b;
+        border: 1px solid #2a2a4a;
+        border-radius: 12px;
+        padding: 16px;
+    }
+    .panel + .panel { margin-top: 14px; }
+    .section-title {
+        color: #7a6230;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+    }
+    .hint { color: #888aaa; font-size: 0.8rem; font-style: italic; }
+
+    .field {
+        width: 100%;
+        background: #1a1a3a;
+        border: 1px solid #3a3a6a;
+        border-radius: 8px;
+        color: #e8e8f0;
+        padding: 10px 12px;
+    }
+    .field:focus { outline: none; border-color: #c9a84c; }
+    .field::placeholder { color: #666688; }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 14px;
+        min-height: 44px;
+        border-radius: 8px;
+        border: 1px solid #3a3a6a;
+        background: #1a1a3a;
+        color: #e8e8f0;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: border-color 0.15s, color 0.15s, background 0.15s, opacity 0.15s;
+    }
+    .btn:hover:not(:disabled) { border-color: #c9a84c; color: #c9a84c; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn.primary {
+        background: linear-gradient(135deg, #c9a84c 0%, #7a6230 100%);
+        border-color: #c9a84c;
+        color: #0d0d1a;
+    }
+    .btn.primary:hover:not(:disabled) { color: #0d0d1a; filter: brightness(1.08); }
+    .btn.danger:hover:not(:disabled) { border-color: #e53935; color: #e53935; }
+    .btn.wide { width: 100%; }
+    .btn.icon { padding: 8px; min-width: 44px; }
+
+    .row { display: flex; gap: 8px; }
+    .row.wrap { flex-wrap: wrap; }
+
+    /* ── Radio pills (game mode, visibility) ─────────────────────────── */
+    .pill-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill {
+        flex: 1 1 140px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border: 1px solid #3a3a6a;
+        border-radius: 8px;
+        background: #1a1a3a;
+        color: #c8c8dd;
+        cursor: pointer;
+        font-size: 0.88rem;
+        user-select: none;
+    }
+    .pill input { accent-color: #c9a84c; width: 16px; height: 16px; }
+    .pill.checked { border-color: #c9a84c; color: #e8e8f0; background: #21214a; }
+
+    /* ── Setup: player list ───────────────────────────────────────────── */
+    .avatar-btn {
+        width: 48px; height: 48px;
+        flex: 0 0 48px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.5rem;
+        border-radius: 8px;
+        border: 1px solid #3a3a6a;
+        background: #1a1a3a;
+        cursor: pointer;
+    }
+    .avatar-btn:hover { border-color: #c9a84c; }
+    .player-chip {
+        display: flex; align-items: center; gap: 8px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #2a2a4a;
+        background: #161634;
+        margin-top: 8px;
+    }
+    .player-chip .pname { flex: 1; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .player-chip .seat { color: #666688; font-size: 0.75rem; width: 1.2em; text-align: right; }
+
+    /* ── Game header ──────────────────────────────────────────────────── */
+    .game-bar {
+        position: sticky;
+        top: 57px;
+        z-index: 30;
+        background: rgba(13, 13, 26, 0.94);
+        backdrop-filter: blur(6px);
+        border-bottom: 1px solid #2a2a4a;
+        padding: 8px 0;
+    }
+    .round-label { color: #c9a84c; font-weight: 700; letter-spacing: 1px; font-size: 0.95rem; }
+    .dealer-label { color: #888aaa; font-size: 0.78rem; }
+
+    .tabs { display: flex; gap: 4px; margin-top: 8px; }
+    .tab {
+        flex: 1;
+        padding: 8px 4px;
+        border: none;
+        background: transparent;
+        color: #888aaa;
+        font-weight: 600;
+        font-size: 0.82rem;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+    }
+    .tab.active { color: #c9a84c; border-bottom-color: #c9a84c; }
+
+    /* ── Bid banner ───────────────────────────────────────────────────── */
+    .bid-banner {
+        display: flex; align-items: center; gap: 10px;
+        padding: 8px 2px;
+        font-size: 0.85rem;
+        color: #888aaa;
+    }
+    .bid-banner.warn { color: #ff6b6b; font-weight: 700; }
+
+    /* ── Player entry card ────────────────────────────────────────────── */
+    .pcard {
+        background: #1a1a3a;
+        border: 1px solid #2a2a4a;
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+    }
+    .pcard.dealer { border-color: #c9a84c; border-width: 2px; }
+    .pcard.leader { border-color: #ffd700; border-width: 2px; }
+    .dealer-banner {
+        background: linear-gradient(90deg, rgba(201,168,76,0.85), rgba(201,168,76,0.5));
+        color: #14140f;
+        font-weight: 800;
+        font-size: 0.75rem;
+        letter-spacing: 1px;
+        text-align: center;
+        border-radius: 8px;
+        padding: 5px 8px;
+        margin-bottom: 8px;
+    }
+    .pcard-head { display: flex; align-items: center; gap: 8px; }
+    .pcard-head .pavatar { font-size: 1.5rem; }
+    .pcard-head .pname { font-weight: 700; font-size: 0.95rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pcard-head .pscore { margin-left: auto; font-weight: 700; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+    .delta {
+        padding: 1px 6px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+    }
+    .delta.up { background: rgba(76,175,125,0.15); color: #4caf7d; }
+    .delta.down { background: rgba(229,57,53,0.15); color: #e53935; }
+
+    .spinners { display: flex; gap: 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #2a2a4a; }
+    .spinner { flex: 1; text-align: center; }
+    .spinner .slabel {
+        font-size: 0.68rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        display: block;
+        margin-bottom: 4px;
+    }
+    .spinner .srow { display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .step {
+        width: 38px; height: 38px;
+        flex: 0 0 38px;
+        border-radius: 50%;
+        border: 1px solid currentColor;
+        background: transparent;
+        color: inherit;
+        font-size: 1.15rem;
+        line-height: 1;
+        cursor: pointer;
+        user-select: none;
+    }
+    .step:disabled { opacity: 0.25; cursor: not-allowed; }
+    .svalue {
+        width: 56px;
+        height: 40px;
+        text-align: center;
+        font-size: 1.15rem;
+        font-weight: 700;
+        border-radius: 8px;
+        border: 1px solid currentColor;
+        background: transparent;
+        color: inherit;
+        font-variant-numeric: tabular-nums;
+        -moz-appearance: textfield;
+    }
+    .svalue::-webkit-outer-spin-button,
+    .svalue::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .svalue:focus { outline: none; box-shadow: 0 0 0 2px rgba(201,168,76,0.5); }
+
+    /* ── Sticky action bar (respects the iPhone home indicator) ───────── */
+    .action-bar {
+        position: sticky;
+        bottom: 0;
+        background: linear-gradient(180deg, rgba(13,13,26,0) 0%, #0d0d1a 45%);
+        padding: 12px 0 calc(10px + env(safe-area-inset-bottom));
+    }
+
+    /* ── Chart ────────────────────────────────────────────────────────── */
+    .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.78rem; margin-bottom: 8px; }
+    .legend .swatch { display: inline-block; width: 16px; height: 3px; margin-right: 5px; vertical-align: middle; }
+
+    /* ── Tables (group standings, podium) ─────────────────────────────── */
+    .lb-row {
+        display: grid;
+        grid-template-columns: 34px 1fr 56px 46px 56px 56px;
+        gap: 8px;
+        align-items: center;
+        padding: 9px 8px;
+        border-top: 1px solid #1f1f42;
+        font-size: 0.85rem;
+    }
+    .lb-row.head {
+        border-top: none;
+        color: #7a6230;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+    }
+    .lb-row .num { text-align: right; font-variant-numeric: tabular-nums; color: #c9a84c; }
+    .lb-row .num.dim { color: #888aaa; }
+    .lb-row .rank { text-align: center; font-weight: 700; color: #7a6230; }
+    .lb-row .pname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    @media (max-width: 520px) {
+        .lb-row { grid-template-columns: 30px 1fr 52px 44px 52px; gap: 6px; }
+        .lb-row .hide-sm { display: none; }
+    }
+
+    .podium-row {
+        display: flex; align-items: center; gap: 10px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: #161634;
+        border: 1px solid #2a2a4a;
+        margin-bottom: 8px;
+    }
+    .podium-row.gold { border-color: #ffd700; background: #1e1b34; }
+    .podium-row .medal { font-size: 1.3rem; width: 1.6em; text-align: center; }
+    .podium-row .pname { flex: 1; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .podium-row .pts { font-variant-numeric: tabular-nums; font-weight: 700; color: #c9a84c; }
+    .elo-badge {
+        min-width: 54px;
+        text-align: right;
+        font-size: 0.8rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+    }
+    .elo-badge.up { color: #4ade80; }
+    .elo-badge.down { color: #f87171; }
+
+    /* ── Banners ──────────────────────────────────────────────────────── */
+    .banner {
+        border: 1px solid #c9a84c;
+        border-radius: 12px;
+        padding: 14px;
+        background: #17172f;
+        margin-bottom: 14px;
+    }
+    .banner h3 { color: #c9a84c; font-weight: 700; margin-bottom: 2px; }
+
+    /* ── Modal ────────────────────────────────────────────────────────── */
+    .modal-overlay {
+        position: fixed; inset: 0;
+        background: rgba(6, 6, 18, 0.8);
+        backdrop-filter: blur(4px);
+        display: none;
+        align-items: center; justify-content: center;
+        z-index: 60;
+        padding: 16px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+        background: #12122b;
+        border: 1px solid #2a2a4a;
+        border-radius: 12px;
+        padding: 20px;
+        width: 420px; max-width: 100%;
+        max-height: 88vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .modal h2 {
+        color: #c9a84c;
+        font-weight: 700; letter-spacing: 1.5px;
+        font-size: 0.9rem; text-transform: uppercase;
+        margin-bottom: 12px;
+    }
+    .modal-status { font-size: 0.8rem; min-height: 1.3em; margin-top: 8px; }
+    .modal-status.err { color: #ff6b6b; }
+    .modal-status.ok { color: #4caf7d; }
+    .group-option {
+        display: flex; align-items: center; gap: 8px;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        cursor: pointer;
+    }
+    .group-option:hover { background: #1a1a3a; }
+    .group-option.picked { border-color: #c9a84c; background: #21214a; }
+    .group-option .gname { flex: 1; font-weight: 600; font-size: 0.9rem; }
+    .group-list { max-height: 190px; overflow-y: auto; -webkit-overflow-scrolling: touch; margin-top: 8px; }
+    .code-field {
+        letter-spacing: 8px;
+        text-align: center;
+        font-size: 1.4rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+    }
+    .code-field:disabled { opacity: 0.45; }
+
+    /* ── Event overlay + toast ────────────────────────────────────────── */
+    .event-overlay {
+        position: fixed; inset: 0;
+        display: none;
+        align-items: center; justify-content: center;
+        z-index: 70;
+        pointer-events: none;
+        padding: 20px;
+    }
+    .event-overlay.open { display: flex; }
+    .event-card {
+        background: rgba(18, 18, 43, 0.97);
+        border: 2px solid #c9a84c;
+        border-radius: 16px;
+        padding: 24px 28px;
+        text-align: center;
+        max-width: 340px;
+        box-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.8);
+        animation: pop 0.25s ease-out;
+    }
+    @keyframes pop {
+        from { transform: scale(0.85); opacity: 0; }
+        to   { transform: scale(1); opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .event-card { animation: none; }
+    }
+    .event-card .emoji { font-size: 2.6rem; line-height: 1; }
+    .event-card .etitle { font-weight: 800; margin-top: 8px; font-size: 1.02rem; }
+    .event-card .esub { color: #888aaa; font-size: 0.85rem; margin-top: 4px; }
+
+    .toast {
+        position: fixed;
+        left: 50%;
+        bottom: calc(20px + env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        background: #1a1a3a;
+        border: 1px solid #3a3a6a;
+        border-radius: 10px;
+        padding: 12px 16px;
+        color: #e8e8f0;
+        font-size: 0.85rem;
+        max-width: calc(100vw - 32px);
+        z-index: 65;
+        display: none;
+        box-shadow: 0 10px 30px -10px rgba(0,0,0,0.8);
+    }
+    .toast.open { display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="play-root max-w-2xl mx-auto px-4 py-6">
+
+    <!-- ══ Setup view ══════════════════════════════════════════════════ -->
+    <section id="setupView">
+        <h1 class="text-center text-wizard-gold text-2xl sm:text-3xl font-bold tracking-widest">
+            &#127183; {{ _("play_title", lang)|upper }}
+        </h1>
+        <p class="text-center text-wizard-muted text-sm mt-2 mb-1">{{ _("play_subtitle", lang) }}</p>
+        <p class="text-center text-wizard-dim text-xs mb-6">{{ _("play_ios_hint", lang) }}</p>
+
+        <!-- Games that finished offline and still need uploading -->
+        <div id="pendingBanner" class="banner" style="display:none">
+            <h3 id="pendingTitle"></h3>
+            <div class="row wrap" style="margin-top:10px">
+                <button class="btn primary" style="flex:1 1 140px" onclick="retryPending()">{{ _("play_pending_retry", lang) }}</button>
+                <button class="btn danger" onclick="discardPending()">{{ _("play_pending_discard", lang) }}</button>
+            </div>
+        </div>
+
+        <!-- Paused game -->
+        <div id="resumeBanner" class="banner" style="display:none">
+            <h3>{{ _("play_resume_title", lang) }}</h3>
+            <p id="resumeSub" style="color:#888aaa;font-size:0.8rem"></p>
+            <div class="row wrap" style="margin-top:10px">
+                <button class="btn primary" style="flex:1 1 140px" onclick="resumeGame()">&#9654;&nbsp;{{ _("play_resume_btn", lang) }}</button>
+                <button class="btn danger" onclick="discardPaused()">{{ _("play_discard_btn", lang) }}</button>
+            </div>
+        </div>
+
+        <!-- Step 1: group -->
+        <div class="panel">
+            <div class="section-title">{{ _("play_group_header", lang) }}</div>
+            <div id="groupStatus" style="margin-bottom:10px"></div>
+            <div class="row wrap">
+                <button class="btn" style="flex:1 1 140px" onclick="openJoinModal()">&#128273;&nbsp;{{ _("play_group_join", lang) }}</button>
+                <button class="btn" style="flex:1 1 140px" onclick="openCreateModal()">&#10133;&nbsp;{{ _("play_group_create", lang) }}</button>
+            </div>
+        </div>
+
+        <!-- Step 2: players -->
+        <div class="panel">
+            <div class="section-title">{{ _("play_players_header", lang) }}</div>
+            <div class="row">
+                <button id="avatarBtn" class="avatar-btn" type="button" title="{{ _('play_avatar_hint', lang) }}" onclick="cycleAvatar()"></button>
+                <input id="nameInput" class="field" type="text" autocomplete="off" enterkeyhint="done"
+                       placeholder="{{ _('play_name_placeholder', lang) }}" maxlength="24">
+                <button class="btn primary icon" type="button" onclick="addPlayer()" aria-label="{{ _('play_add', lang) }}">&#10133;</button>
+            </div>
+            <div id="playerList"></div>
+            <p id="playerHint" class="hint" style="margin-top:10px"></p>
+        </div>
+
+        <!-- Step 3: mode + start -->
+        <div class="panel">
+            <div class="section-title">{{ _("play_mode_header", lang) }}</div>
+            <div class="pill-group" id="modeGroup">
+                <label class="pill checked" data-mode="standard">
+                    <input type="radio" name="gameMode" value="standard" checked>
+                    <span>{{ _("play_mode_standard", lang) }}</span>
+                </label>
+                <label class="pill" data-mode="multiplicative">
+                    <input type="radio" name="gameMode" value="multiplicative">
+                    <span>{{ _("play_mode_multiplicative", lang) }}</span>
+                </label>
+            </div>
+            <button id="startBtn" class="btn primary wide" style="margin-top:14px" onclick="startGame()" disabled>
+                &#127918;&nbsp;{{ _("play_start", lang) }}
+            </button>
+        </div>
+    </section>
+
+    <!-- ══ Game view ═══════════════════════════════════════════════════ -->
+    <section id="gameView" style="display:none">
+        <div class="game-bar">
+            <div class="row" style="align-items:center">
+                <div style="flex:1;min-width:0">
+                    <div id="roundLabel" class="round-label"></div>
+                    <div id="dealerLabel" class="dealer-label"></div>
+                </div>
+                <button id="undoBtn" class="btn icon" onclick="undoRound()" title="{{ _('play_undo', lang) }}" aria-label="{{ _('play_undo', lang) }}">&#8617;</button>
+                <button class="btn icon" onclick="goHome()" title="{{ _('play_menu', lang) }}" aria-label="{{ _('play_menu', lang) }}">&#127968;</button>
+                <button class="btn icon" onclick="newGame()" title="{{ _('play_new', lang) }}" aria-label="{{ _('play_new', lang) }}">&#8635;</button>
+            </div>
+            <div class="tabs">
+                <button class="tab active" data-tab="players" onclick="setTab('players')">{{ _("play_tab_players", lang) }}</button>
+                <button class="tab" data-tab="chart" onclick="setTab('chart')">{{ _("play_tab_chart", lang) }}</button>
+                <button class="tab" data-tab="group" onclick="setTab('group')">{{ _("play_tab_group", lang) }}</button>
+            </div>
+        </div>
+
+        <!-- Tab: player entry -->
+        <div id="tabPlayers">
+            <div class="bid-banner" id="bidBanner">
+                <span id="bidText" style="flex:1"></span>
+                <button class="btn" style="min-height:36px;padding:6px 10px;font-size:0.78rem" onclick="autoFill()">
+                    &#10227;&nbsp;{{ _("play_autofill", lang) }}
+                </button>
+            </div>
+            <div id="cards"></div>
+            <div class="action-bar">
+                <button id="completeBtn" class="btn primary wide" onclick="completeRound()">
+                    &#10003;&nbsp;{{ _("play_complete_round", lang) }}
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab: chart -->
+        <div id="tabChart" style="display:none; padding-top:12px">
+            <div id="chartLegend" class="legend"></div>
+            <div id="chartBox"></div>
+        </div>
+
+        <!-- Tab: group standings -->
+        <div id="tabGroup" style="display:none; padding-top:12px">
+            <div id="groupBoard"></div>
+        </div>
+    </section>
+
+    <!-- ══ Podium view ═════════════════════════════════════════════════ -->
+    <section id="podiumView" style="display:none">
+        <h1 class="text-center text-wizard-gold text-2xl font-bold tracking-widest mb-1">
+            &#127942; {{ _("play_podium_title", lang)|upper }}
+        </h1>
+        <p id="podiumMode" class="text-center text-wizard-muted text-xs mb-5"></p>
+        <div id="podiumList"></div>
+        <p id="podiumNote" class="hint" style="text-align:center;margin:16px 0"></p>
+        <div class="row wrap">
+            <button class="btn primary" style="flex:1 1 160px" onclick="backToSetup()">{{ _("play_play_again", lang) }}</button>
+            <a id="podiumLbLink" class="btn" style="flex:1 1 160px" href="/leaderboard?lang={{ lang }}">{{ _("play_view_leaderboard", lang) }}</a>
+        </div>
+    </section>
+</div>
+
+<!-- ══ Join-group modal ════════════════════════════════════════════════ -->
+<div id="joinModal" class="modal-overlay">
+    <div class="modal">
+        <h2>{{ _("play_join_title", lang) }}</h2>
+        <input id="groupSearch" class="field" type="text" autocomplete="off"
+               placeholder="{{ _('play_search_placeholder', lang) }}">
+        <div id="groupList" class="group-list"></div>
+        <p class="hint" style="margin-top:10px">{{ _("play_pick_first", lang) }}</p>
+        <label class="section-title" for="joinCode" style="display:block;margin-top:12px">{{ _("play_code_label", lang) }}</label>
+        <input id="joinCode" class="field code-field" type="text" inputmode="numeric" pattern="[0-9]*"
+               maxlength="4" autocomplete="off" disabled>
+        <div id="joinStatus" class="modal-status"></div>
+        <div class="row" style="margin-top:12px">
+            <button class="btn" style="flex:1" onclick="closeModal('joinModal')">{{ _("cancel", lang) }}</button>
+            <button id="joinBtn" class="btn primary" style="flex:1" onclick="confirmJoin()" disabled>{{ _("play_join_btn", lang) }}</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ Create-group modal ══════════════════════════════════════════════ -->
+<div id="createModal" class="modal-overlay">
+    <div class="modal">
+        <h2>{{ _("play_create_title", lang) }}</h2>
+        <input id="newGroupName" class="field" type="text" autocomplete="off"
+               placeholder="{{ _('play_group_name_placeholder', lang) }}" maxlength="40">
+        <label class="section-title" for="newGroupCode" style="display:block;margin-top:12px">{{ _("play_code_label", lang) }}</label>
+        <input id="newGroupCode" class="field code-field" type="text" inputmode="numeric" pattern="[0-9]*"
+               maxlength="4" autocomplete="off">
+        <div class="section-title" style="margin-top:12px">{{ _("play_visibility", lang) }}</div>
+        <div class="pill-group" id="visibilityGroup">
+            <label class="pill checked" data-visibility="public">
+                <input type="radio" name="visibility" value="public" checked>
+                <span>{{ _("play_visibility_public", lang) }}</span>
+            </label>
+            <label class="pill" data-visibility="hidden">
+                <input type="radio" name="visibility" value="hidden">
+                <span>{{ _("play_visibility_hidden", lang) }}</span>
+            </label>
+        </div>
+        <div id="createStatus" class="modal-status"></div>
+        <div class="row" style="margin-top:12px">
+            <button class="btn" style="flex:1" onclick="closeModal('createModal')">{{ _("cancel", lang) }}</button>
+            <button id="createBtn" class="btn primary" style="flex:1" onclick="confirmCreate()">{{ _("play_create_btn", lang) }}</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ Confirm modal ═══════════════════════════════════════════════════ -->
+<div id="confirmModal" class="modal-overlay">
+    <div class="modal" style="width:340px">
+        <h2>{{ _("play_confirm_title", lang) }}</h2>
+        <p id="confirmText" style="color:#c8c8dd;font-size:0.9rem"></p>
+        <div class="row" style="margin-top:16px">
+            <button class="btn" style="flex:1" onclick="resolveConfirm(false)">{{ _("cancel", lang) }}</button>
+            <button id="confirmOkBtn" class="btn primary" style="flex:1" onclick="resolveConfirm(true)"></button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ Event overlay + toast ═══════════════════════════════════════════ -->
+<div id="eventOverlay" class="event-overlay">
+    <div id="eventCard" class="event-card">
+        <div class="emoji" id="eventEmoji"></div>
+        <div class="etitle" id="eventTitle"></div>
+        <div class="esub" id="eventSub"></div>
+    </div>
+</div>
+<div id="toast" class="toast"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+"use strict";
+
+// ── Translated strings, handed over from Jinja ─────────────────────────────
+const LANG = {{ lang|tojson }};
+const T = {
+    resume_sub:        {{ _("play_resume_sub", lang)|tojson }},
+    discard_confirm:   {{ _("play_discard_confirm", lang)|tojson }},
+    start_overrides:   {{ _("play_start_overrides_pause", lang)|tojson }},
+    group_none:        {{ _("play_group_none", lang)|tojson }},
+    group_selected:    {{ _("play_group_selected", lang)|tojson }},
+    group_clear:       {{ _("play_group_clear", lang)|tojson }},
+    min_players:       {{ _("play_min_players", lang)|tojson }},
+    players_selected:  {{ _("play_players_selected", lang)|tojson }},
+    duplicate_name:    {{ _("play_duplicate_name", lang)|tojson }},
+    max_players:       {{ _("play_max_players", lang)|tojson }},
+    move_up:           {{ _("play_move_up", lang)|tojson }},
+    move_down:         {{ _("play_move_down", lang)|tojson }},
+    remove:            {{ _("play_remove", lang)|tojson }},
+    round:             {{ _("play_round", lang)|tojson }},
+    dealer_badge:      {{ _("play_dealer_badge", lang)|tojson }},
+    bid:               {{ _("play_bid", lang)|tojson }},
+    made:              {{ _("play_made", lang)|tojson }},
+    bid_total:         {{ _("play_bid_total", lang)|tojson }},
+    bid_warning:       {{ _("play_bid_warning", lang)|tojson }},
+    made_warning:      {{ _("play_made_warning", lang)|tojson }},
+    undo:              {{ _("play_undo", lang)|tojson }},
+    undo_confirm:      {{ _("play_undo_confirm", lang)|tojson }},
+    new_confirm:       {{ _("play_new_confirm", lang)|tojson }},
+    new_game:          {{ _("play_new", lang)|tojson }},
+    proceed:           {{ _("play_resume_btn", lang)|tojson }},
+    discard:           {{ _("play_discard_btn", lang)|tojson }},
+    chart_empty:       {{ _("play_chart_empty", lang)|tojson }},
+    chart_average:     {{ _("play_chart_average", lang)|tojson }},
+    group_tab_empty:   {{ _("play_group_tab_empty", lang)|tojson }},
+    lb_loading:        {{ _("lb_loading", lang)|tojson }},
+    lb_error:          {{ _("lb_error", lang)|tojson }},
+    lb_empty:          {{ _("lb_empty", lang)|tojson }},
+    col_player:        {{ _("lb_name", lang)|tojson }},
+    col_elo:           {{ _("lb_table_elo", lang)|tojson }},
+    col_games:         {{ _("lb_table_games", lang)|tojson }},
+    col_wins:          {{ _("lb_table_wins", lang)|tojson }},
+    col_avg:           {{ _("lb_table_avg", lang)|tojson }},
+    podium_points:     {{ _("play_podium_points", lang)|tojson }},
+    upload_ok:         {{ _("play_upload_ok", lang)|tojson }},
+    upload_fail:       {{ _("play_upload_fail", lang)|tojson }},
+    upload_no_group:   {{ _("play_upload_no_group", lang)|tojson }},
+    pending_title:     {{ _("play_pending_title", lang)|tojson }},
+    pending_ok:        {{ _("play_pending_ok", lang)|tojson }},
+    pending_fail:      {{ _("play_pending_fail", lang)|tojson }},
+    pick_first:        {{ _("play_pick_first", lang)|tojson }},
+    code_checking:     {{ _("play_code_checking", lang)|tojson }},
+    code_ok:           {{ _("play_code_ok", lang)|tojson }},
+    code_wrong:        {{ _("play_code_wrong", lang)|tojson }},
+    code_format:       {{ _("play_code_format", lang)|tojson }},
+    no_groups:         {{ _("play_no_groups", lang)|tojson }},
+    code_taken:        {{ _("play_code_taken", lang)|tojson }},
+    create_error:      {{ _("play_create_error", lang)|tojson }},
+    created_ok:        {{ _("play_created_ok", lang)|tojson }},
+    name_required:     {{ _("play_name_required", lang)|tojson }},
+    players_short:     {{ _("lb_players_short", lang)|tojson }},
+    hidden_badge:      {{ _("lb_hidden_badge", lang)|tojson }},
+    mode_standard:     {{ _("play_mode_standard", lang)|tojson }},
+    mode_mult:         {{ _("play_mode_multiplicative", lang)|tojson }},
+    evt_leader:        {{ _("play_evt_leader", lang)|tojson }},
+    evt_leader_sub:    {{ _("play_evt_leader_sub", lang)|tojson }},
+    evt_fire:          {{ _("play_evt_fire", lang)|tojson }},
+    evt_fire_sub:      {{ _("play_evt_fire_sub", lang)|tojson }},
+    evt_big:           {{ _("play_evt_big", lang)|tojson }},
+    evt_big_sub:       {{ _("play_evt_big_sub", lang)|tojson }},
+    evt_huge_loss:     {{ _("play_evt_huge_loss", lang)|tojson }},
+    evt_bow:           {{ _("play_evt_bow", lang)|tojson }},
+    evt_revenge:       {{ _("play_evt_revenge", lang)|tojson }},
+    evt_tobi:          {{ _("play_evt_tobi", lang)|tojson }},
+};
+
+/** Replace {placeholders} in a translated string. */
+function fmt(tpl, vars) {
+    let out = tpl || "";
+    for (const k in (vars || {})) out = out.split("{" + k + "}").join(String(vars[k]));
+    return out;
+}
+
+function esc(s) {
+    const d = document.createElement("div");
+    d.textContent = s == null ? "" : String(s);
+    // Quotes too: the result is also used inside title="…" attributes.
+    return d.innerHTML.split('"').join("&quot;").split("'").join("&#39;");
+}
+
+const AVATARS = ["🧙‍♂️", "🧙‍♀️", "🧚‍♂️", "🧚‍♀️", "🧞‍♂️", "🧞‍♀️", "🧝‍♂️", "🧝‍♀️", "🧛‍♂️", "🧛‍♀️"];
+// Same per-player line colours as the mobile app (kPlayerColors).
+const COLORS = ["#4FC3F7", "#AED581", "#FFB74D", "#CE93D8", "#EF9A9A", "#80DEEA", "#FFF176", "#A5D6A7"];
+const MAX_PLAYERS = COLORS.length;
+
+// ── localStorage (Safari private mode throws — never let that break play) ──
+const KEY_PAUSED  = "wizardPlay.paused";
+const KEY_PENDING = "wizardPlay.pending";
+const KEY_KNOWN   = "wizardPlay.knownGroups";
+
+const LS = {
+    get(key, fallback) {
+        try {
+            const raw = localStorage.getItem(key);
+            return raw === null ? fallback : JSON.parse(raw);
+        } catch (e) { return fallback; }
+    },
+    set(key, value) {
+        try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* full or blocked */ }
+    },
+    del(key) {
+        try { localStorage.removeItem(key); } catch (e) { /* ignore */ }
+    },
+};
+
+// ── SHA-256 ────────────────────────────────────────────────────────────────
+// Self-contained so the page also works on plain http:// origins, where
+// crypto.subtle is unavailable. Only used for the game_hash the server
+// deduplicates on.
+const SHA_K = new Uint32Array([
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+]);
+
+function rotr(x, n) { return (x >>> n) | (x << (32 - n)); }
+
+/** SHA-256 of an ASCII string, hex encoded. */
+function sha256Hex(ascii) {
+    const len = ascii.length;
+    const padded = new Uint8Array((((len + 8) >> 6) + 1) << 6);
+    for (let i = 0; i < len; i++) padded[i] = ascii.charCodeAt(i) & 0xff;
+    padded[len] = 0x80;
+    const view = new DataView(padded.buffer);
+    view.setUint32(padded.length - 8, Math.floor(len * 8 / 4294967296));
+    view.setUint32(padded.length - 4, (len * 8) >>> 0);
+
+    const H = new Uint32Array([
+        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+        0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+    ]);
+    const w = new Uint32Array(64);
+
+    for (let off = 0; off < padded.length; off += 64) {
+        for (let i = 0; i < 16; i++) w[i] = view.getUint32(off + i * 4);
+        for (let i = 16; i < 64; i++) {
+            const s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+            const s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+            w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+        }
+        let a = H[0], b = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+        for (let i = 0; i < 64; i++) {
+            const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+            const ch = (e & f) ^ (~e & g);
+            const t1 = (h + S1 + ch + SHA_K[i] + w[i]) >>> 0;
+            const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+            const maj = (a & b) ^ (a & c) ^ (b & c);
+            const t2 = (S0 + maj) >>> 0;
+            h = g; g = f; f = e; e = (d + t1) >>> 0;
+            d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+        }
+        H[0] = (H[0] + a) >>> 0; H[1] = (H[1] + b) >>> 0;
+        H[2] = (H[2] + c) >>> 0; H[3] = (H[3] + d) >>> 0;
+        H[4] = (H[4] + e) >>> 0; H[5] = (H[5] + f) >>> 0;
+        H[6] = (H[6] + g) >>> 0; H[7] = (H[7] + h) >>> 0;
+    }
+    let hex = "";
+    for (let i = 0; i < 8; i++) hex += ("00000000" + H[i].toString(16)).slice(-8);
+    return hex;
+}
+
+/** JSON string literal with every non-ASCII char escaped — matches Python
+ *  json.dumps(ensure_ascii=True), so the hash matches the other clients. */
+function jsonAsciiString(s) {
+    let out = '"';
+    for (let i = 0; i < s.length; i++) {
+        const code = s.charCodeAt(i);
+        const ch = s[i];
+        if (ch === '"') out += '\\"';
+        else if (ch === "\\") out += "\\\\";
+        else if (ch === "\n") out += "\\n";
+        else if (ch === "\r") out += "\\r";
+        else if (ch === "\t") out += "\\t";
+        else if (code < 0x20 || code > 0x7e) out += "\\u" + ("0000" + code.toString(16)).slice(-4);
+        else out += ch;
+    }
+    return out + '"';
+}
+
+// ── Game model (mirrors GameControl / Player from the app) ─────────────────
+// game = { mode, players: [{name, avatar, rounds: [{said, achieved}]}],
+//          round, dealer0, group, startedAt }
+
+let game = null;
+let entryBids = [];
+let entryMades = [];
+let setupPlayers = [];
+let avatarIndex = 0;
+let gameMode = "standard";
+// Like the app, a page load starts with no group selected — the code is a
+// shared secret and must be entered again. Known codes are only remembered
+// to autofill the join dialog.
+let selectedGroup = null;
+let currentTab = "players";
+let eloDeltas = null;
+
+function totalRounds(g)   { return g.players.length ? Math.floor(60 / g.players.length) : 0; }
+function cardsThisRound(g){ return g.round + 1; }
+function dealerIndex(g)   { return g.players.length ? (g.dealer0 + g.round) % g.players.length : 0; }
+function isGameOver(g)    { return g.round >= totalRounds(g); }
+function roundDisplay(g)  { return isGameOver(g) ? totalRounds(g) : g.round + 1; }
+
+function standardDelta(r) {
+    return r.said === r.achieved ? 20 + r.said * 10 : -10 * Math.abs(r.said - r.achieved);
+}
+
+/** Cumulative score after each round; index 0 is the starting score. */
+function scoreSeries(rounds, mode) {
+    const out = [mode === "multiplicative" ? 100 : 0];
+    for (const r of rounds) {
+        const cur = out[out.length - 1];
+        if (mode === "multiplicative") {
+            // Rounded every round, exactly like the app — rounding only at
+            // the end would show a different final score.
+            const next = r.said === r.achieved
+                ? cur * (2 + r.achieved)
+                : cur / (1 + Math.abs(r.achieved - r.said));
+            out.push(Math.round(next));
+        } else {
+            out.push(cur + standardDelta(r));
+        }
+    }
+    return out;
+}
+
+function currentScore(p)  { return scoreSeries(p.rounds, game.mode).pop(); }
+
+function lastDelta(p) {
+    if (!p.rounds.length) return 0;
+    const s = scoreSeries(p.rounds, game.mode);
+    return s[s.length - 1] - s[s.length - 2];
+}
+
+function consecutivePerfect(p) {
+    let n = 0;
+    for (let i = p.rounds.length - 1; i >= 0; i--) {
+        if (p.rounds[i].said === p.rounds[i].achieved) n++; else break;
+    }
+    return n;
+}
+
+// Loss streaks and the revenge lever are judged on the standard round score,
+// in both modes — same as Player.consecutiveLosses / revengeTriggered in the
+// app, which read RoundResult.scoreDelta.
+function consecutiveLosses(p) {
+    let n = 0;
+    for (let i = p.rounds.length - 1; i >= 0; i--) {
+        if (standardDelta(p.rounds[i]) < 0) n++; else break;
+    }
+    return n;
+}
+
+/** Two gains right after two losses — the app calls this the revenge lever. */
+function revengeTriggered(p) {
+    const r = p.rounds;
+    if (r.length < 4) return false;
+    const d = i => standardDelta(r[r.length - i]);
+    return d(1) > 0 && d(2) > 0 && d(3) < 0 && d(4) < 0;
+}
+
+function leaderNames(g) {
+    if (!g.players.length) return new Set();
+    const scores = g.players.map(currentScore);
+    const best = Math.max.apply(null, scores);
+    return new Set(g.players.filter((p, i) => scores[i] === best).map(p => p.name));
+}
+
+// ── Leaderboard submission (mirrors buildGameSubmission) ───────────────────
+
+/** Local ISO timestamp without a zone suffix, like the app sends. */
+function localIso() {
+    const d = new Date();
+    const p = (n, w) => ("000" + n).slice(-(w || 2));
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) +
+           "T" + p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds()) +
+           "." + p(d.getMilliseconds(), 3);
+}
+
+/** Deduplication hash: first 16 hex chars of SHA-256 over a canonical game. */
+function computeGameHash(g) {
+    const sorted = g.players.slice().sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    const parts = sorted.map(p => {
+        const rounds = p.rounds.map(r => '{"a":' + r.achieved + ',"s":' + r.said + "}").join(",");
+        return '{"n":' + jsonAsciiString(p.name) + ',"r":[' + rounds + "]}";
+    });
+    const raw = '{"mode":' + jsonAsciiString(g.mode) + ',"players":[' + parts.join(",") + "]}";
+    return sha256Hex(raw).slice(0, 16);
+}
+
+function buildSubmission(g, groupCode) {
+    const results = g.players.map(p => {
+        const series = scoreSeries(p.rounds, g.mode);
+        return {
+            name: p.name,
+            final_score: series[series.length - 1],
+            correct_bids: p.rounds.filter(r => r.said === r.achieved).length,
+            total_rounds: p.rounds.length,
+        };
+    });
+    // Competition ranking: equal scores share a rank, so a tied first place
+    // counts as a win for everyone involved (the server credits rank == 1).
+    results.sort((a, b) => b.final_score - a.final_score);
+    let rank = 1, lastScore = null;
+    results.forEach((r, i) => {
+        if (lastScore === null || r.final_score !== lastScore) {
+            rank = i + 1;
+            lastScore = r.final_score;
+        }
+        r.rank = rank;
+    });
+
+    const payload = {
+        game_hash: computeGameHash(g),
+        game_mode: g.mode,
+        num_players: g.players.length,
+        played_at: localIso(),
+        players: results,
+    };
+    if (groupCode) payload.group_code = groupCode;
+    return payload;
+}
+
+// ── Persistence ────────────────────────────────────────────────────────────
+
+function savePaused() {
+    if (!game || isGameOver(game)) return;
+    LS.set(KEY_PAUSED, {
+        game: game,
+        bids: entryBids,
+        mades: entryMades,
+        savedAt: new Date().toISOString(),
+    });
+}
+
+function clearPaused() { LS.del(KEY_PAUSED); }
+
+function rememberGroup(group) {
+    if (!group || !group.code) return;
+    const known = LS.get(KEY_KNOWN, []).filter(g => g.code !== group.code && g.id !== group.id);
+    known.unshift({ id: group.id, name: group.name, code: group.code });
+    LS.set(KEY_KNOWN, known.slice(0, 12));
+}
+
+function knownCodeFor(group) {
+    const known = LS.get(KEY_KNOWN, []);
+    const hit = known.find(g => (group.id != null && g.id === group.id) || g.name === group.name);
+    return hit ? hit.code : null;
+}
+
+function pendingGames()          { return LS.get(KEY_PENDING, []); }
+function setPendingGames(list)   { list.length ? LS.set(KEY_PENDING, list) : LS.del(KEY_PENDING); }
+function queuePending(payload)   { const l = pendingGames(); l.push(payload); setPendingGames(l); }
+
+// ── Small UI primitives ────────────────────────────────────────────────────
+
+function showView(name) {
+    document.getElementById("setupView").style.display  = name === "setup"  ? "" : "none";
+    document.getElementById("gameView").style.display   = name === "game"   ? "" : "none";
+    document.getElementById("podiumView").style.display = name === "podium" ? "" : "none";
+    window.scrollTo(0, 0);
+}
+
+let toastTimer = null;
+function toast(message) {
+    const el = document.getElementById("toast");
+    el.textContent = message;
+    el.classList.add("open");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("open"), 3500);
+}
+
+let eventTimer = null;
+function showEvent(emoji, title, subtitle, color) {
+    const overlay = document.getElementById("eventOverlay");
+    document.getElementById("eventEmoji").textContent = emoji;
+    document.getElementById("eventTitle").textContent = title;
+    document.getElementById("eventSub").textContent = subtitle || "";
+    document.getElementById("eventTitle").style.color = color || "#e8e8f0";
+    document.getElementById("eventCard").style.borderColor = color || "#c9a84c";
+    overlay.classList.add("open");
+    clearTimeout(eventTimer);
+    eventTimer = setTimeout(() => overlay.classList.remove("open"), 2600);
+}
+
+let confirmResolve = null;
+function askConfirm(text, okLabel) {
+    document.getElementById("confirmText").textContent = text;
+    document.getElementById("confirmOkBtn").textContent = okLabel;
+    document.getElementById("confirmModal").classList.add("open");
+    return new Promise(resolve => { confirmResolve = resolve; });
+}
+
+function resolveConfirm(value) {
+    document.getElementById("confirmModal").classList.remove("open");
+    const resolve = confirmResolve;
+    confirmResolve = null;
+    if (resolve) resolve(value);
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove("open");
+    if (id === "confirmModal") resolveConfirm(false);
+}
+
+// ── Setup screen ───────────────────────────────────────────────────────────
+
+function renderGroupStatus() {
+    const el = document.getElementById("groupStatus");
+    if (selectedGroup) {
+        el.innerHTML =
+            '<div class="row" style="align-items:center">' +
+              '<span style="flex:1;color:#4caf7d;font-weight:600;font-size:0.9rem">✓ ' +
+                esc(fmt(T.group_selected, { name: selectedGroup.name, code: selectedGroup.code })) +
+              "</span>" +
+              '<button class="btn" style="min-height:34px;padding:4px 10px;font-size:0.78rem" onclick="clearGroup()">' +
+                esc(T.group_clear) +
+              "</button>" +
+            "</div>";
+    } else {
+        el.innerHTML = '<span class="hint">' + esc(T.group_none) + "</span>";
+    }
+}
+
+function clearGroup() {
+    selectedGroup = null;
+    if (game) { game.group = null; savePaused(); }
+    renderGroupStatus();
+    if (currentTab === "group") loadGroupBoard();
+}
+
+function cycleAvatar() {
+    avatarIndex = (avatarIndex + 1) % AVATARS.length;
+    document.getElementById("avatarBtn").textContent = AVATARS[avatarIndex];
+}
+
+function addPlayer() {
+    const input = document.getElementById("nameInput");
+    const name = input.value.trim();
+    if (!name) return;
+    if (setupPlayers.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+        toast(T.duplicate_name);
+        return;
+    }
+    if (setupPlayers.length >= MAX_PLAYERS) {
+        toast(T.max_players);
+        return;
+    }
+    setupPlayers.push({ name: name, avatar: AVATARS[avatarIndex] });
+    avatarIndex = (avatarIndex + 1) % AVATARS.length;
+    document.getElementById("avatarBtn").textContent = AVATARS[avatarIndex];
+    input.value = "";
+    input.focus();
+    renderSetupPlayers();
+}
+
+function removePlayer(index) {
+    setupPlayers.splice(index, 1);
+    renderSetupPlayers();
+}
+
+/** Seating order is the play order, so it stays editable until the start. */
+function movePlayer(index, delta) {
+    const target = index + delta;
+    if (target < 0 || target >= setupPlayers.length) return;
+    const moved = setupPlayers.splice(index, 1)[0];
+    setupPlayers.splice(target, 0, moved);
+    renderSetupPlayers();
+}
+
+function renderSetupPlayers() {
+    const list = document.getElementById("playerList");
+    list.innerHTML = setupPlayers.map((p, i) =>
+        '<div class="player-chip">' +
+          '<span class="seat">' + (i + 1) + "</span>" +
+          '<span style="font-size:1.25rem">' + esc(p.avatar) + "</span>" +
+          '<span class="pname" style="color:' + COLORS[i % COLORS.length] + '">' + esc(p.name) + "</span>" +
+          '<button class="btn icon" style="min-height:34px" title="' + esc(T.move_up) + '" aria-label="' + esc(T.move_up) + '" onclick="movePlayer(' + i + ',-1)">↑</button>' +
+          '<button class="btn icon" style="min-height:34px" title="' + esc(T.move_down) + '" aria-label="' + esc(T.move_down) + '" onclick="movePlayer(' + i + ',1)">↓</button>' +
+          '<button class="btn icon danger" style="min-height:34px" title="' + esc(T.remove) + '" aria-label="' + esc(T.remove) + '" onclick="removePlayer(' + i + ')">✕</button>' +
+        "</div>"
+    ).join("");
+
+    document.getElementById("playerHint").textContent = setupPlayers.length < 2
+        ? T.min_players
+        : fmt(T.players_selected, { n: setupPlayers.length });
+    document.getElementById("startBtn").disabled = setupPlayers.length < 2;
+}
+
+// ── Starting, pausing and resuming ─────────────────────────────────────────
+
+function resetEntries() {
+    entryBids  = game.players.map(() => 0);
+    entryMades = game.players.map(() => 0);
+}
+
+async function startGame() {
+    if (setupPlayers.length < 2) return;
+    if (LS.get(KEY_PAUSED, null)) {
+        const proceed = await askConfirm(T.start_overrides, T.proceed);
+        if (!proceed) return;
+        clearPaused();
+    }
+    game = {
+        mode: gameMode,
+        players: setupPlayers.map(p => ({ name: p.name, avatar: p.avatar, rounds: [] })),
+        round: 0,
+        // Random first dealer, like the app.
+        dealer0: Math.floor(Math.random() * setupPlayers.length),
+        group: selectedGroup,
+        startedAt: new Date().toISOString(),
+    };
+    resetEntries();
+    eloDeltas = null;
+    savePaused();
+    refreshResumeBanner();
+    setTab("players");
+    showView("game");
+    renderGame();
+    loadGroupBoard();
+}
+
+function refreshResumeBanner() {
+    const banner = document.getElementById("resumeBanner");
+    const paused = LS.get(KEY_PAUSED, null);
+    if (!paused || !paused.game || !paused.game.players || !paused.game.players.length) {
+        banner.style.display = "none";
+        return;
+    }
+    // A finished game must never be offered for resuming.
+    if (paused.game.round >= Math.floor(60 / paused.game.players.length)) {
+        clearPaused();
+        banner.style.display = "none";
+        return;
+    }
+    document.getElementById("resumeSub").textContent =
+        fmt(T.resume_sub, { players: paused.game.players.map(p => p.name).join(", ") });
+    banner.style.display = "";
+}
+
+function resumeGame() {
+    const paused = LS.get(KEY_PAUSED, null);
+    if (!paused || !paused.game) { refreshResumeBanner(); return; }
+    game = paused.game;
+    entryBids  = (paused.bids  || []).slice();
+    entryMades = (paused.mades || []).slice();
+    while (entryBids.length  < game.players.length) entryBids.push(0);
+    while (entryMades.length < game.players.length) entryMades.push(0);
+    selectedGroup = game.group || null;
+    eloDeltas = null;
+    renderGroupStatus();
+    setTab("players");
+    showView("game");
+    renderGame();
+    loadGroupBoard();
+}
+
+async function discardPaused() {
+    const ok = await askConfirm(T.discard_confirm, T.discard);
+    if (!ok) return;
+    clearPaused();
+    refreshResumeBanner();
+}
+
+function backToSetup() {
+    game = null;
+    eloDeltas = null;
+    setupPlayers = [];
+    renderSetupPlayers();
+    renderGroupStatus();
+    refreshResumeBanner();
+    refreshPendingBanner();
+    showView("setup");
+}
+
+function goHome() {
+    // Leaving mid-game keeps the snapshot so the round can be picked up again.
+    if (game && !isGameOver(game)) savePaused(); else clearPaused();
+    game = null;
+    renderGroupStatus();
+    refreshResumeBanner();
+    refreshPendingBanner();
+    showView("setup");
+}
+
+async function newGame() {
+    const ok = await askConfirm(T.new_confirm, T.new_game);
+    if (!ok) return;
+    clearPaused();
+    backToSetup();
+}
+
+// ── Game screen ────────────────────────────────────────────────────────────
+
+function setTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll(".tab").forEach(el => {
+        el.classList.toggle("active", el.dataset.tab === tab);
+    });
+    document.getElementById("tabPlayers").style.display = tab === "players" ? "" : "none";
+    document.getElementById("tabChart").style.display   = tab === "chart"   ? "" : "none";
+    document.getElementById("tabGroup").style.display   = tab === "group"   ? "" : "none";
+    if (tab === "chart") renderChart();
+    if (tab === "group") loadGroupBoard();
+}
+
+function renderGame() {
+    if (!game) return;
+    const cards = cardsThisRound(game);
+    const dealer = game.players[dealerIndex(game)];
+    document.getElementById("roundLabel").textContent =
+        fmt(T.round, { n: roundDisplay(game), total: totalRounds(game) });
+    document.getElementById("dealerLabel").textContent =
+        fmt(T.dealer_badge, { n: cards }) + " · " + (dealer ? dealer.name : "");
+    document.getElementById("undoBtn").disabled = game.round === 0;
+    renderCards();
+    if (currentTab === "chart") renderChart();
+}
+
+function renderCards() {
+    const leaders = leaderNames(game);
+    const max = cardsThisRound(game);
+    const dealerIdx = dealerIndex(game);
+    const html = game.players.map((p, i) => {
+        const color = COLORS[i % COLORS.length];
+        const delta = game.round > 0 ? lastDelta(p) : 0;
+        const deltaHtml = delta !== 0
+            ? '<span class="delta ' + (delta > 0 ? "up" : "down") + '">' + (delta > 0 ? "+" : "") + delta + "</span>"
+            : "";
+        const classes = "pcard" + (i === dealerIdx ? " dealer" : (leaders.has(p.name) ? " leader" : ""));
+        return '<div class="' + classes + '" style="color:' + color + '">' +
+            (i === dealerIdx ? '<div class="dealer-banner">' + esc(fmt(T.dealer_badge, { n: max })) + "</div>" : "") +
+            '<div class="pcard-head">' +
+              '<span class="pavatar">' + esc(p.avatar) + "</span>" +
+              '<span class="pname">' + esc(p.name) + "</span>" +
+              (leaders.has(p.name) ? '<span title="leader">👑</span>' : "") +
+              '<span class="pscore">' + currentScore(p) + "</span>" +
+              deltaHtml +
+            "</div>" +
+            '<div class="spinners">' +
+              spinnerHtml(i, "bid", T.bid, entryBids[i], max) +
+              spinnerHtml(i, "made", T.made, entryMades[i], max) +
+            "</div>" +
+        "</div>";
+    }).join("");
+    document.getElementById("cards").innerHTML = html;
+    updateEntryControls();
+}
+
+function spinnerHtml(index, kind, label, value, max) {
+    const id = kind + "-" + index;
+    return '<div class="spinner">' +
+        '<span class="slabel">' + esc(label) + "</span>" +
+        '<div class="srow">' +
+          '<button class="step" data-dec="' + id + '" onclick="stepEntry(' + index + ',&quot;' + kind + '&quot;,-1)" aria-label="−">−</button>' +
+          '<input class="svalue" id="' + id + '" type="number" inputmode="numeric" pattern="[0-9]*" ' +
+                 'min="0" max="' + max + '" value="' + value + '" ' +
+                 'oninput="onEntryInput(' + index + ',&quot;' + kind + '&quot;,this)" ' +
+                 'onblur="onEntryBlur(' + index + ',&quot;' + kind + '&quot;,this)" ' +
+                 'onfocus="this.select()">' +
+          '<button class="step" data-inc="' + id + '" onclick="stepEntry(' + index + ',&quot;' + kind + '&quot;,1)" aria-label="+">+</button>' +
+        "</div>" +
+    "</div>";
+}
+
+function entryValue(index, kind) {
+    return kind === "bid" ? entryBids[index] : entryMades[index];
+}
+
+function storeEntry(index, kind, value) {
+    if (kind === "bid") entryBids[index] = value; else entryMades[index] = value;
+}
+
+function onEntryInput(index, kind, el) {
+    const max = cardsThisRound(game);
+    let v = parseInt(el.value, 10);
+    if (isNaN(v)) v = 0;                       // empty field while typing
+    if (v > max) { v = max; el.value = String(v); }
+    if (v < 0)   { v = 0;   el.value = String(v); }
+    storeEntry(index, kind, v);
+    updateEntryControls();
+}
+
+function onEntryBlur(index, kind, el) {
+    el.value = String(entryValue(index, kind));
+}
+
+function stepEntry(index, kind, delta) {
+    const max = cardsThisRound(game);
+    const next = Math.max(0, Math.min(max, entryValue(index, kind) + delta));
+    storeEntry(index, kind, next);
+    const el = document.getElementById(kind + "-" + index);
+    if (el) el.value = String(next);
+    updateEntryControls();
+}
+
+/** Refresh everything that depends on the entered numbers, without
+ *  re-rendering the cards (which would drop keyboard focus). */
+function updateEntryControls() {
+    const max = cardsThisRound(game);
+    const over = isGameOver(game);
+    game.players.forEach((p, i) => {
+        ["bid", "made"].forEach(kind => {
+            const id = kind + "-" + i;
+            const v = entryValue(i, kind);
+            const dec = document.querySelector('[data-dec="' + id + '"]');
+            const inc = document.querySelector('[data-inc="' + id + '"]');
+            if (dec) dec.disabled = v <= 0 || over;
+            if (inc) inc.disabled = v >= max || over;
+            const input = document.getElementById(id);
+            if (input) { input.max = max; input.disabled = over; }
+        });
+    });
+
+    const bidSum = entryBids.slice(0, game.players.length).reduce((a, b) => a + b, 0);
+    const forbidden = bidSum === max;
+    const banner = document.getElementById("bidBanner");
+    banner.classList.toggle("warn", forbidden);
+    document.getElementById("bidText").textContent = forbidden
+        ? T.bid_warning
+        : fmt(T.bid_total, { bid: bidSum, total: max });
+    document.getElementById("completeBtn").disabled = forbidden || over;
+}
+
+function autoFill() {
+    game.players.forEach((p, i) => {
+        entryMades[i] = entryBids[i];
+        const el = document.getElementById("made-" + i);
+        if (el) el.value = String(entryMades[i]);
+    });
+    updateEntryControls();
+}
+
+// ── Completing a round ─────────────────────────────────────────────────────
+
+function leaderPlayer(g) {
+    if (!g.players.length) return null;
+    let best = g.players[0], bestScore = currentScore(best);
+    for (let i = 1; i < g.players.length; i++) {
+        const s = currentScore(g.players[i]);
+        if (s > bestScore) { best = g.players[i]; bestScore = s; }
+    }
+    return best;
+}
+
+function completeRound() {
+    if (!game || isGameOver(game)) return;
+    const cards = cardsThisRound(game);
+    const madeTotal = entryMades.slice(0, game.players.length).reduce((a, b) => a + b, 0);
+    if (madeTotal !== cards) {
+        toast(fmt(T.made_warning, { made: madeTotal, total: cards }));
+        return;
+    }
+    const bidSum = entryBids.slice(0, game.players.length).reduce((a, b) => a + b, 0);
+    if (bidSum === cards) return;   // the button is disabled, but be safe
+
+    const previousLeader = leaderPlayer(game);
+    const oldLeaderName = previousLeader ? previousLeader.name : null;
+
+    game.players.forEach((p, i) => {
+        p.rounds.push({ said: entryBids[i], achieved: entryMades[i] });
+    });
+    game.round += 1;
+
+    const events = computeEvents(oldLeaderName);
+    resetEntries();
+
+    if (isGameOver(game)) clearPaused(); else savePaused();
+    renderGame();
+    if (currentTab !== "players") setTab("players");
+    handleEvents(events);
+}
+
+function computeEvents(oldLeaderName) {
+    const deltas = game.players.map(lastDelta);
+    const maxDelta = Math.max.apply(null, deltas);
+    const minDelta = Math.min.apply(null, deltas);
+    const newLeader = leaderPlayer(game);
+    return {
+        newLeader: newLeader && newLeader.name !== oldLeaderName ? newLeader : null,
+        bigScorer: maxDelta >= 50 ? game.players[deltas.indexOf(maxDelta)] : null,
+        bigScoreDelta: maxDelta,
+        firePlayer: game.players.filter(p => consecutivePerfect(p) >= 3)[0] || null,
+        bowPlayers: game.players.filter(p => consecutiveLosses(p) === 3),
+        revengePlayers: game.players.filter(revengeTriggered),
+        hugeLossPlayer: minDelta <= -40 ? game.players[deltas.indexOf(minDelta)] : null,
+        hugeLossDelta: minDelta,
+        gameOver: isGameOver(game),
+    };
+}
+
+function handleEvents(events) {
+    // Same order of precedence as the app: Tobi, then a huge loss, then one
+    // random pick out of everything else that happened this round.
+    if (!checkTobi()) {
+        if (events.hugeLossPlayer) {
+            showEvent("💥", fmt(T.evt_huge_loss, {
+                name: events.hugeLossPlayer.name,
+                delta: Math.abs(events.hugeLossDelta),
+            }), "", "#e53935");
+        } else {
+            const pool = [];
+            if (events.firePlayer) {
+                pool.push(["🔥", fmt(T.evt_fire, { name: events.firePlayer.name }), T.evt_fire_sub, "#FF6B35"]);
+            }
+            if (events.newLeader) {
+                pool.push(["👑", fmt(T.evt_leader, { name: events.newLeader.name }),
+                           fmt(T.evt_leader_sub, { score: currentScore(events.newLeader) }), "#FFD700"]);
+            }
+            if (events.bigScorer) {
+                pool.push(["🎯", T.evt_big,
+                           fmt(T.evt_big_sub, { delta: events.bigScoreDelta, name: events.bigScorer.name }), "#4caf7d"]);
+            }
+            events.bowPlayers.forEach(p => pool.push(["🏹", fmt(T.evt_bow, { name: p.name }), "", "#e53935"]));
+            events.revengePlayers.forEach(p => pool.push(["⚡", fmt(T.evt_revenge, { name: p.name }), "", "#FF9900"]));
+            if (pool.length) {
+                const pick = pool[Math.floor(Math.random() * pool.length)];
+                showEvent(pick[0], pick[1], pick[2], pick[3]);
+            }
+        }
+    }
+    if (events.gameOver) finishGame();
+}
+
+/** Easter egg from the app: cheer Tobi up if he is near the bottom at 60%. */
+function checkTobi() {
+    if (game.round !== Math.floor(totalRounds(game) * 0.6)) return false;
+    const tobi = game.players.filter(p => p.name.toLowerCase() === "tobi")[0];
+    if (!tobi) return false;
+    const sorted = game.players.slice().sort((a, b) => currentScore(b) - currentScore(a));
+    if (sorted.indexOf(tobi) < sorted.length - 2) return false;
+    showEvent("💪", fmt(T.evt_tobi, { name: tobi.name }), "", "#4FC3F7");
+    return true;
+}
+
+async function undoRound() {
+    if (!game || game.round === 0) return;
+    const ok = await askConfirm(T.undo_confirm, T.undo);
+    if (!ok) return;
+    game.players.forEach(p => p.rounds.pop());
+    game.round -= 1;
+    resetEntries();
+    savePaused();
+    renderGame();
+}
+
+// ── End of game: podium + upload ───────────────────────────────────────────
+
+let podiumData = null;
+
+function finishGame() {
+    const groupCode = game.group ? game.group.code : null;
+    const payload = buildSubmission(game, groupCode);
+    podiumData = {
+        mode: game.mode,
+        groupCode: groupCode,
+        rows: game.players
+            .map(p => ({ name: p.name, avatar: p.avatar, score: currentScore(p) }))
+            .sort((a, b) => b.score - a.score),
+    };
+    eloDeltas = null;
+
+    // Upload runs alongside the podium animation, exactly like the app.
+    if (groupCode) uploadGame(payload);
+
+    setTimeout(() => {
+        if (!podiumData) return;
+        renderPodium();
+        showView("podium");
+    }, 2600);
+}
+
+async function postGame(payload) {
+    try {
+        const resp = await fetch("/api/games", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        if (!resp.ok) return null;
+        return await resp.json();
+    } catch (e) {
+        return null;
+    }
+}
+
+async function uploadGame(payload) {
+    // Queue first, send second: if the browser is closed mid-request the game
+    // is still in the retry queue instead of being lost.
+    queuePending(payload);
+    const resp = await postGame(payload);
+    if (!resp) {
+        toast(T.upload_fail);
+        refreshPendingBanner();
+        return;
+    }
+    dropPending(payload.game_hash);
+    if (Array.isArray(resp.elo)) {
+        eloDeltas = resp.elo;
+        if (podiumData) renderPodium();
+    }
+    toast(T.upload_ok);
+    refreshPendingBanner();
+}
+
+function dropPending(gameHash) {
+    setPendingGames(pendingGames().filter(p => p.game_hash !== gameHash));
+}
+
+function refreshPendingBanner() {
+    const pending = pendingGames();
+    const banner = document.getElementById("pendingBanner");
+    if (!pending.length) { banner.style.display = "none"; return; }
+    document.getElementById("pendingTitle").textContent = fmt(T.pending_title, { n: pending.length });
+    banner.style.display = "";
+}
+
+async function retryPending() {
+    const pending = pendingGames();
+    if (!pending.length) return;
+    let uploaded = 0;
+    for (const payload of pending) {
+        const resp = await postGame(payload);
+        if (resp) { dropPending(payload.game_hash); uploaded++; }
+    }
+    refreshPendingBanner();
+    toast(uploaded ? fmt(T.pending_ok, { n: uploaded }) : T.pending_fail);
+}
+
+async function discardPending() {
+    const ok = await askConfirm(T.discard_confirm, T.discard);
+    if (!ok) return;
+    setPendingGames([]);
+    refreshPendingBanner();
+}
+
+function eloFor(name) {
+    if (!Array.isArray(eloDeltas)) return null;
+    const hit = eloDeltas.filter(e => (e.name || "").trim().toLowerCase() === name.trim().toLowerCase())[0];
+    return hit && typeof hit.delta === "number" ? Math.round(hit.delta) : null;
+}
+
+function renderPodium() {
+    if (!podiumData) return;
+    const medals = ["🥇", "🥈", "🥉"];
+    document.getElementById("podiumMode").textContent =
+        podiumData.mode === "multiplicative" ? T.mode_mult : T.mode_standard;
+    document.getElementById("podiumList").innerHTML = podiumData.rows.map((row, i) => {
+        const delta = eloFor(row.name);
+        const badge = delta === null
+            ? '<span class="elo-badge"></span>'
+            : '<span class="elo-badge ' + (delta >= 0 ? "up" : "down") + '">' +
+              (delta >= 0 ? "+" : "−") + Math.abs(delta) + "</span>";
+        return '<div class="podium-row' + (i === 0 ? " gold" : "") + '">' +
+            '<span class="medal">' + (medals[i] || (i + 1) + ".") + "</span>" +
+            '<span style="font-size:1.2rem">' + esc(row.avatar) + "</span>" +
+            '<span class="pname">' + esc(row.name) + "</span>" +
+            '<span class="pts">' + esc(fmt(T.podium_points, { pts: row.score })) + "</span>" +
+            badge +
+        "</div>";
+    }).join("");
+
+    document.getElementById("podiumNote").textContent = podiumData.groupCode ? "" : T.upload_no_group;
+    document.getElementById("podiumLbLink").href = podiumData.groupCode
+        ? "/leaderboard/group/" + encodeURIComponent(podiumData.groupCode) + "?lang=" + encodeURIComponent(LANG)
+        : "/leaderboard?lang=" + encodeURIComponent(LANG);
+}
+
+// ── Score chart ────────────────────────────────────────────────────────────
+
+function renderChart() {
+    const box = document.getElementById("chartBox");
+    const legend = document.getElementById("chartLegend");
+    if (!game || game.round === 0) {
+        legend.innerHTML = "";
+        box.innerHTML = '<p class="hint" style="text-align:center;padding:30px 0">' + esc(T.chart_empty) + "</p>";
+        return;
+    }
+
+    const series = game.players.map(p => scoreSeries(p.rounds, game.mode));
+    const rounds = game.round;
+    const averages = [];
+    for (let i = 0; i <= rounds; i++) {
+        averages.push(series.reduce((sum, s) => sum + s[i], 0) / series.length);
+    }
+
+    let min = Infinity, max = -Infinity;
+    series.concat([averages]).forEach(s => s.forEach(v => {
+        if (v < min) min = v;
+        if (v > max) max = v;
+    }));
+    if (min === max) { min -= 10; max += 10; }
+    const margin = (max - min) * 0.08;
+    min -= margin; max += margin;
+
+    const W = 640, H = 320, L = 52, R = 14, TOP = 14, BOT = 30;
+    const px = i => L + (i * (W - L - R)) / Math.max(1, rounds);
+    const py = v => TOP + ((max - v) * (H - TOP - BOT)) / (max - min);
+
+    let svg = '<svg viewBox="0 0 ' + W + " " + H + '" style="width:100%;height:auto" ' +
+              'preserveAspectRatio="xMidYMid meet" role="img">';
+
+    // Horizontal grid + value labels
+    for (let t = 0; t <= 4; t++) {
+        const value = min + ((max - min) * t) / 4;
+        const y = py(value);
+        svg += '<line x1="' + L + '" y1="' + y + '" x2="' + (W - R) + '" y2="' + y +
+               '" stroke="#2a2a4a" stroke-width="1"/>' +
+               '<text x="' + (L - 8) + '" y="' + (y + 5) + '" fill="#888aaa" font-size="15" text-anchor="end">' +
+               Math.round(value) + "</text>";
+    }
+
+    // Round labels along the x axis
+    const stepX = rounds <= 12 ? 1 : Math.ceil(rounds / 10);
+    for (let i = 0; i <= rounds; i += stepX) {
+        svg += '<text x="' + px(i) + '" y="' + (H - 10) + '" fill="#888aaa" font-size="15" text-anchor="middle">' +
+               i + "</text>";
+    }
+
+    // Average (dashed), then one line per player
+    svg += '<polyline fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-dasharray="6 4" points="' +
+           averages.map((v, i) => px(i) + "," + py(v)).join(" ") + '"/>';
+
+    series.forEach((s, idx) => {
+        const color = COLORS[idx % COLORS.length];
+        svg += '<polyline fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round" points="' +
+               s.map((v, i) => px(i) + "," + py(v)).join(" ") + '"/>';
+        s.forEach((v, i) => {
+            svg += '<circle cx="' + px(i) + '" cy="' + py(v) + '" r="' + (i === rounds ? 4.5 : 2.5) +
+                   '" fill="' + color + '"/>';
+        });
+    });
+
+    svg += "</svg>";
+    box.innerHTML = svg;
+
+    // Legend, highest score first
+    const order = game.players
+        .map((p, i) => ({ player: p, index: i, score: currentScore(p) }))
+        .sort((a, b) => b.score - a.score);
+    legend.innerHTML = order.map(e =>
+        '<span style="color:' + COLORS[e.index % COLORS.length] + '">' +
+          '<span class="swatch" style="background:' + COLORS[e.index % COLORS.length] + '"></span>' +
+          esc(e.player.avatar + " " + e.player.name) + " (" + e.score + ")" +
+        "</span>"
+    ).join("") +
+    '<span style="color:#888aaa"><span class="swatch" style="background:#888aaa"></span>' +
+      esc(T.chart_average) + "</span>";
+}
+
+// ── Group standings tab ────────────────────────────────────────────────────
+
+async function loadGroupBoard() {
+    const box = document.getElementById("groupBoard");
+    const group = (game && game.group) || selectedGroup;
+    if (!group || !group.code) {
+        box.innerHTML = '<p class="hint" style="text-align:center;padding:30px 0">' + esc(T.group_tab_empty) + "</p>";
+        return;
+    }
+    box.innerHTML = '<p class="hint" style="text-align:center;padding:30px 0">' + esc(T.lb_loading) + "</p>";
+    const mode = game ? game.mode : gameMode;
+    try {
+        const resp = await fetch("/api/leaderboard/group/" + encodeURIComponent(group.code) +
+                                 "?mode=" + encodeURIComponent(mode));
+        if (!resp.ok) throw new Error("http " + resp.status);
+        const rows = await resp.json();
+        renderGroupBoard(group, rows);
+    } catch (e) {
+        box.innerHTML = '<p class="hint" style="text-align:center;padding:30px 0">' + esc(T.lb_error) + "</p>";
+    }
+}
+
+function renderGroupBoard(group, rows) {
+    const box = document.getElementById("groupBoard");
+    if (!rows || !rows.length) {
+        box.innerHTML = '<p class="hint" style="text-align:center;padding:30px 0">' + esc(T.lb_empty) + "</p>";
+        return;
+    }
+    rows.sort((a, b) => (b.elo || 0) - (a.elo || 0) || (b.wins || 0) - (a.wins || 0));
+    const head =
+        '<div class="lb-row head">' +
+          '<div class="rank">#</div>' +
+          "<div>" + esc(T.col_player) + "</div>" +
+          '<div class="num">' + esc(T.col_elo) + "</div>" +
+          '<div class="num">' + esc(T.col_games) + "</div>" +
+          '<div class="num">' + esc(T.col_wins) + "</div>" +
+          '<div class="num hide-sm">' + esc(T.col_avg) + "</div>" +
+        "</div>";
+    const body = rows.map((r, i) =>
+        '<div class="lb-row">' +
+          '<div class="rank">' + (i + 1) + "</div>" +
+          '<div class="pname">' + esc(r.name) + "</div>" +
+          '<div class="num">' + (r.elo != null ? r.elo : "–") + "</div>" +
+          '<div class="num dim">' + (r.games != null ? r.games : "–") + "</div>" +
+          '<div class="num dim">' + (r.wins != null ? r.wins : "–") + "</div>" +
+          '<div class="num dim hide-sm">' + (r.avg_score != null ? Number(r.avg_score).toFixed(1) : "–") + "</div>" +
+        "</div>"
+    ).join("");
+    box.innerHTML =
+        '<p class="section-title">' + esc(group.name) + "</p>" +
+        '<div class="panel" style="padding:6px">' + head + body + "</div>";
+}
+
+// ── Join / create group ────────────────────────────────────────────────────
+
+let groupResults = [];
+let pickedGroup = null;
+let validatedGroup = null;
+let searchTimer = null;
+let codeTimer = null;
+let codeSeq = 0;
+
+function sameGroup(a, b) {
+    if (!a || !b) return false;
+    if (a.id != null && b.id != null) return a.id === b.id;
+    return a.name === b.name;
+}
+
+function openJoinModal() {
+    pickedGroup = null;
+    validatedGroup = null;
+    document.getElementById("groupSearch").value = "";
+    const code = document.getElementById("joinCode");
+    code.value = "";
+    code.disabled = true;
+    document.getElementById("joinBtn").disabled = true;
+    setStatus("joinStatus", "", "");
+    document.getElementById("joinModal").classList.add("open");
+    searchGroups("");
+}
+
+function setStatus(id, message, kind) {
+    const el = document.getElementById(id);
+    el.textContent = message;
+    el.className = "modal-status" + (kind ? " " + kind : "");
+}
+
+async function searchGroups(query) {
+    const list = document.getElementById("groupList");
+    list.innerHTML = '<p class="hint" style="padding:10px">' + esc(T.lb_loading) + "</p>";
+    try {
+        const url = "/api/groups" + (query ? "?search=" + encodeURIComponent(query) : "");
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error("http " + resp.status);
+        groupResults = await resp.json();
+        renderGroupList();
+    } catch (e) {
+        groupResults = [];
+        list.innerHTML = '<p class="hint" style="padding:10px;color:#ff6b6b">' + esc(T.lb_error) + "</p>";
+    }
+}
+
+function renderGroupList() {
+    const list = document.getElementById("groupList");
+    if (!groupResults.length) {
+        list.innerHTML = '<p class="hint" style="padding:10px">' + esc(T.no_groups) + "</p>";
+        return;
+    }
+    list.innerHTML = groupResults.map((g, i) =>
+        '<div class="group-option' + (sameGroup(g, pickedGroup) ? " picked" : "") + '" onclick="pickGroup(' + i + ')">' +
+          '<span class="gname">' + esc(g.name) +
+            (g.visibility === "hidden"
+                ? ' <span style="font-size:0.7rem;color:#888aaa">(' + esc(T.hidden_badge) + ")</span>"
+                : "") +
+          "</span>" +
+          '<span class="hint" style="font-style:normal">' + (g.player_count != null ? g.player_count : 0) +
+            " " + esc(T.players_short) + "</span>" +
+        "</div>"
+    ).join("");
+}
+
+/** Picking from the list first is deliberate: it stops a stranger from
+ *  brute-forcing 4-digit codes to discover other groups (same rule as the
+ *  app). The typed code has to unlock exactly the group that was picked. */
+function pickGroup(index) {
+    pickedGroup = groupResults[index];
+    validatedGroup = null;
+    document.getElementById("joinBtn").disabled = true;
+    renderGroupList();
+
+    const code = document.getElementById("joinCode");
+    code.disabled = false;
+    const remembered = knownCodeFor(pickedGroup);
+    if (remembered && /^\d{4}$/.test(remembered)) {
+        code.value = remembered;
+        validateCode(remembered);
+    } else {
+        code.value = "";
+        setStatus("joinStatus", "", "");
+        code.focus();
+    }
+}
+
+function onJoinCodeInput(value) {
+    clearTimeout(codeTimer);
+    const code = value.trim();
+    validatedGroup = null;
+    document.getElementById("joinBtn").disabled = true;
+    if (!pickedGroup) { setStatus("joinStatus", T.pick_first, "err"); return; }
+    if (!/^\d{4}$/.test(code)) { setStatus("joinStatus", "", ""); return; }
+    codeTimer = setTimeout(() => validateCode(code), 250);
+}
+
+async function validateCode(code) {
+    const seq = ++codeSeq;
+    const picked = pickedGroup;
+    if (!picked) return;
+    setStatus("joinStatus", T.code_checking, "");
+    let group = null;
+    try {
+        const resp = await fetch("/api/groups/" + encodeURIComponent(code));
+        if (resp.ok) group = await resp.json();
+    } catch (e) { /* treated as a wrong code below */ }
+    if (seq !== codeSeq) return;
+    if (group && sameGroup(group, picked)) {
+        validatedGroup = group;
+        setStatus("joinStatus", fmt(T.code_ok, { name: group.name }), "ok");
+        document.getElementById("joinBtn").disabled = false;
+    } else {
+        validatedGroup = null;
+        setStatus("joinStatus", T.code_wrong, "err");
+        document.getElementById("joinBtn").disabled = true;
+    }
+}
+
+function confirmJoin() {
+    if (!validatedGroup) return;
+    selectedGroup = validatedGroup;
+    rememberGroup(selectedGroup);
+    closeModal("joinModal");
+    renderGroupStatus();
+    if (game) { game.group = selectedGroup; savePaused(); }
+    if (currentTab === "group") loadGroupBoard();
+}
+
+function openCreateModal() {
+    document.getElementById("newGroupName").value = "";
+    document.getElementById("newGroupCode").value = "";
+    setStatus("createStatus", "", "");
+    document.getElementById("createBtn").disabled = false;
+    document.getElementById("createModal").classList.add("open");
+}
+
+async function confirmCreate() {
+    const name = document.getElementById("newGroupName").value.trim();
+    const code = document.getElementById("newGroupCode").value.trim();
+    const visibility = document.querySelector('input[name="visibility"]:checked').value;
+    if (!name) { setStatus("createStatus", T.name_required, "err"); return; }
+    if (!/^\d{4}$/.test(code)) { setStatus("createStatus", T.code_format, "err"); return; }
+
+    const btn = document.getElementById("createBtn");
+    btn.disabled = true;
+    try {
+        const resp = await fetch("/api/groups", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: name, code: code, visibility: visibility }),
+        });
+        if (resp.status === 201) {
+            const group = await resp.json();
+            selectedGroup = group;
+            rememberGroup(group);
+            setStatus("createStatus", fmt(T.created_ok, { name: name, code: code }), "ok");
+            renderGroupStatus();
+            if (game) { game.group = group; savePaused(); }
+            setTimeout(() => closeModal("createModal"), 800);
+            return;
+        }
+        setStatus("createStatus", resp.status === 409 ? fmt(T.code_taken, { code: code }) : T.create_error, "err");
+    } catch (e) {
+        setStatus("createStatus", T.create_error, "err");
+    }
+    btn.disabled = false;
+}
+
+// ── Wiring ─────────────────────────────────────────────────────────────────
+
+(function init() {
+    document.getElementById("avatarBtn").textContent = AVATARS[avatarIndex];
+
+    const nameInput = document.getElementById("nameInput");
+    nameInput.addEventListener("keydown", e => {
+        if (e.key === "Enter") { e.preventDefault(); addPlayer(); }
+    });
+
+    document.querySelectorAll('#modeGroup input[name="gameMode"]').forEach(radio => {
+        radio.addEventListener("change", () => {
+            gameMode = radio.value;
+            document.querySelectorAll("#modeGroup .pill").forEach(pill => {
+                pill.classList.toggle("checked", pill.dataset.mode === gameMode);
+            });
+        });
+    });
+    document.querySelectorAll('#visibilityGroup input[name="visibility"]').forEach(radio => {
+        radio.addEventListener("change", () => {
+            document.querySelectorAll("#visibilityGroup .pill").forEach(pill => {
+                pill.classList.toggle("checked", pill.dataset.visibility === radio.value);
+            });
+        });
+    });
+
+    document.getElementById("groupSearch").addEventListener("input", e => {
+        clearTimeout(searchTimer);
+        const value = e.target.value;
+        searchTimer = setTimeout(() => searchGroups(value.trim()), 250);
+    });
+
+    const joinCode = document.getElementById("joinCode");
+    joinCode.addEventListener("input", e => {
+        e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
+        onJoinCodeInput(e.target.value);
+    });
+    joinCode.addEventListener("keydown", e => {
+        if (e.key === "Enter" && !document.getElementById("joinBtn").disabled) confirmJoin();
+    });
+    document.getElementById("newGroupCode").addEventListener("input", e => {
+        e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
+    });
+
+    // Tapping the dimmed backdrop closes a modal; Escape does the same.
+    ["joinModal", "createModal", "confirmModal"].forEach(id => {
+        document.getElementById(id).addEventListener("click", e => {
+            if (e.target.id === id) closeModal(id);
+        });
+    });
+    document.addEventListener("keydown", e => {
+        if (e.key !== "Escape") return;
+        ["joinModal", "createModal", "confirmModal"].forEach(id => {
+            if (document.getElementById(id).classList.contains("open")) closeModal(id);
+        });
+    });
+
+    // iOS discards background tabs aggressively — write the snapshot as soon
+    // as the page is hidden, not only after a completed round.
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") savePaused();
+    });
+    window.addEventListener("pagehide", savePaused);
+
+    renderGroupStatus();
+    renderSetupPlayers();
+    refreshResumeBanner();
+    refreshPendingBanner();
+    showView("setup");
+})();
+</script>
+{% endblock %}

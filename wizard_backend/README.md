@@ -96,9 +96,30 @@ sudo systemctl restart wizard-leaderboard
 
 ### Web UI
 
-| Method | Path                    | Description       |
-|--------|-------------------------|-------------------|
-| GET    | `/` or `/leaderboard`   | Leaderboard page  |
+| Method | Path                    | Description                                   |
+|--------|-------------------------|-----------------------------------------------|
+| GET    | `/` or `/leaderboard`   | Landing page / leaderboard page               |
+| GET    | `/play`                 | Play the app in the browser (see below)       |
+
+### Browser version of the app (`/play`)
+
+`templates/play.html` is a self-contained port of the mobile app's game flow:
+group join/create, player setup, per-round bid/made entry, the score chart,
+the group standings and the podium. It is the way in for iOS users, since
+there is no iOS build.
+
+Everything runs client-side and only talks to the public API this server
+already exposes (`/api/groups`, `/api/leaderboard/group/{code}`,
+`/api/games`) — no extra endpoints, no server-side game state. Scoring,
+the `game_hash` (SHA-256, implemented in the page so it also works on plain
+`http://`) and the submission payload mirror `wizard_flutter` and
+`wizard_desktop/leaderboard_client.py`, so games entered in the browser
+count exactly like games from the app.
+
+A game in progress is snapshotted to `localStorage` (`wizardPlay.paused`) on
+every round and whenever the tab is hidden, so a discarded Safari tab does
+not lose the evening. Finished games that could not be uploaded are queued
+under `wizardPlay.pending` and can be retried from the setup screen.
 
 ## Database schema
 
