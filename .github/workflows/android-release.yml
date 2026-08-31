@@ -28,6 +28,12 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Install Android SDK Platform 37 (Android 17)
+        run: |
+          SDKMANAGER="${ANDROID_HOME:-$ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" --install "platforms;android-37.0" "build-tools;37.0.0"
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:

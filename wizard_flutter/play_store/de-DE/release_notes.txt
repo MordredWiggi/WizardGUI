@@ -1,5 +1,3 @@
-Erste Veröffentlichung.
-• Wizard-Punkte für 3–6 Spielende mit zwei Wertungsmodi
-• Spiele speichern, pausieren und fortsetzen
-• Online-Bestenlisten mit privaten Gruppen
-• Deutsch, Englisch, Französisch und Hindi
+• Für Android 17 aktualisiert
+• Build aktualisiert für bessere Kompatibilität mit den neuesten Android-Geräten
+• Keine Änderungen am Spiel oder an gespeicherten Partien

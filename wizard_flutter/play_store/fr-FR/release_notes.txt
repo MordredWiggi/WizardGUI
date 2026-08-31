@@ -1,5 +1,3 @@
-Première version.
-• Comptage Wizard pour 3 à 6 joueurs avec deux modes de score
-• Sauvegarde, pause et reprise des parties
-• Classements en ligne avec groupes privés
-• Français, anglais, allemand et hindi
+• Mise à jour pour Android 17
+• Build actualisé pour une meilleure compatibilité avec les appareils Android les plus récents
+• Aucun changement dans le jeu ni dans vos parties enregistrées

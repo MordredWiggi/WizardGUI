@@ -1,5 +1,3 @@
-First release.
-• 3–6 player Wizard scoring with two scoring modes
-• Save, pause, and resume games
-• Online leaderboards with private groups
-• English, German, French, and Hindi
+• Updated for Android 17
+• Refreshed the build for better compatibility with the newest Android devices
+• No changes to gameplay or your saved games
