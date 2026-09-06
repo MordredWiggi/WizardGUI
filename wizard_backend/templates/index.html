@@ -46,10 +46,46 @@
         transition: border-color 0.15s, transform 0.15s;
     }
     .feature-card:hover { border-color: #7a6230; transform: translateY(-2px); }
+    .donate-card {
+        display: block;
+        border: 1px solid #2a2a4a;
+        background: linear-gradient(180deg, #12122b 0%, #0d0d1a 100%);
+        border-radius: 0.9rem;
+        padding: 1.25rem 1.5rem;
+        transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+    }
+    .donate-card:hover {
+        border-color: #c9a84c;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 28px -14px rgba(201, 168, 76, 0.8);
+    }
+    .donate-track {
+        height: 0.7rem;
+        border-radius: 999px;
+        background: #0d0d1a;
+        border: 1px solid #2a2a4a;
+        overflow: hidden;
+    }
+    .donate-fill {
+        height: 100%;
+        width: var(--donate-pct);
+        border-radius: 999px;
+        background: linear-gradient(90deg, #7a6230 0%, #c9a84c 100%);
+        box-shadow: 0 0 12px -2px rgba(201, 168, 76, 0.8);
+        animation: donate-grow 0.9s ease-out;
+    }
+    @keyframes donate-grow {
+        from { width: 0; }
+        to   { width: var(--donate-pct); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .donate-fill { animation: none; }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
+{% set patreon_url = "https://patreon.com/playwizard?utm_medium=unknown&utm_source=join_link&utm_campaign=creatorshare_creator&utm_content=copyLink" %}
 <!-- Hero -->
 <section class="relative overflow-hidden">
     <div class="hero-glow absolute inset-0 pointer-events-none"></div>
@@ -81,7 +117,7 @@
             <a href="/leaderboard?lang={{ lang }}" class="cta cta-secondary">
                 {{ _("cta_leaderboard", lang) }}
             </a>
-            <a href="https://patreon.com/playwizard?utm_medium=unknown&utm_source=join_link&utm_campaign=creatorshare_creator&utm_content=copyLink"
+            <a href="{{ patreon_url }}"
                class="cta cta-secondary" target="_blank" rel="noopener">
                 <!-- Simple Patreon logo path -->
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#F96854"><path d="M15.386.524c-4.764 0-8.64 3.876-8.64 8.64 0 4.75 3.876 8.613 8.64 8.613 4.75 0 8.614-3.864 8.614-8.613C24 4.4 20.136.524 15.386.524M.003 23.537h4.22V.524H.003"/></svg>
@@ -116,6 +152,36 @@
             </a>
         </div>
     </div>
+</section>
+
+<!-- iOS funding progress -->
+<section class="max-w-3xl mx-auto px-4 pb-12">
+    <a href="{{ patreon_url }}" class="donate-card" target="_blank" rel="noopener">
+        <div class="flex items-start gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#F96854" class="mt-1 shrink-0"><path d="M15.386.524c-4.764 0-8.64 3.876-8.64 8.64 0 4.75 3.876 8.613 8.64 8.613 4.75 0 8.614-3.864 8.614-8.613C24 4.4 20.136.524 15.386.524M.003 23.537h4.22V.524H.003"/></svg>
+            <div class="min-w-0">
+                <h2 class="text-wizard-text font-semibold tracking-wide">{{ _("donate_title", lang) }}</h2>
+                <p class="mt-1 text-sm text-wizard-muted leading-relaxed">{{ _("donate_desc", lang) }}</p>
+            </div>
+        </div>
+
+        <div class="mt-4 donate-track"
+             role="progressbar"
+             aria-valuenow="{{ ios_donation_percent }}"
+             aria-valuemin="0"
+             aria-valuemax="100"
+             aria-label="{{ _('donate_title', lang) }}">
+            <div class="donate-fill" style="--donate-pct: {{ ios_donation_percent }}%"></div>
+        </div>
+
+        <div class="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
+            <span class="text-wizard-muted">
+                <span class="text-wizard-gold font-semibold">{{ ios_donation_percent }}%</span>
+                {{ _("donate_of_goal", lang) }}
+            </span>
+            <span class="text-wizard-gold font-semibold">{{ _("donate_cta", lang) }} &rarr;</span>
+        </div>
+    </a>
 </section>
 
 <!-- Features -->

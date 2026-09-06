@@ -59,6 +59,13 @@ def trans(key: str, lang: str = "en") -> str:
 templates.env.globals["_"] = trans
 
 
+# ── iOS donation goal ───────────────────────────────────────────────────────
+# Filled state of the donation bar on the landing page, in percent (0-100).
+# Patreon has no live-tracking hook here yet, so this is edited by hand as
+# donations come in. It is the only place the number is defined.
+IOS_DONATION_PERCENT = 30
+
+
 @app.on_event("startup")
 def startup() -> None:
     db.init_db()
@@ -303,7 +310,13 @@ def vote_feedback(feedback_id: int, body: FeedbackVote) -> dict:
 def home_page(request: Request, lang: str = "en") -> HTMLResponse:
     """Render the landing page."""
     return templates.TemplateResponse(
-        request, "index.html", {"active_page": "home", "lang": lang}
+        request,
+        "index.html",
+        {
+            "active_page": "home",
+            "lang": lang,
+            "ios_donation_percent": IOS_DONATION_PERCENT,
+        },
     )
 
 

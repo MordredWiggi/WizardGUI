@@ -27,6 +27,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "cta_playstore": "Get it on Google Play",
         "cta_github": "View source on GitHub",
         "coming_soon": "Coming soon",
+        # iOS donation goal
+        "donate_title": "Help bring Wizard to iOS",
+        "donate_desc": "An iPhone version needs an Apple developer account and App Store fees. It is funded entirely through Patreon — here is how far we have come.",
+        "donate_of_goal": "of the funding goal",
+        "donate_cta": "Donate on Patreon",
         # Features
         "feat_1_title": "Automatic scoring",
         "feat_1_desc": "Enter bids and tricks — the app handles the math for every round, standard or multiplicative.",
@@ -214,6 +219,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "cta_playstore": "Jetzt bei Google Play",
         "cta_github": "Quellcode auf GitHub",
         "coming_soon": "Bald verfügbar",
+        # iOS-Spendenziel
+        "donate_title": "Hilf, Wizard auf iOS zu bringen",
+        "donate_desc": "Eine iPhone-Version braucht einen Apple-Entwickleraccount und App-Store-Gebühren. Finanziert wird sie komplett über Patreon — so weit sind wir bisher.",
+        "donate_of_goal": "des Spendenziels",
+        "donate_cta": "Auf Patreon spenden",
         # Features
         "feat_1_title": "Automatische Wertung",
         "feat_1_desc": "Gib Ansagen und Stiche ein — die App übernimmt die Rechnung für jede Runde, ob Standard oder Multiplikator.",
@@ -399,6 +409,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "cta_playstore": "Disponible sur Google Play",
         "cta_github": "Code source sur GitHub",
         "coming_soon": "Bientôt disponible",
+        # Objectif de dons iOS
+        "donate_title": "Aidez-nous à porter Wizard sur iOS",
+        "donate_desc": "Une version iPhone demande un compte développeur Apple et des frais App Store. Elle est financée entièrement via Patreon — voici où nous en sommes.",
+        "donate_of_goal": "de l'objectif",
+        "donate_cta": "Faire un don sur Patreon",
         # Features
         "feat_1_title": "Calcul automatique",
         "feat_1_desc": "Saisissez les annonces et les plis — l'application s'occupe des maths pour chaque manche.",
@@ -582,6 +597,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "cta_playstore": "गूगल प्ले पर उपलब्ध",
         "cta_github": "गिटहब पर कोड देखें",
         "coming_soon": "जल्द आ रहा है",
+        # iOS दान लक्ष्य
+        "donate_title": "विज़ार्ड को iOS पर लाने में मदद करें",
+        "donate_desc": "आईफोन वर्ज़न के लिए Apple डेवलपर अकाउंट और ऐप स्टोर शुल्क चाहिए। यह पूरी तरह पैट्रियन से फंड होता है — अब तक हम यहाँ पहुँचे हैं।",
+        "donate_of_goal": "लक्ष्य पूरा",
+        "donate_cta": "पैट्रियन पर दान करें",
         # Features
         "feat_1_title": "स्वचालित स्कोरिंग",
         "feat_1_desc": "बोलियां और चालें दर्ज करें — ऐप हर राउंड के लिए गणित संभालता है।",
