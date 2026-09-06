@@ -830,6 +830,18 @@ class _SetupScreenState extends State<SetupScreen> {
                       ),
                     ],
                   ),
+                  RadioListTile<String>(
+                    value: 'anniversary',
+                    groupValue: _gameMode,
+                    onChanged: (v) => setState(() => _gameMode = v!),
+                    title: Text(t('game_mode_anniversary')),
+                    subtitle: Text(
+                      t('game_mode_anniversary_hint'),
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,

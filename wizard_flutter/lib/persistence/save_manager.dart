@@ -5,8 +5,8 @@ import 'package:intl/intl.dart';
 
 /// Mirrors Python SaveManager.
 /// Save dir: <appDocumentsDir>/wizard_gui/games/
-/// Schema version matches desktop: "1.1"
-const _schemaVersion = '1.1';
+/// Schema version matches desktop: "1.2"
+const _schemaVersion = '1.2';
 
 /// Reserved filename for the auto-paused game (Home button mid-round).
 /// Stored alongside regular saves but excluded from listings.

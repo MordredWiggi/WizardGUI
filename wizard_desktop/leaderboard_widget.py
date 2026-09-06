@@ -29,7 +29,11 @@ from style import (
     LEADER,
 )
 from app_settings import t, get_leaderboard_url, get_theme
-from game_control import GAME_MODE_STANDARD, GAME_MODE_MULTIPLICATIVE
+from game_control import (
+    GAME_MODE_STANDARD,
+    GAME_MODE_MULTIPLICATIVE,
+    GAME_MODE_ANNIVERSARY,
+)
 
 # Sort-capable columns and their header keys.  "_rank" and "name" are not
 # sortable; all others are.
@@ -206,15 +210,20 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
 
         self._btn_standard = QtWidgets.QPushButton(t("game_mode_standard"))
         self._btn_multi = QtWidgets.QPushButton(t("game_mode_multiplicative"))
-        for btn in (self._btn_standard, self._btn_multi):
+        self._btn_anniversary = QtWidgets.QPushButton(t("game_mode_anniversary"))
+        for btn in (self._btn_standard, self._btn_multi, self._btn_anniversary):
             btn.setMinimumHeight(30)
             btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self._btn_standard.clicked.connect(lambda: self._set_mode(GAME_MODE_STANDARD))
         self._btn_multi.clicked.connect(
             lambda: self._set_mode(GAME_MODE_MULTIPLICATIVE)
         )
+        self._btn_anniversary.clicked.connect(
+            lambda: self._set_mode(GAME_MODE_ANNIVERSARY)
+        )
         top_row.addWidget(self._btn_standard)
         top_row.addWidget(self._btn_multi)
+        top_row.addWidget(self._btn_anniversary)
 
         top_row.addStretch()
 
@@ -286,6 +295,9 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
         )
         self._btn_multi.setStyleSheet(
             _toggle_btn_style(self._current_mode == GAME_MODE_MULTIPLICATIVE)
+        )
+        self._btn_anniversary.setStyleSheet(
+            _toggle_btn_style(self._current_mode == GAME_MODE_ANNIVERSARY)
         )
 
     def _apply_refresh_style(self) -> None:
@@ -435,6 +447,7 @@ class GroupPlayerLeaderboardWidget(QtWidgets.QWidget):
     def retranslate_ui(self) -> None:
         self._btn_standard.setText(t("game_mode_standard"))
         self._btn_multi.setText(t("game_mode_multiplicative"))
+        self._btn_anniversary.setText(t("game_mode_anniversary"))
         self._btn_refresh.setToolTip(t("btn_refresh"))
         self._table.setHorizontalHeaderLabels([t(col[1]) for col in _COLUMNS])
         self._apply_mode_style()

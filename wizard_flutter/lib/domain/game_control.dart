@@ -12,11 +12,17 @@ class GameControl {
   final int roundNumber;
   final int initialDealerIndex;
 
+  /// Jubiläumsedition: one entry per completed round — true when the bomb was
+  /// played, i.e. one trick of that round counted for nobody. Empty in the
+  /// classic modes.
+  final List<bool> bombs;
+
   GameControl({
     required List<Map<String, dynamic>> playerData,
     int? initialDealerIndex,
     this.gameMode = GameMode.standard,
   }) : roundNumber = 0,
+       bombs = const [],
        initialDealerIndex =
            initialDealerIndex ??
            (playerData.isEmpty ? 0 : Random().nextInt(playerData.length)),
@@ -35,6 +41,7 @@ class GameControl {
     required this.players,
     required this.roundNumber,
     required this.initialDealerIndex,
+    this.bombs = const [],
   });
 
   // --- derived properties --------------------------------------------------
@@ -91,9 +98,13 @@ class GameControl {
   // --- game actions --------------------------------------------------------
 
   /// Apply round results; returns event info so the UI can show effects.
+  ///
+  /// [bombPlayed] (Jubiläumsedition only): the bomb destroyed one trick this
+  /// round, so one trick fewer was distributed among the players.
   ({GameControl game, RoundEvents events}) submitRound(
-    List<RoundResult> results,
-  ) {
+    List<RoundResult> results, {
+    bool bombPlayed = false,
+  }) {
     final oldLeader = leader;
 
     var newPlayers = <Player>[];
@@ -111,6 +122,7 @@ class GameControl {
       players: newPlayers,
       roundNumber: roundNumber + 1,
       initialDealerIndex: initialDealerIndex,
+      bombs: [...bombs, bombPlayed],
     );
 
     final newLeader = updated.leader;
@@ -149,6 +161,7 @@ class GameControl {
       players: players.map((p) => p.undoRound()).toList(),
       roundNumber: roundNumber - 1,
       initialDealerIndex: initialDealerIndex,
+      bombs: bombs.isEmpty ? bombs : bombs.sublist(0, bombs.length - 1),
     );
   }
 
@@ -159,6 +172,7 @@ class GameControl {
     'round_number': roundNumber,
     'initial_dealer_index': initialDealerIndex,
     'game_mode': gameMode.toJson(),
+    if (gameMode == GameMode.anniversary) 'bombs': bombs,
   };
 
   factory GameControl.fromJson(Map<String, dynamic> json) {
@@ -178,6 +192,9 @@ class GameControl {
       players: loadedPlayers,
       roundNumber: json['round_number'] as int,
       initialDealerIndex: json['initial_dealer_index'] as int,
+      bombs: ((json['bombs'] as List?) ?? const [])
+          .map((b) => b == true)
+          .toList(),
     );
   }
 }

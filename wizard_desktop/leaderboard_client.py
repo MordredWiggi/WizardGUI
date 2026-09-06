@@ -24,12 +24,16 @@ def compute_game_hash(game_data: dict) -> str:
     """Deterministic hash for deduplication (first 16 hex chars of SHA-256)."""
     canonical = {"mode": game_data.get("game_mode", "standard"), "players": []}
     for p in sorted(game_data.get("players", []), key=lambda x: x["name"]):
-        canonical["players"].append(
-            {
-                "n": p["name"],
-                "r": [{"s": r["said"], "a": r["achieved"]} for r in p["rounds"]],
-            }
-        )
+        rounds = []
+        for r in p["rounds"]:
+            rd = {"s": r["said"], "a": r["achieved"]}
+            # Anniversary edition only: the cloud's ±1 bid change is part of
+            # the game's identity. Omitted when 0 so hashes of classic-mode
+            # games stay identical to those of older clients.
+            if r.get("cloud"):
+                rd["c"] = r["cloud"]
+            rounds.append(rd)
+        canonical["players"].append({"n": p["name"], "r": rounds})
     raw = json.dumps(canonical, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
@@ -61,14 +65,19 @@ def build_game_submission(
                 else:
                     score = round(score / (1 + abs(r["achieved"] - r["said"])))
         else:
+            # Standard and anniversary scoring. In the anniversary edition the
+            # cloud changes the bid by ±1 — the adjusted bid is what counts.
             score = 0
             for r in rounds:
-                if r["said"] == r["achieved"]:
-                    score += 20 + r["said"] * 10
+                said = r["said"] + r.get("cloud", 0)
+                if said == r["achieved"]:
+                    score += 20 + said * 10
                 else:
-                    score += -10 * abs(r["said"] - r["achieved"])
+                    score += -10 * abs(said - r["achieved"])
 
-        correct_bids = sum(1 for r in rounds if r["said"] == r["achieved"])
+        correct_bids = sum(
+            1 for r in rounds if r["said"] + r.get("cloud", 0) == r["achieved"]
+        )
         player_results.append(
             {
                 "name": p["name"],

@@ -156,7 +156,7 @@ A central leaderboard server collects finished games from all clients. It runs a
 
 ### Player leaderboard criteria
 
-Separate boards for **Standard** and **Multiplicative** game modes, sortable by:
+Separate boards for **Standard**, **Multiplicative** and **25th Anniversary** game modes, sortable by:
 
 | Criterion | Description |
 |---|---|
@@ -181,11 +181,11 @@ Separate boards for **Standard** and **Multiplicative** game modes, sortable by:
 
 ## Shared save format
 
-Both versions read and write the same JSON schema (`1.1`), so saves are cross-compatible — a game saved on desktop can be loaded on mobile and vice versa.
+Both versions read and write the same JSON schema (`1.2`), so saves are cross-compatible — a game saved on desktop can be loaded on mobile and vice versa.
 
 ```json
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "meta": {
     "name": "Spieleabend_Freitag",
     "saved_at": "2025-04-12T20:15:30"
@@ -207,6 +207,15 @@ Both versions read and write the same JSON schema (`1.1`), so saves are cross-co
   }
 }
 ```
+
+**Anniversary mode extras** (`game_mode: "anniversary"`, the 25-years Jubiläumsedition with special cards):
+
+- Per-player round entries may carry `"cloud": 1` or `"cloud": -1` — the ☁️ cloud card forces that player's bid ±1; scoring and hit detection use `said + cloud`. The key is omitted when 0.
+- The game object carries `"bombs": [false, true, ...]` — one flag per completed round; `true` means the 💣 bomb destroyed a trick, so that round distributed one trick fewer than cards were dealt.
+- The other special cards (shapeshifter, dragon, fairy, werewolf, juggler) don't change the bookkeeping and need no entry.
+- In anniversary mode the "total bids must not equal tricks" rule is informational only (not blocking), and the made-tricks validation checks against `cards − (bomb ? 1 : 0)`.
+
+Files with schema `1.1` load unchanged (missing keys default to no special cards).
 
 Desktop save location: `~/.wizard_gui/games/`  
 Android save location: `<app documents>/wizard_gui/games/`
@@ -250,6 +259,7 @@ Bump both in the same commit and update the example above.
 | Player setup with avatars | ✅ | ✅ |
 | Standard scoring | ✅ | ✅ |
 | Multiplicative scoring mode | ✅ | ✅ |
+| Anniversary mode (special cards: bomb, cloud) | ✅ | ✅ |
 | Bid / made entry per player | ✅ | ✅ |
 | Bid-warning banner | ✅ | ✅ |
 | Auto-fill made from bid | ✅ | ✅ |

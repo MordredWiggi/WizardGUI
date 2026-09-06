@@ -14,6 +14,11 @@ from typing import List, Optional
 
 GAME_MODE_STANDARD = "standard"
 GAME_MODE_MULTIPLICATIVE = "multiplicative"
+# Jubiläumsedition (25 Jahre): Standard-Wertung plus Sonderkarten. Für die
+# Abrechnung relevant sind die Bombe (der Stich zählt für niemanden, also ein
+# Stich weniger in der Runde) und die Wolke (der betroffene Spieler muss seine
+# Ansage um ±1 ändern).
+GAME_MODE_ANNIVERSARY = "anniversary"
 
 
 # ---------------------------------------------------------------------------
@@ -25,23 +30,36 @@ GAME_MODE_MULTIPLICATIVE = "multiplicative"
 class RoundResult:
     said: int
     achieved: int
+    # Wolke (Jubiläumsedition): forced bid change of ±1 for this player.
+    # 0 in every other mode / when the cloud wasn't in this player's tricks.
+    cloud: int = 0
+
+    @property
+    def effective_said(self) -> int:
+        """Bid that counts for scoring: announcement plus cloud adjustment."""
+        return self.said + self.cloud
 
     @property
     def score_delta(self) -> int:
-        if self.said == self.achieved:
-            return 20 + self.said * 10
-        return -10 * abs(self.said - self.achieved)
+        if self.effective_said == self.achieved:
+            return 20 + self.effective_said * 10
+        return -10 * abs(self.effective_said - self.achieved)
 
     @property
     def is_perfect(self) -> bool:
-        return self.said == self.achieved
+        return self.effective_said == self.achieved
 
     def to_dict(self) -> dict:
-        return {"said": self.said, "achieved": self.achieved}
+        d = {"said": self.said, "achieved": self.achieved}
+        if self.cloud:
+            d["cloud"] = self.cloud
+        return d
 
     @staticmethod
     def from_dict(d: dict) -> "RoundResult":
-        return RoundResult(said=d["said"], achieved=d["achieved"])
+        return RoundResult(
+            said=d["said"], achieved=d["achieved"], cloud=d.get("cloud", 0)
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -189,6 +207,9 @@ class GameControl:
             for p in player_data
         ]
         self.round_number: int = 0
+        # Jubiläumsedition: one entry per completed round — True when the bomb
+        # was played, i.e. one trick of that round counted for nobody.
+        self.bombs: List[bool] = []
         self.initial_dealer_index: int = (
             initial_dealer_index
             if initial_dealer_index is not None
@@ -272,8 +293,14 @@ class GameControl:
 
     # --- game actions --------------------------------------------------------
 
-    def submit_round(self, results: List[RoundResult]) -> RoundEvents:
-        """Apply round results; returns event info so the UI can show effects."""
+    def submit_round(
+        self, results: List[RoundResult], bomb_played: bool = False
+    ) -> RoundEvents:
+        """Apply round results; returns event info so the UI can show effects.
+
+        ``bomb_played`` (Jubiläumsedition only): the bomb destroyed one trick
+        this round, so one trick fewer was distributed among the players.
+        """
         old_leader = self.leader
 
         for player, result in zip(self.players, results):
@@ -281,6 +308,7 @@ class GameControl:
                 player.apply_round_multiplicative(result)
             else:
                 player.apply_round(result)
+        self.bombs.append(bool(bomb_played))
         self.round_number += 1
 
         new_leader = self.leader
@@ -313,6 +341,8 @@ class GameControl:
         if self.round_number > 0:
             for player in self.players:
                 player.undo_round()
+            if self.bombs:
+                self.bombs.pop()
             self.round_number -= 1
             return True
         return False
@@ -320,12 +350,15 @@ class GameControl:
     # --- serialisation -------------------------------------------------------
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "players": [p.to_dict() for p in self.players],
             "round_number": self.round_number,
             "initial_dealer_index": self.initial_dealer_index,
             "game_mode": self.game_mode,
         }
+        if self.game_mode == GAME_MODE_ANNIVERSARY:
+            d["bombs"] = list(self.bombs)
+        return d
 
     @classmethod
     def from_dict(cls, data: dict) -> "GameControl":
@@ -348,4 +381,5 @@ class GameControl:
                 else:
                     player.apply_round(result)
         game.round_number = data["round_number"]
+        game.bombs = [bool(b) for b in data.get("bombs", [])]
         return game

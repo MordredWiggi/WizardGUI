@@ -22,7 +22,12 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 
 from PyQt6 import QtCore, QtWidgets, QtGui
 
-from game_control import GameControl, RoundResult, RoundEvents
+from game_control import (
+    GameControl,
+    RoundResult,
+    RoundEvents,
+    GAME_MODE_ANNIVERSARY,
+)
 from style import (
     ACCENT,
     ACCENT_DIM,
@@ -511,12 +516,23 @@ class MplCanvas(FigureCanvasQTAgg):
 
 class PlayerCard(QtWidgets.QFrame):
     bid_changed = QtCore.pyqtSignal()
+    cloud_changed = QtCore.pyqtSignal()
 
-    def __init__(self, player_name: str, color: str, parent=None, avatar: str = ""):
+    def __init__(
+        self,
+        player_name: str,
+        color: str,
+        parent=None,
+        avatar: str = "",
+        show_cloud: bool = False,
+    ):
         super().__init__(parent)
         self.player_name = player_name
         self.color = color
         self._is_dealer = False
+        # Wolke (Jubiläumsedition): forced ±1 bid change for this player.
+        self._cloud = 0
+        self._show_cloud = show_cloud
         self.setObjectName("card")
         # Only set the dynamic border color; background comes from QSS (#card)
         self._apply_card_border()
@@ -581,7 +597,7 @@ class PlayerCard(QtWidgets.QFrame):
         input_grid = QtWidgets.QGridLayout()
         input_grid.setContentsMargins(0, 0, 0, 0)
         input_grid.setColumnStretch(0, 1)
-        input_grid.setColumnStretch(4, 1)
+        input_grid.setColumnStretch(5, 1)
 
         def _make_spin_widgets(label_key: str) -> tuple:
             lbl = QtWidgets.QLabel(label_key)
@@ -627,8 +643,37 @@ class PlayerCard(QtWidgets.QFrame):
             self._spin_achieved, 1, 3, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter
         )
 
+        # Wolke (Jubiläumsedition): cycles off → +1 → −1 → off. At most one
+        # player per round can hold the cloud; GameView enforces exclusivity.
+        self._lbl_cloud = QtWidgets.QLabel(t("cloud_label"))
+        self._lbl_cloud.setObjectName("input_label")
+        self._lbl_cloud.setStyleSheet(
+            f"color: {TEXT_DIM}; font-size: 15px; font-weight: 600; letter-spacing: 1px; background: transparent; border: none;"
+        )
+        self._btn_cloud = QtWidgets.QPushButton("–")
+        self._btn_cloud.setToolTip(t("cloud_tooltip"))
+        # Keep the bid → auto-fill → made tab cycle intact
+        self._btn_cloud.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
+        self._btn_cloud.setFixedSize(52, 30)
+        self._btn_cloud.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self._btn_cloud.clicked.connect(self._cycle_cloud)
+        self._apply_cloud_style()
+        cloud_wrapper = QtWidgets.QHBoxLayout()
+        cloud_wrapper.setContentsMargins(12, 0, 0, 0)
+        cloud_wrapper.addWidget(self._btn_cloud)
+        input_grid.addWidget(
+            self._lbl_cloud, 0, 4, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter
+        )
+        input_grid.addLayout(
+            cloud_wrapper, 1, 4, alignment=QtCore.Qt.AlignmentFlag.AlignCenter
+        )
+        self._lbl_cloud.setVisible(show_cloud)
+        self._btn_cloud.setVisible(show_cloud)
+
         # Emit bid_changed whenever the announced (said) spinbox changes
         self._spin_said.valueChanged.connect(self.bid_changed)
+        # A lowered bid can invalidate a −1 cloud (effective bid must stay ≥ 0)
+        self._spin_said.valueChanged.connect(self._validate_cloud_for_bid)
 
         layout.addLayout(input_grid)
 
@@ -655,11 +700,50 @@ class PlayerCard(QtWidgets.QFrame):
 
     def get_round_result(self) -> RoundResult:
         return RoundResult(
-            said=self._spin_said.value(), achieved=self._spin_achieved.value()
+            said=self._spin_said.value(),
+            achieved=self._spin_achieved.value(),
+            cloud=self._cloud,
         )
 
     def get_current_bid(self) -> int:
         return self._spin_said.value()
+
+    def get_cloud(self) -> int:
+        return self._cloud
+
+    def set_cloud(self, value: int) -> None:
+        if value == self._cloud:
+            return
+        self._cloud = value
+        self._apply_cloud_style()
+        self.cloud_changed.emit()
+
+    def _cycle_cloud(self) -> None:
+        """Cycle the cloud state off → +1 → −1 → off, skipping −1 when the
+        bid is 0 (the effective bid must never drop below zero)."""
+        order = [0, 1, -1]
+        nxt = order[(order.index(self._cloud) + 1) % len(order)]
+        if nxt == -1 and self._spin_said.value() == 0:
+            nxt = 0
+        self.set_cloud(nxt)
+
+    def _validate_cloud_for_bid(self) -> None:
+        if self._cloud == -1 and self._spin_said.value() == 0:
+            self.set_cloud(0)
+
+    def _apply_cloud_style(self) -> None:
+        active = self._cloud != 0
+        self._btn_cloud.setText(
+            "☁️ +1" if self._cloud == 1 else "☁️ −1" if self._cloud == -1 else "–"
+        )
+        border = ACCENT if active else "#3a3a6a"
+        color = ACCENT if active else TEXT_DIM
+        self._btn_cloud.setStyleSheet(
+            f"QPushButton {{ color: {color}; background: transparent; "
+            f"border: 1.2px solid {border}; border-radius: 8px; "
+            f"font-size: 13px; font-weight: 700; }}"
+            f"QPushButton:hover {{ border-color: {ACCENT}; }}"
+        )
 
     def _fill_made_from_bid(self) -> None:
         self._spin_achieved.setValue(self._spin_said.value())
@@ -670,6 +754,7 @@ class PlayerCard(QtWidgets.QFrame):
     def reset_inputs(self) -> None:
         self._spin_said.setValue(0)
         self._spin_achieved.setValue(0)
+        self.set_cloud(0)
 
     def set_dealer(self, is_dealer: bool, cards: int) -> None:
         """Show or hide the dealer banner for this card."""
@@ -703,6 +788,8 @@ class PlayerCard(QtWidgets.QFrame):
         # which calls set_dealer() for every card after retranslate_ui() returns.
         self._lbl_bid.setText(t("announced"))
         self._lbl_made.setText(t("achieved"))
+        self._lbl_cloud.setText(t("cloud_label"))
+        self._btn_cloud.setToolTip(t("cloud_tooltip"))
         self._btn_auto_fill.setToolTip(t("tooltip_auto_fill"))
         self._update_auto_fill_style()
 
@@ -773,6 +860,18 @@ class GameView(QtWidgets.QWidget):
         self.game = game
         self._player_cards: List[PlayerCard] = []
         self._build_ui()
+
+    @property
+    def _is_anniversary(self) -> bool:
+        return self.game.game_mode == GAME_MODE_ANNIVERSARY
+
+    def _effective_total(self) -> int:
+        """Tricks actually distributed this round. In the Jubiläumsedition the
+        bomb removes one trick from the round."""
+        total = self.game.cards_this_round
+        if self._is_anniversary and self.chk_bomb.isChecked():
+            total -= 1
+        return total
 
     # ── UI-Aufbau ─────────────────────────────────────────────────────────────
 
@@ -846,13 +945,28 @@ class GameView(QtWidgets.QWidget):
 
         for i, player in enumerate(self.game.players):
             color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
-            card = PlayerCard(player.name, color, avatar=player.avatar)
+            card = PlayerCard(
+                player.name,
+                color,
+                avatar=player.avatar,
+                show_cloud=self._is_anniversary,
+            )
             self._player_cards.append(card)
             self._cards_layout.addWidget(card)
         self._cards_layout.addStretch()
 
         scroll.setWidget(cards_widget)
         sidebar_layout.addWidget(scroll, 1)
+
+        # Bomb toggle (Jubiläumsedition): the bomb destroys one trick, so the
+        # round distributes one trick fewer than cards were dealt.
+        self.chk_bomb = QtWidgets.QCheckBox(t("bomb_played"))
+        self.chk_bomb.setStyleSheet(
+            f"color: {TEXT_DIM}; font-size: 14px; font-weight: 600; background: transparent;"
+        )
+        self.chk_bomb.toggled.connect(self._update_bid_counter)
+        self.chk_bomb.setVisible(self._is_anniversary)
+        sidebar_layout.addWidget(self.chk_bomb)
 
         # Bid counter (total tricks bid vs. possible tricks in current round)
         self.lbl_bid_counter = QtWidgets.QLabel(
@@ -1032,11 +1146,14 @@ class GameView(QtWidgets.QWidget):
     # ── Spiellogik ────────────────────────────────────────────────────────────
 
     def _on_round_done(self) -> None:
-        total_possible = self.game.cards_this_round
+        total_possible = self._effective_total()
 
-        # Check if total bids equal total possible tricks (invalid game rule)
+        # Check if total bids equal total possible tricks (invalid game rule).
+        # In the Jubiläumsedition this stays allowed: the bomb and the cloud
+        # can change how many tricks are actually distributed, so equal bids
+        # are no longer guaranteed to be wrong.
         total_bid = sum(card.get_current_bid() for card in self._player_cards)
-        if total_bid == total_possible:
+        if total_bid == self.game.cards_this_round and not self._is_anniversary:
             # Show blocking warning dialog
             from dialogs import WarningDialog
 
@@ -1056,9 +1173,11 @@ class GameView(QtWidgets.QWidget):
             dlg.exec()
             return  # Don't proceed until made tricks are corrected
 
-        events = self.game.submit_round(results)
+        bomb_played = self._is_anniversary and self.chk_bomb.isChecked()
+        events = self.game.submit_round(results, bomb_played=bomb_played)
         for card in self._player_cards:
             card.reset_inputs()
+        self.chk_bomb.setChecked(False)
         self._refresh_scores()
         self.canvas.redraw(self.game)
         self.btn_undo.setEnabled(True)
@@ -1070,6 +1189,7 @@ class GameView(QtWidgets.QWidget):
         dlg = WarningDialog(self, t("undo_confirm"))
         if dlg.exec():
             self.game.undo_round()
+            self.chk_bomb.setChecked(False)
             self._refresh_scores()
             self.canvas.redraw(self.game)
             self.btn_undo.setEnabled(self.game.round_number > 0)
@@ -1119,11 +1239,13 @@ class GameView(QtWidgets.QWidget):
     def _update_bid_counter(self) -> None:
         """Recalculate and display total bids vs. total possible tricks."""
         total_bid = sum(card.get_current_bid() for card in self._player_cards)
-        total_possible = self.game.cards_this_round
+        total_possible = self._effective_total()
         self.lbl_bid_counter.setText(
             t("bid_total", bid=total_bid, total=total_possible)
         )
-        equal = total_bid == total_possible
+        # Equal bids only block in the classic modes — with the anniversary
+        # special cards the trick count can change, so it's a valid state.
+        equal = total_bid == total_possible and not self._is_anniversary
         color = DANGER if equal else SUCCESS
         self.lbl_bid_counter.setStyleSheet(
             f"color: {color}; font-size: 22px; font-weight: 700;"
@@ -1135,6 +1257,18 @@ class GameView(QtWidgets.QWidget):
         """Connect each player card's bid_changed signal to the counter."""
         for card in self._player_cards:
             card.bid_changed.connect(self._update_bid_counter)
+            card.cloud_changed.connect(
+                lambda card=card: self._on_cloud_changed(card)
+            )
+
+    def _on_cloud_changed(self, changed_card: PlayerCard) -> None:
+        """There is only one cloud card — activating it on one player clears
+        it on everyone else."""
+        if changed_card.get_cloud() == 0:
+            return
+        for card in self._player_cards:
+            if card is not changed_card:
+                card.set_cloud(0)
 
     def _setup_tab_order(self) -> None:
         """Tab order: P1.bid → P1.= → P1.made → P2.bid → P2.= → P2.made → … (cyclic).
@@ -1176,6 +1310,7 @@ class GameView(QtWidgets.QWidget):
         self.btn_new.setToolTip(t("tooltip_new"))
         self.btn_settings.setToolTip(t("tooltip_settings"))
         self.lbl_bid_warning.setText(t("bid_warning"))
+        self.chk_bomb.setText(t("bomb_played"))
         self._btn_tab_chart.setText(t("tab_chart"))
         self._btn_tab_groups.setText(t("tab_groups_lb"))
         self._btn_tab_mygroup.setText(t("tab_group_lb"))
@@ -1204,11 +1339,18 @@ class GameView(QtWidgets.QWidget):
 
         for i, player in enumerate(self.game.players):
             color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
-            card = PlayerCard(player.name, color, avatar=player.avatar)
+            card = PlayerCard(
+                player.name,
+                color,
+                avatar=player.avatar,
+                show_cloud=self._is_anniversary,
+            )
             self._player_cards.append(card)
             self._cards_layout.addWidget(card)
         self._cards_layout.addStretch()
 
+        self.chk_bomb.setChecked(False)
+        self.chk_bomb.setVisible(self._is_anniversary)
         self._connect_bid_signals()
         self._setup_tab_order()
         self._refresh_scores()

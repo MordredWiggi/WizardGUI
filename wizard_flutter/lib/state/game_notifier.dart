@@ -55,9 +55,7 @@ class GameNotifier extends ChangeNotifier {
   void startGame(List<Map<String, dynamic>> playerData, String gameMode) {
     _game = GameControl(
       playerData: playerData,
-      gameMode: gameMode == 'multiplicative'
-          ? GameMode.multiplicative
-          : GameMode.standard,
+      gameMode: GameMode.fromJson(gameMode),
     );
     _lastEloDeltas = null; // don't let the previous game's ELO leak in
     notifyListeners();
@@ -79,9 +77,13 @@ class GameNotifier extends ChangeNotifier {
   // ── Round actions ──────────────────────────────────────────────────────────
 
   /// Submit results; returns RoundEvents for the UI to react to.
-  RoundEvents submitRound(List<RoundResult> results) {
+  /// [bombPlayed] (Jubiläumsedition): one trick was destroyed this round.
+  RoundEvents submitRound(List<RoundResult> results, {bool bombPlayed = false}) {
     assert(_game != null);
-    final (:game, :events) = _game!.submitRound(results);
+    final (:game, :events) = _game!.submitRound(
+      results,
+      bombPlayed: bombPlayed,
+    );
     _game = game;
     notifyListeners();
     // Keep the paused snapshot current after every round so a force-kill

@@ -83,6 +83,13 @@ const Map<String, Map<String, String>> kTranslations = {
     'game_mode_label': 'SPIELMODUS',
     'game_mode_standard': 'Standard',
     'game_mode_multiplicative': 'Multiplikativ (×)',
+    'game_mode_anniversary': 'Jubiläum 25 Jahre (★)',
+    'game_mode_anniversary_hint':
+        'Mit den Sonderkarten der Jubiläumsedition: Die Bombe zerstört einen Stich, die Wolke ändert eine Ansage um ±1.',
+    'bomb_played': '💣 Bombe gespielt (ein Stich zählt nicht)',
+    'cloud_label': '☁️ Wolke',
+    'cloud_tooltip':
+        'Wolke: Dieser Spieler muss seine Ansage um ±1 ändern (Tippen wechselt: aus → +1 → −1).',
     'bow_stretched': 'Man muss den Bogen weit spannen – {name}!',
     'revenge_lever': 'Rachehebel zündet – {name}!',
     'huge_loss': '💥 {name} verliert {delta} Punkte!',
@@ -246,6 +253,13 @@ const Map<String, Map<String, String>> kTranslations = {
     'game_mode_label': 'GAME MODE',
     'game_mode_standard': 'Standard',
     'game_mode_multiplicative': 'Multiplicative (×)',
+    'game_mode_anniversary': '25th Anniversary (★)',
+    'game_mode_anniversary_hint':
+        'With the anniversary edition special cards: the bomb destroys one trick, the cloud changes one bid by ±1.',
+    'bomb_played': '💣 Bomb played (one trick doesn\'t count)',
+    'cloud_label': '☁️ Cloud',
+    'cloud_tooltip':
+        'Cloud: this player must change their bid by ±1 (tap cycles: off → +1 → −1).',
     'bow_stretched': 'Stretched the bow too far – {name}!',
     'revenge_lever': 'Revenge lever ignites – {name}!',
     'huge_loss': '💥 {name} loses {delta} points!',
@@ -407,6 +421,13 @@ const Map<String, Map<String, String>> kTranslations = {
     'game_mode_label': 'MODE DE JEU',
     'game_mode_standard': 'Standard',
     'game_mode_multiplicative': 'Multiplicatif (×)',
+    'game_mode_anniversary': '25e anniversaire (★)',
+    'game_mode_anniversary_hint':
+        'Avec les cartes spéciales de l\'édition anniversaire : la bombe détruit un pli, le nuage modifie une annonce de ±1.',
+    'bomb_played': '💣 Bombe jouée (un pli ne compte pas)',
+    'cloud_label': '☁️ Nuage',
+    'cloud_tooltip':
+        'Nuage : ce joueur doit modifier son annonce de ±1 (appui : off → +1 → −1).',
     'bow_stretched': 'Il ne faut pas tendre l\'arc trop loin – {name} !',
     'revenge_lever': 'Le levier de vengeance s\'active – {name} !',
     'huge_loss': '💥 {name} perd {delta} points !',
@@ -568,6 +589,13 @@ const Map<String, Map<String, String>> kTranslations = {
     'game_mode_label': 'खेल मोड',
     'game_mode_standard': 'मानक',
     'game_mode_multiplicative': 'गुणक (×)',
+    'game_mode_anniversary': '25वीं वर्षगांठ (★)',
+    'game_mode_anniversary_hint':
+        'वर्षगांठ संस्करण के विशेष कार्डों के साथ: बम एक चाल नष्ट करता है, बादल एक बोली ±1 बदलता है।',
+    'bomb_played': '💣 बम खेला गया (एक चाल नहीं गिनी जाती)',
+    'cloud_label': '☁️ बादल',
+    'cloud_tooltip':
+        'बादल: इस खिलाड़ी को अपनी बोली ±1 बदलनी होगी (टैप: बंद → +1 → −1)।',
     'bow_stretched': 'कमान बहुत खींच ली – {name}!',
     'revenge_lever': 'बदले का तीर चला – {name}!',
     'huge_loss': '💥 {name} को {delta} अंक का नुकसान!',

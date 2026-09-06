@@ -213,7 +213,16 @@ String computeGameHash(Map<String, dynamic> gameData) {
               (p) => {
                 'n': p['name'],
                 'r': (p['rounds'] as List? ?? [])
-                    .map((r) => {'s': r['said'], 'a': r['achieved']})
+                    .map(
+                      (r) => {
+                        's': r['said'],
+                        'a': r['achieved'],
+                        // Anniversary edition only: the cloud's ±1 bid change
+                        // is part of the game's identity. Omitted when 0 so
+                        // classic-mode hashes stay unchanged.
+                        if ((r['cloud'] ?? 0) != 0) 'c': r['cloud'],
+                      },
+                    )
                     .toList(),
               },
             )
@@ -256,16 +265,24 @@ Map<String, dynamic> buildGameSubmission(
       }
       score = s;
     } else {
+      // Standard and anniversary scoring. In the anniversary edition the
+      // cloud changes the bid by ±1 — the adjusted bid is what counts.
       score = 0;
       for (final r in rounds) {
-        if (r['said'] == r['achieved']) {
-          score += 20 + (r['said'] as int) * 10;
+        final said = (r['said'] as int) + ((r['cloud'] as int?) ?? 0);
+        if (said == r['achieved']) {
+          score += 20 + said * 10;
         } else {
-          score += -10 * ((r['said'] as int) - (r['achieved'] as int)).abs();
+          score += -10 * (said - (r['achieved'] as int)).abs();
         }
       }
     }
-    final correctBids = rounds.where((r) => r['said'] == r['achieved']).length;
+    final correctBids = rounds
+        .where(
+          (r) =>
+              (r['said'] as int) + ((r['cloud'] as int?) ?? 0) == r['achieved'],
+        )
+        .length;
     return {
       'name': p['name'],
       'final_score': score,

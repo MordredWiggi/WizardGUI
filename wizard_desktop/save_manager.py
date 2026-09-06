@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 
 SAVE_DIR = Path.home() / ".wizard_gui" / "games"
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
 
 # Reserved filename for the auto-paused game (Home button mid-round).
 # Stored alongside regular saves but excluded from listings.

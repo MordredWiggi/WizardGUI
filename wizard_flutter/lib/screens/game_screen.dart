@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../domain/game_control.dart';
+import '../domain/game_mode.dart';
 import '../domain/round_result.dart';
 import '../domain/round_events.dart';
 import '../persistence/app_settings.dart';
@@ -32,6 +33,10 @@ class _GameScreenState extends State<GameScreen>
   // recycling as cards scroll off-screen.
   final List<int> _bids = [];
   final List<int> _mades = [];
+  // Jubiläumsedition: per-player cloud state (−1/0/+1, at most one player
+  // non-zero) and whether the bomb was played this round.
+  final List<int> _clouds = [];
+  bool _bombPlayed = false;
   // Whether the top-bar menu (action buttons + round/dealer label) is
   // collapsed to a slim row that only shows the tab icons. Defaults to
   // expanded so first-time users can still discover undo/save/home/etc.
@@ -79,6 +84,9 @@ class _GameScreenState extends State<GameScreen>
     while (_mades.length < n) {
       _mades.add(0);
     }
+    while (_clouds.length < n) {
+      _clouds.add(0);
+    }
   }
 
   void _resetEntries() {
@@ -86,6 +94,24 @@ class _GameScreenState extends State<GameScreen>
       _bids[i] = 0;
       _mades[i] = 0;
     }
+    for (var i = 0; i < _clouds.length; i++) {
+      _clouds[i] = 0;
+    }
+    _bombPlayed = false;
+  }
+
+  /// There is only one cloud card — setting it on one player clears everyone
+  /// else. A −1 on a bid of 0 is rejected (effective bid must stay ≥ 0).
+  void _setCloud(int index, int value) {
+    if (value == -1 && _bids[index] == 0) value = 0;
+    setState(() {
+      _clouds[index] = value;
+      if (value != 0) {
+        for (var i = 0; i < _clouds.length; i++) {
+          if (i != index) _clouds[i] = 0;
+        }
+      }
+    });
   }
 
   // ── Actions ────────────────────────────────────────────────────────────────
@@ -98,21 +124,30 @@ class _GameScreenState extends State<GameScreen>
     if (game.isGameOver) return;
     _ensureCapacity(game.numPlayers);
 
+    final isAnniversary = game.gameMode == GameMode.anniversary;
+    final bombPlayed = isAnniversary && _bombPlayed;
+
     // Gather results
     final results = List<RoundResult>.generate(
       game.numPlayers,
-      (i) => RoundResult(said: _bids[i], achieved: _mades[i]),
+      (i) => RoundResult(
+        said: _bids[i],
+        achieved: _mades[i],
+        cloud: isAnniversary ? _clouds[i] : 0,
+      ),
     );
 
-    // Validate: sum of made == cards this round
+    // Validate: sum of made == tricks actually distributed this round.
+    // In the Jubiläumsedition the bomb destroys one trick.
+    final expectedTot = game.cardsThisRound - (bombPlayed ? 1 : 0);
     final madeTot = results.fold(0, (s, r) => s + r.achieved);
-    if (madeTot != game.cardsThisRound) {
+    if (madeTot != expectedTot) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             t('made_tricks_warning', {
               'made': madeTot.toString(),
-              'total': game.cardsThisRound.toString(),
+              'total': expectedTot.toString(),
             }),
           ),
           backgroundColor: kDanger,
@@ -123,7 +158,7 @@ class _GameScreenState extends State<GameScreen>
     }
 
     final notifier = context.read<GameNotifier>();
-    final events = notifier.submitRound(results);
+    final events = notifier.submitRound(results, bombPlayed: bombPlayed);
     notifier.autoSave();
     _resetEntries();
     _handleEvents(events);
@@ -542,9 +577,14 @@ class _GameScreenState extends State<GameScreen>
     final deltas = game.lastDeltas();
     final leaderSet = game.leaders.map((p) => p.name).toSet();
 
-    // Bid sum tracking for the bid-warning banner
+    // Bid sum tracking for the bid-warning banner. In the Jubiläumsedition
+    // equal bids stay allowed (the bomb/cloud can change the trick count),
+    // so the warning never blocks there.
+    final isAnniversary = game.gameMode == GameMode.anniversary;
     final bidSum = _bids.take(game.numPlayers).fold<int>(0, (s, b) => s + b);
-    final bidWarning = bidSum == game.cardsThisRound;
+    final bidWarning = bidSum == game.cardsThisRound && !isAnniversary;
+    final effectiveTotal =
+        game.cardsThisRound - (isAnniversary && _bombPlayed ? 1 : 0);
 
     final tabBar = TabBar(
       controller: _tabController,
@@ -656,6 +696,12 @@ class _GameScreenState extends State<GameScreen>
             leaderSet: leaderSet,
             bidWarning: bidWarning,
             bidSum: bidSum,
+            effectiveTotal: effectiveTotal,
+            isAnniversary: isAnniversary,
+            bombPlayed: _bombPlayed,
+            clouds: _clouds,
+            onBombChanged: (v) => setState(() => _bombPlayed = v),
+            onCloudChanged: _setCloud,
             onAutoFill: () {
               setState(() {
                 for (var i = 0; i < game.numPlayers; i++) {
@@ -668,6 +714,8 @@ class _GameScreenState extends State<GameScreen>
               setState(() {
                 _bids[index] = bid;
                 _mades[index] = made;
+                // A lowered bid can invalidate a −1 cloud (effective ≥ 0).
+                if (_clouds[index] == -1 && bid == 0) _clouds[index] = 0;
               });
             },
             t: t,
@@ -697,6 +745,15 @@ class _Layer1 extends StatelessWidget {
   final Set<String> leaderSet;
   final bool bidWarning;
   final int bidSum;
+
+  /// Tricks actually distributed this round (cards − 1 when the bomb toggle
+  /// is on in the Jubiläumsedition).
+  final int effectiveTotal;
+  final bool isAnniversary;
+  final bool bombPlayed;
+  final List<int> clouds;
+  final void Function(bool) onBombChanged;
+  final void Function(int index, int cloud) onCloudChanged;
   final VoidCallback onAutoFill;
   final VoidCallback onCompleteRound;
   final void Function(int index, int bid, int made) onEntryChanged;
@@ -710,6 +767,12 @@ class _Layer1 extends StatelessWidget {
     required this.leaderSet,
     required this.bidWarning,
     required this.bidSum,
+    required this.effectiveTotal,
+    required this.isAnniversary,
+    required this.bombPlayed,
+    required this.clouds,
+    required this.onBombChanged,
+    required this.onCloudChanged,
     required this.onAutoFill,
     required this.onCompleteRound,
     required this.onEntryChanged,
@@ -734,7 +797,7 @@ class _Layer1 extends StatelessWidget {
                       ? t('bid_warning')
                       : t('bid_total', {
                           'bid': bidSum.toString(),
-                          'total': game.cardsThisRound.toString(),
+                          'total': effectiveTotal.toString(),
                         }),
                   style: TextStyle(
                     fontSize: 13,
@@ -761,6 +824,27 @@ class _Layer1 extends StatelessWidget {
           ),
         ),
 
+        // Bomb toggle (Jubiläumsedition): the bomb destroys one trick, so the
+        // round distributes one trick fewer than cards were dealt.
+        if (isAnniversary)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    t('bomb_played'),
+                    style: const TextStyle(fontSize: 13, color: kTextDim),
+                  ),
+                ),
+                Switch(
+                  value: bombPlayed,
+                  onChanged: game.isGameOver ? null : onBombChanged,
+                ),
+              ],
+            ),
+          ),
+
         // Player cards
         Expanded(
           child: ListView.builder(
@@ -778,6 +862,9 @@ class _Layer1 extends StatelessWidget {
                 scoreDelta: game.roundNumber > 0 ? deltas[i] : 0,
                 bid: bids[i],
                 made: mades[i],
+                showCloud: isAnniversary,
+                cloud: clouds[i],
+                onCloudChanged: (c) => onCloudChanged(i, c),
                 onChanged: (b, m) => onEntryChanged(i, b, m),
               );
             },

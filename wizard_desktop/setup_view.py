@@ -29,7 +29,11 @@ from style import (
 )
 from save_manager import SaveManager
 from app_settings import t, get_leaderboard_url
-from game_control import GAME_MODE_STANDARD, GAME_MODE_MULTIPLICATIVE
+from game_control import (
+    GAME_MODE_STANDARD,
+    GAME_MODE_MULTIPLICATIVE,
+    GAME_MODE_ANNIVERSARY,
+)
 
 AVATARS = [
     "🧙‍♂️",
@@ -486,8 +490,11 @@ class SetupView(QtWidgets.QWidget):
         self._radio_standard = QtWidgets.QRadioButton(t("game_mode_standard"))
         self._radio_standard.setChecked(True)
         self._radio_multi = QtWidgets.QRadioButton(t("game_mode_multiplicative"))
+        self._radio_anniversary = QtWidgets.QRadioButton(t("game_mode_anniversary"))
+        self._radio_anniversary.setToolTip(t("game_mode_anniversary_hint"))
         mode_row.addWidget(self._radio_standard)
         mode_row.addWidget(self._radio_multi)
+        mode_row.addWidget(self._radio_anniversary)
         mode_row.addStretch()
         mode_layout.addLayout(mode_row)
 
@@ -855,6 +862,8 @@ class SetupView(QtWidgets.QWidget):
         self._hdr_mode.setText(t("game_mode_label"))
         self._radio_standard.setText(t("game_mode_standard"))
         self._radio_multi.setText(t("game_mode_multiplicative"))
+        self._radio_anniversary.setText(t("game_mode_anniversary"))
+        self._radio_anniversary.setToolTip(t("game_mode_anniversary_hint"))
         self._name_edit.setPlaceholderText(t("player_name_placeholder"))
         self._btn_add.setText(t("btn_add"))
         self._btn_refresh.setText(t("btn_refresh"))
@@ -896,11 +905,12 @@ class SetupView(QtWidgets.QWidget):
     def _on_start(self) -> None:
         if len(self._players) < 2:
             return
-        game_mode = (
-            GAME_MODE_MULTIPLICATIVE
-            if self._radio_multi.isChecked()
-            else GAME_MODE_STANDARD
-        )
+        if self._radio_multi.isChecked():
+            game_mode = GAME_MODE_MULTIPLICATIVE
+        elif self._radio_anniversary.isChecked():
+            game_mode = GAME_MODE_ANNIVERSARY
+        else:
+            game_mode = GAME_MODE_STANDARD
         # With no group selected the game runs offline (emits None for the group).
         self.start_game.emit(list(self._players), game_mode, self._selected_group)
 

@@ -229,6 +229,23 @@
     .svalue::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     .svalue:focus { outline: none; box-shadow: 0 0 0 2px rgba(201,168,76,0.5); }
 
+    /* ── Cloud toggle (anniversary edition, ☁️ forced ±1 bid change) ─── */
+    .cloudbtn {
+        width: 56px;
+        height: 40px;
+        text-align: center;
+        font-size: 1rem;
+        font-weight: 700;
+        border-radius: 8px;
+        border: 1px solid currentColor;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        user-select: none;
+    }
+    .cloudbtn.active { border: 2px solid #c9a84c; color: #c9a84c; }
+    .cloudbtn:disabled { opacity: 0.25; cursor: not-allowed; }
+
     /* ── Sticky action bar (respects the iPhone home indicator) ───────── */
     .action-bar {
         position: sticky;
@@ -466,7 +483,12 @@
                     <input type="radio" name="gameMode" value="multiplicative">
                     <span>{{ _("play_mode_multiplicative", lang) }}</span>
                 </label>
+                <label class="pill" data-mode="anniversary" title="{{ _('play_mode_anniversary_hint', lang) }}">
+                    <input type="radio" name="gameMode" value="anniversary">
+                    <span>{{ _("play_mode_anniversary", lang) }}</span>
+                </label>
             </div>
+            <p id="modeHint" class="hint" style="margin-top:8px;display:none">{{ _("play_mode_anniversary_hint", lang) }}</p>
             <button id="startBtn" class="btn primary wide" style="margin-top:14px" onclick="startGame()" disabled>
                 &#127918;&nbsp;{{ _("play_start", lang) }}
             </button>
@@ -500,6 +522,11 @@
                     &#10227;&nbsp;{{ _("play_autofill", lang) }}
                 </button>
             </div>
+            <!-- Jubiläumsedition: the bomb destroys one trick this round -->
+            <label class="pill" id="bombPill" style="display:none;margin-bottom:10px">
+                <input type="checkbox" id="bombCheck">
+                <span>{{ _("play_bomb_played", lang) }}</span>
+            </label>
             <div id="cards"></div>
             <div class="action-bar">
                 <button id="completeBtn" class="btn primary wide" onclick="completeRound()">
@@ -670,6 +697,9 @@ const T = {
     hidden_badge:      {{ _("lb_hidden_badge", lang)|tojson }},
     mode_standard:     {{ _("play_mode_standard", lang)|tojson }},
     mode_mult:         {{ _("play_mode_multiplicative", lang)|tojson }},
+    mode_annv:         {{ _("play_mode_anniversary", lang)|tojson }},
+    cloud_label:       {{ _("play_cloud_label", lang)|tojson }},
+    cloud_tooltip:     {{ _("play_cloud_tooltip", lang)|tojson }},
     evt_leader:        {{ _("play_evt_leader", lang)|tojson }},
     evt_leader_sub:    {{ _("play_evt_leader_sub", lang)|tojson }},
     evt_fire:          {{ _("play_evt_fire", lang)|tojson }},
@@ -801,12 +831,19 @@ function jsonAsciiString(s) {
 }
 
 // ── Game model (mirrors GameControl / Player from the app) ─────────────────
-// game = { mode, players: [{name, avatar, rounds: [{said, achieved}]}],
-//          round, dealer0, group, startedAt }
+// game = { mode, players: [{name, avatar, rounds: [{said, achieved, cloud?}]}],
+//          round, dealer0, group, startedAt, bombs: [bool per round] }
+// "anniversary" mode (Jubiläumsedition): standard scoring plus the special
+// cards — the bomb destroys one trick (round has one trick fewer) and the
+// cloud forces one player's bid ±1 (stored per round as `cloud`).
 
 let game = null;
 let entryBids = [];
 let entryMades = [];
+// Anniversary edition entry state: per-player cloud (−1/0/+1, at most one
+// player non-zero) and whether the bomb was played this round.
+let entryClouds = [];
+let entryBomb = false;
 let setupPlayers = [];
 let avatarIndex = 0;
 let gameMode = "standard";
@@ -822,9 +859,19 @@ function cardsThisRound(g){ return g.round + 1; }
 function dealerIndex(g)   { return g.players.length ? (g.dealer0 + g.round) % g.players.length : 0; }
 function isGameOver(g)    { return g.round >= totalRounds(g); }
 function roundDisplay(g)  { return isGameOver(g) ? totalRounds(g) : g.round + 1; }
+function isAnniversary(g) { return !!g && g.mode === "anniversary"; }
+
+/** Tricks actually distributed this round: the bomb destroys one. */
+function effectiveTricks(g) {
+    return cardsThisRound(g) - (isAnniversary(g) && entryBomb ? 1 : 0);
+}
+
+/** The bid that counts for scoring: announcement plus cloud adjustment. */
+function effectiveSaid(r) { return r.said + (r.cloud || 0); }
 
 function standardDelta(r) {
-    return r.said === r.achieved ? 20 + r.said * 10 : -10 * Math.abs(r.said - r.achieved);
+    const said = effectiveSaid(r);
+    return said === r.achieved ? 20 + said * 10 : -10 * Math.abs(said - r.achieved);
 }
 
 /** Cumulative score after each round; index 0 is the starting score. */
@@ -857,7 +904,7 @@ function lastDelta(p) {
 function consecutivePerfect(p) {
     let n = 0;
     for (let i = p.rounds.length - 1; i >= 0; i--) {
-        if (p.rounds[i].said === p.rounds[i].achieved) n++; else break;
+        if (effectiveSaid(p.rounds[i]) === p.rounds[i].achieved) n++; else break;
     }
     return n;
 }
@@ -903,7 +950,12 @@ function localIso() {
 function computeGameHash(g) {
     const sorted = g.players.slice().sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     const parts = sorted.map(p => {
-        const rounds = p.rounds.map(r => '{"a":' + r.achieved + ',"s":' + r.said + "}").join(",");
+        // The cloud's ±1 bid change (anniversary edition) is part of the
+        // game's identity; omitted when 0 so classic-mode hashes stay
+        // unchanged. Key order a < c < s matches Python's sort_keys.
+        const rounds = p.rounds.map(r =>
+            '{"a":' + r.achieved + (r.cloud ? ',"c":' + r.cloud : "") + ',"s":' + r.said + "}"
+        ).join(",");
         return '{"n":' + jsonAsciiString(p.name) + ',"r":[' + rounds + "]}";
     });
     const raw = '{"mode":' + jsonAsciiString(g.mode) + ',"players":[' + parts.join(",") + "]}";
@@ -916,7 +968,7 @@ function buildSubmission(g, groupCode) {
         return {
             name: p.name,
             final_score: series[series.length - 1],
-            correct_bids: p.rounds.filter(r => r.said === r.achieved).length,
+            correct_bids: p.rounds.filter(r => effectiveSaid(r) === r.achieved).length,
             total_rounds: p.rounds.length,
         };
     });
@@ -951,6 +1003,8 @@ function savePaused() {
         game: game,
         bids: entryBids,
         mades: entryMades,
+        clouds: entryClouds,
+        bomb: entryBomb,
         savedAt: new Date().toISOString(),
     });
 }
@@ -1112,8 +1166,12 @@ function renderSetupPlayers() {
 // ── Starting, pausing and resuming ─────────────────────────────────────────
 
 function resetEntries() {
-    entryBids  = game.players.map(() => 0);
-    entryMades = game.players.map(() => 0);
+    entryBids   = game.players.map(() => 0);
+    entryMades  = game.players.map(() => 0);
+    entryClouds = game.players.map(() => 0);
+    entryBomb   = false;
+    const check = document.getElementById("bombCheck");
+    if (check) check.checked = false;
 }
 
 async function startGame() {
@@ -1131,6 +1189,7 @@ async function startGame() {
         dealer0: Math.floor(Math.random() * setupPlayers.length),
         group: selectedGroup,
         startedAt: new Date().toISOString(),
+        bombs: [],
     };
     resetEntries();
     eloDeltas = null;
@@ -1164,10 +1223,16 @@ function resumeGame() {
     const paused = LS.get(KEY_PAUSED, null);
     if (!paused || !paused.game) { refreshResumeBanner(); return; }
     game = paused.game;
-    entryBids  = (paused.bids  || []).slice();
-    entryMades = (paused.mades || []).slice();
-    while (entryBids.length  < game.players.length) entryBids.push(0);
-    while (entryMades.length < game.players.length) entryMades.push(0);
+    game.bombs = game.bombs || [];
+    entryBids   = (paused.bids   || []).slice();
+    entryMades  = (paused.mades  || []).slice();
+    entryClouds = (paused.clouds || []).slice();
+    entryBomb   = !!paused.bomb;
+    while (entryBids.length   < game.players.length) entryBids.push(0);
+    while (entryMades.length  < game.players.length) entryMades.push(0);
+    while (entryClouds.length < game.players.length) entryClouds.push(0);
+    const check = document.getElementById("bombCheck");
+    if (check) check.checked = entryBomb;
     selectedGroup = game.group || null;
     eloDeltas = null;
     renderGroupStatus();
@@ -1235,6 +1300,7 @@ function renderGame() {
     document.getElementById("dealerLabel").textContent =
         fmt(T.dealer_badge, { n: cards }) + " · " + (dealer ? dealer.name : "");
     document.getElementById("undoBtn").disabled = game.round === 0;
+    document.getElementById("bombPill").style.display = isAnniversary(game) ? "" : "none";
     renderCards();
     if (currentTab === "chart") renderChart();
 }
@@ -1262,10 +1328,36 @@ function renderCards() {
             '<div class="spinners">' +
               spinnerHtml(i, "bid", T.bid, entryBids[i], max) +
               spinnerHtml(i, "made", T.made, entryMades[i], max) +
+              (isAnniversary(game) ? cloudHtml(i) : "") +
             "</div>" +
         "</div>";
     }).join("");
     document.getElementById("cards").innerHTML = html;
+    updateEntryControls();
+}
+
+/** Cloud toggle (anniversary edition): cycles off → +1 → −1 per tap; at most
+ *  one player per round can hold the cloud. */
+function cloudHtml(index) {
+    return '<div class="spinner" style="flex:0 0 76px">' +
+        '<span class="slabel">' + esc(T.cloud_label) + "</span>" +
+        '<div class="srow">' +
+          '<button class="cloudbtn" id="cloud-' + index + '" title="' + esc(T.cloud_tooltip) + '" ' +
+                  'onclick="cycleCloud(' + index + ')">–</button>' +
+        "</div>" +
+    "</div>";
+}
+
+function cycleCloud(index) {
+    if (!game || isGameOver(game)) return;
+    let next = entryClouds[index] === 0 ? 1 : (entryClouds[index] === 1 ? -1 : 0);
+    // The effective bid must never drop below zero.
+    if (next === -1 && entryBids[index] === 0) next = 0;
+    entryClouds[index] = next;
+    // Only one cloud card exists — claiming it clears everyone else.
+    if (next !== 0) {
+        game.players.forEach((p, i) => { if (i !== index) entryClouds[i] = 0; });
+    }
     updateEntryControls();
 }
 
@@ -1290,7 +1382,13 @@ function entryValue(index, kind) {
 }
 
 function storeEntry(index, kind, value) {
-    if (kind === "bid") entryBids[index] = value; else entryMades[index] = value;
+    if (kind === "bid") {
+        entryBids[index] = value;
+        // A lowered bid can invalidate a −1 cloud (effective bid must stay ≥ 0).
+        if (value === 0 && entryClouds[index] === -1) entryClouds[index] = 0;
+    } else {
+        entryMades[index] = value;
+    }
 }
 
 function onEntryInput(index, kind, el) {
@@ -1321,6 +1419,7 @@ function stepEntry(index, kind, delta) {
 function updateEntryControls() {
     const max = cardsThisRound(game);
     const over = isGameOver(game);
+    const annv = isAnniversary(game);
     game.players.forEach((p, i) => {
         ["bid", "made"].forEach(kind => {
             const id = kind + "-" + i;
@@ -1332,15 +1431,25 @@ function updateEntryControls() {
             const input = document.getElementById(id);
             if (input) { input.max = max; input.disabled = over; }
         });
+        const cloudBtn = document.getElementById("cloud-" + i);
+        if (cloudBtn) {
+            const c = entryClouds[i] || 0;
+            cloudBtn.textContent = c === 1 ? "+1" : (c === -1 ? "−1" : "–");
+            cloudBtn.classList.toggle("active", c !== 0);
+            cloudBtn.disabled = over;
+        }
     });
 
+    // In the anniversary edition equal bids stay allowed — the bomb and the
+    // cloud can change how many tricks are actually distributed.
+    const effective = effectiveTricks(game);
     const bidSum = entryBids.slice(0, game.players.length).reduce((a, b) => a + b, 0);
-    const forbidden = bidSum === max;
+    const forbidden = bidSum === max && !annv;
     const banner = document.getElementById("bidBanner");
     banner.classList.toggle("warn", forbidden);
     document.getElementById("bidText").textContent = forbidden
         ? T.bid_warning
-        : fmt(T.bid_total, { bid: bidSum, total: max });
+        : fmt(T.bid_total, { bid: bidSum, total: effective });
     document.getElementById("completeBtn").disabled = forbidden || over;
 }
 
@@ -1367,21 +1476,29 @@ function leaderPlayer(g) {
 
 function completeRound() {
     if (!game || isGameOver(game)) return;
+    const annv = isAnniversary(game);
     const cards = cardsThisRound(game);
+    // The bomb (anniversary edition) destroys one trick, so one trick fewer
+    // was distributed than cards were dealt.
+    const expected = effectiveTricks(game);
     const madeTotal = entryMades.slice(0, game.players.length).reduce((a, b) => a + b, 0);
-    if (madeTotal !== cards) {
-        toast(fmt(T.made_warning, { made: madeTotal, total: cards }));
+    if (madeTotal !== expected) {
+        toast(fmt(T.made_warning, { made: madeTotal, total: expected }));
         return;
     }
     const bidSum = entryBids.slice(0, game.players.length).reduce((a, b) => a + b, 0);
-    if (bidSum === cards) return;   // the button is disabled, but be safe
+    if (bidSum === cards && !annv) return;   // the button is disabled, but be safe
 
     const previousLeader = leaderPlayer(game);
     const oldLeaderName = previousLeader ? previousLeader.name : null;
 
     game.players.forEach((p, i) => {
-        p.rounds.push({ said: entryBids[i], achieved: entryMades[i] });
+        const round = { said: entryBids[i], achieved: entryMades[i] };
+        if (annv && entryClouds[i]) round.cloud = entryClouds[i];
+        p.rounds.push(round);
     });
+    game.bombs = game.bombs || [];
+    game.bombs.push(annv && entryBomb);
     game.round += 1;
 
     const events = computeEvents(oldLeaderName);
@@ -1460,6 +1577,7 @@ async function undoRound() {
     const ok = await askConfirm(T.undo_confirm, T.undo);
     if (!ok) return;
     game.players.forEach(p => p.rounds.pop());
+    if (game.bombs && game.bombs.length) game.bombs.pop();
     game.round -= 1;
     resetEntries();
     savePaused();
@@ -1566,7 +1684,9 @@ function renderPodium() {
     if (!podiumData) return;
     const medals = ["🥇", "🥈", "🥉"];
     document.getElementById("podiumMode").textContent =
-        podiumData.mode === "multiplicative" ? T.mode_mult : T.mode_standard;
+        podiumData.mode === "multiplicative" ? T.mode_mult
+        : podiumData.mode === "anniversary" ? T.mode_annv
+        : T.mode_standard;
     document.getElementById("podiumList").innerHTML = podiumData.rows.map((row, i) => {
         const delta = eloFor(row.name);
         const badge = delta === null
@@ -1911,7 +2031,16 @@ async function confirmCreate() {
             document.querySelectorAll("#modeGroup .pill").forEach(pill => {
                 pill.classList.toggle("checked", pill.dataset.mode === gameMode);
             });
+            document.getElementById("modeHint").style.display =
+                gameMode === "anniversary" ? "" : "none";
         });
+    });
+
+    // Bomb toggle (anniversary edition): one trick fewer this round.
+    document.getElementById("bombCheck").addEventListener("change", e => {
+        entryBomb = e.target.checked;
+        updateEntryControls();
+        savePaused();
     });
     document.querySelectorAll('#visibilityGroup input[name="visibility"]').forEach(radio => {
         radio.addEventListener("change", () => {

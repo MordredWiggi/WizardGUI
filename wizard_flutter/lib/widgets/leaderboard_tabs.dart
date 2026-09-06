@@ -482,18 +482,24 @@ class _MyGroupLeaderboardTabState extends State<MyGroupLeaderboardTab> {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 6,
             children: [
               _ModeChip(
                 label: t('game_mode_standard'),
                 selected: _mode == 'standard',
                 onTap: () => _switchMode('standard'),
               ),
-              const SizedBox(width: 8),
               _ModeChip(
                 label: t('game_mode_multiplicative'),
                 selected: _mode == 'multiplicative',
                 onTap: () => _switchMode('multiplicative'),
+              ),
+              _ModeChip(
+                label: t('game_mode_anniversary'),
+                selected: _mode == 'anniversary',
+                onTap: () => _switchMode('anniversary'),
               ),
             ],
           ),

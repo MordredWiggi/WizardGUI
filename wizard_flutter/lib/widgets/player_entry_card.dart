@@ -20,6 +20,11 @@ class PlayerEntryCard extends StatelessWidget {
   final int made;
   final void Function(int bid, int made) onChanged;
 
+  /// Jubiläumsedition: show the cloud control (☁️ forced ±1 bid change).
+  final bool showCloud;
+  final int cloud; // −1, 0 or +1
+  final void Function(int cloud)? onCloudChanged;
+
   const PlayerEntryCard({
     super.key,
     required this.player,
@@ -32,6 +37,9 @@ class PlayerEntryCard extends StatelessWidget {
     required this.bid,
     required this.made,
     required this.onChanged,
+    this.showCloud = false,
+    this.cloud = 0,
+    this.onCloudChanged,
   });
 
   void _setBid(int v) {
@@ -42,6 +50,14 @@ class PlayerEntryCard extends StatelessWidget {
   void _setMade(int v) {
     if (v < 0 || v > maxBid) return;
     onChanged(bid, v);
+  }
+
+  /// Cycle the cloud state off → +1 → −1 → off, skipping −1 when the bid is 0
+  /// (the effective bid must never drop below zero).
+  void _cycleCloud() {
+    var next = switch (cloud) { 0 => 1, 1 => -1, _ => 0 };
+    if (next == -1 && bid == 0) next = 0;
+    onCloudChanged?.call(next);
   }
 
   @override
@@ -162,6 +178,16 @@ class PlayerEntryCard extends StatelessWidget {
                         onChanged: (v) => _setMade(v),
                       ),
                     ),
+                    if (showCloud) ...[
+                      const SizedBox(width: 12),
+                      _CloudButton(
+                        label: t('cloud_label'),
+                        tooltip: t('cloud_tooltip'),
+                        cloud: cloud,
+                        color: color,
+                        onTap: _cycleCloud,
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -313,6 +339,69 @@ class _SpinnerField extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Cloud toggle (Jubiläumsedition): shows the current ±1 bid adjustment and
+/// cycles through off → +1 → −1 on tap.
+class _CloudButton extends StatelessWidget {
+  final String label;
+  final String tooltip;
+  final int cloud;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CloudButton({
+    required this.label,
+    required this.tooltip,
+    required this.cloud,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final active = cloud != 0;
+    final borderColor = active ? kAccent : color.withValues(alpha: 0.4);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: color,
+            letterSpacing: 1,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Tooltip(
+          message: tooltip,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              width: 52,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: borderColor, width: active ? 2 : 1),
+              ),
+              child: Text(
+                cloud == 1 ? '+1' : (cloud == -1 ? '−1' : '–'),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: active ? kAccent : color.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
