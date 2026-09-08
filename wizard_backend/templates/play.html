@@ -43,6 +43,14 @@
     }
     .field:focus { outline: none; border-color: #c9a84c; }
     .field::placeholder { color: #666688; }
+    /* A typed name that already belongs to a player in the selected group.
+       Declared after :focus so the mark survives while the field is focused,
+       which is exactly when it is being typed. */
+    .field.known-player {
+        color: #4caf7d;
+        font-weight: 600;
+        border-color: #4caf7d;
+    }
 
     .btn {
         display: inline-flex;
@@ -853,6 +861,13 @@ let gameMode = "standard";
 let selectedGroup = null;
 let currentTab = "players";
 let eloDeltas = null;
+// Known-player highlighting: debounce handle, a sequence number that lets a
+// late reply be discarded, and the answers already received for the group in
+// nameCheckGroupCode (lowercased name -> bool).
+let nameCheckTimer = null;
+let nameCheckSeq = 0;
+let nameCheckCache = {};
+let nameCheckGroupCode = null;
 
 function totalRounds(g)   { return g.players.length ? Math.floor(60 / g.players.length) : 0; }
 function cardsThisRound(g){ return g.round + 1; }
@@ -1096,6 +1111,9 @@ function renderGroupStatus() {
     } else {
         el.innerHTML = '<span class="hint">' + esc(T.group_none) + "</span>";
     }
+    // Joining, creating, clearing and resuming all land here, so this is the
+    // one place that has to re-check the typed name against the new group.
+    refreshNameCheck();
 }
 
 function clearGroup() {
@@ -1108,6 +1126,63 @@ function clearGroup() {
 function cycleAvatar() {
     avatarIndex = (avatarIndex + 1) % AVATARS.length;
     document.getElementById("avatarBtn").textContent = AVATARS[avatarIndex];
+}
+
+// ── Known-player highlighting ──────────────────────────────────────────────
+// A name that has already played in the selected group is shown in green, so
+// you can see you are adding a returning player rather than starting a new
+// one. Only the server knows the roster, so this asks it — using the
+// group-scoped endpoint, which is deliberately NOT filtered by game mode: a
+// player who only ever played the Jubiläumsedition in this group still counts.
+// Mirrors the desktop app and the Android app.
+
+function setNameKnown(known) {
+    document.getElementById("nameInput").classList.toggle("known-player", known);
+}
+
+/** Re-evaluate the typed name against the currently selected group. */
+function refreshNameCheck() {
+    clearTimeout(nameCheckTimer);
+    const code = selectedGroup ? selectedGroup.code : null;
+    // Answers cached for another group say nothing about this one.
+    if (code !== nameCheckGroupCode) {
+        nameCheckGroupCode = code;
+        nameCheckCache = {};
+    }
+    const name = document.getElementById("nameInput").value.trim();
+    // Nothing typed, or playing without a group: never marked.
+    if (!name || !code) { setNameKnown(false); return; }
+
+    const key = name.toLowerCase();
+    if (key in nameCheckCache) { setNameKnown(nameCheckCache[key]); return; }
+
+    // Not answered yet: drop the mark until it is, so the colour never lingers
+    // on a name that turns out to be new.
+    setNameKnown(false);
+    const seq = ++nameCheckSeq;
+    nameCheckTimer = setTimeout(() => runNameCheck(code, name, seq), 300);
+}
+
+async function runNameCheck(code, name, seq) {
+    let exists;
+    try {
+        const resp = await fetch("/api/groups/" + encodeURIComponent(code) +
+                                 "/players/check?name=" + encodeURIComponent(name));
+        // A failure means "could not ask", not "new player" — leave it unmarked
+        // rather than claiming the name is unknown.
+        if (!resp.ok) return;
+        exists = (await resp.json()).exists === true;
+    } catch (e) {
+        return;
+    }
+    // Discard an answer that is no longer about what the user is looking at:
+    // a newer request has been issued, the group changed, or the text moved on
+    // while this one was in flight.
+    if (seq !== nameCheckSeq) return;
+    if (!selectedGroup || selectedGroup.code !== code) return;
+    if (document.getElementById("nameInput").value.trim() !== name) return;
+    nameCheckCache[name.toLowerCase()] = exists;
+    setNameKnown(exists);
 }
 
 function addPlayer() {
@@ -1126,6 +1201,8 @@ function addPlayer() {
     avatarIndex = (avatarIndex + 1) % AVATARS.length;
     document.getElementById("avatarBtn").textContent = AVATARS[avatarIndex];
     input.value = "";
+    // Assigning .value fires no input event, so drop the mark by hand.
+    refreshNameCheck();
     input.focus();
     renderSetupPlayers();
 }
@@ -2024,6 +2101,7 @@ async function confirmCreate() {
     nameInput.addEventListener("keydown", e => {
         if (e.key === "Enter") { e.preventDefault(); addPlayer(); }
     });
+    nameInput.addEventListener("input", refreshNameCheck);
 
     document.querySelectorAll('#modeGroup input[name="gameMode"]').forEach(radio => {
         radio.addEventListener("change", () => {

@@ -56,10 +56,16 @@ class _SetupScreenState extends State<SetupScreen> {
   // No group = offline by default. The user can always start a game without
   // picking a group.
   Map<String, dynamic>? _selectedGroup;
-  // Lowercased names of players already in _selectedGroup (from the server).
-  // Used to highlight the name field when adding a player whose name is
-  // already registered in the group.
-  Set<String> _groupPlayers = const {};
+  // Whether the name currently typed belongs to someone who has already played
+  // in _selectedGroup. Answered by the server (see _runNameCheck) because
+  // group membership is not something the app can know offline.
+  bool _nameExistsInGroup = false;
+  // Answers already received for the selected group, keyed by lowercased name,
+  // so re-typing or backspacing over a name costs no extra request. Cleared
+  // whenever the selected group changes.
+  final Map<String, bool> _nameCheckCache = {};
+  // Debounce for the per-keystroke lookup, mirroring the desktop's timer.
+  Timer? _nameCheckDebounce;
 
   @override
   void initState() {
@@ -172,31 +178,58 @@ class _SetupScreenState extends State<SetupScreen> {
   }
 
   void _onNameChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    _scheduleNameCheck();
   }
 
-  Future<void> _loadGroupPlayers(String code) async {
-    final url = context.read<AppSettings>().leaderboardUrl;
-    if (url.isEmpty) {
-      if (mounted) setState(() => _groupPlayers = const {});
+  /// Ask the server whether the typed name is already known in the selected
+  /// group, debounced so holding a key down doesn't fire a request per frame.
+  ///
+  /// A cached answer is applied immediately (no flicker, no request); anything
+  /// else waits out the debounce. Mirrors the desktop's _on_name_text_changed.
+  void _scheduleNameCheck() {
+    _nameCheckDebounce?.cancel();
+    final name = _nameController.text.trim();
+    final code = _selectedGroup?['code'] as String?;
+
+    // Offline, or nothing to look up — the field is never green.
+    if (name.isEmpty ||
+        code == null ||
+        context.read<AppSettings>().leaderboardUrl.isEmpty) {
+      setState(() => _nameExistsInGroup = false);
       return;
     }
-    final svc = LeaderboardService(url);
-    final rows = await svc.getGroupPlayerLeaderboard(code, 'standard');
-    if (!mounted) return;
-    setState(() {
-      _groupPlayers = (rows ?? const [])
-          .map((r) => (r['name'] as String? ?? '').toLowerCase())
-          .where((s) => s.isNotEmpty)
-          .toSet();
-    });
+
+    final cached = _nameCheckCache[name.toLowerCase()];
+    if (cached != null) {
+      setState(() => _nameExistsInGroup = cached);
+      return;
+    }
+
+    // Unknown name: drop the highlight until the answer arrives, so the colour
+    // never lags behind on a name that turns out to be new.
+    if (_nameExistsInGroup) setState(() => _nameExistsInGroup = false);
+    _nameCheckDebounce = Timer(
+      const Duration(milliseconds: 350),
+      () => _runNameCheck(code, name),
+    );
   }
 
-  bool get _nameExistsInGroup {
-    if (_selectedGroup == null) return false;
-    final name = _nameController.text.trim().toLowerCase();
-    if (name.isEmpty) return false;
-    return _groupPlayers.contains(name);
+  Future<void> _runNameCheck(String code, String name) async {
+    final url = context.read<AppSettings>().leaderboardUrl;
+    if (url.isEmpty) return;
+    final exists = await LeaderboardService(url).checkGroupPlayer(code, name);
+    if (!mounted) return;
+    // Drop the answer if it is no longer about what the user is looking at —
+    // the text moved on, or the group was cleared while the request was in
+    // flight. Without this, out-of-order replies can colour the wrong name.
+    if (_nameController.text.trim() != name) return;
+    if ((_selectedGroup?['code'] as String?) != code) return;
+    // `null` means the server could not be reached: leave the field neutral
+    // rather than claiming the name is new.
+    if (exists == null) return;
+    _nameCheckCache[name.toLowerCase()] = exists;
+    setState(() => _nameExistsInGroup = exists);
   }
 
   Future<void> _checkPendingSync() async {
@@ -225,6 +258,7 @@ class _SetupScreenState extends State<SetupScreen> {
 
   @override
   void dispose() {
+    _nameCheckDebounce?.cancel();
     _nameController.removeListener(_onNameChanged);
     _nameController.dispose();
     _nameFocus.dispose();
@@ -267,8 +301,7 @@ class _SetupScreenState extends State<SetupScreen> {
       // next time the user picks the same group. The setup screen still
       // starts with no group selected on subsequent app launches.
       context.read<AppSettings>().addKnownGroup(group);
-      final code = group['code'] as String?;
-      if (code != null) _loadGroupPlayers(code);
+      _onGroupChanged();
     }
   }
 
@@ -287,16 +320,24 @@ class _SetupScreenState extends State<SetupScreen> {
       context.read<GameNotifier>().setGroup(group);
       // Same as joining: remember the code so it can autofill next time.
       context.read<AppSettings>().addKnownGroup(group);
-      final code = group['code'] as String?;
-      if (code != null) _loadGroupPlayers(code);
+      _onGroupChanged();
     }
+  }
+
+  /// Re-evaluate the typed name against the group that is now selected.
+  /// Answers cached for the previous group say nothing about this one.
+  void _onGroupChanged() {
+    _nameCheckCache.clear();
+    _scheduleNameCheck();
   }
 
   void _clearGroup() {
     // Return fully to the default offline state — no lingering group.
+    _nameCheckDebounce?.cancel();
     setState(() {
       _selectedGroup = null;
-      _groupPlayers = const {};
+      _nameExistsInGroup = false;
+      _nameCheckCache.clear();
       // If the user was viewing the My-Group tab, bounce back to saved games.
       if (_bottomTab == 2) _bottomTab = 0;
     });
@@ -835,10 +876,6 @@ class _SetupScreenState extends State<SetupScreen> {
                     groupValue: _gameMode,
                     onChanged: (v) => setState(() => _gameMode = v!),
                     title: Text(t('game_mode_anniversary')),
-                    subtitle: Text(
-                      t('game_mode_anniversary_hint'),
-                      style: const TextStyle(fontSize: 11),
-                    ),
                     dense: true,
                     contentPadding: EdgeInsets.zero,
                   ),

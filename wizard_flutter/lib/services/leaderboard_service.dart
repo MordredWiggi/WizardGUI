@@ -76,6 +76,33 @@ class LeaderboardService {
     }
   }
 
+  /// Whether [name] has already played in the group with this [code].
+  ///
+  /// Mirrors `check_group_player` in the desktop's leaderboard_client.py and
+  /// hits the same endpoint. Unlike the group leaderboard this is **not**
+  /// scoped to a game mode, so a player who only ever played the
+  /// Jubiläumsedition (or multiplicative) in this group still counts.
+  ///
+  /// Returns `null` on any network/server failure so callers can tell
+  /// "definitely new" apart from "could not ask".
+  Future<bool?> checkGroupPlayer(String code, String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return null;
+    try {
+      final resp = await _get(
+        '/api/groups/${Uri.encodeComponent(code)}/players/check'
+        '?name=${Uri.encodeComponent(trimmed)}',
+      );
+      if (resp.statusCode == 200) {
+        final body = jsonDecode(resp.body) as Map<String, dynamic>;
+        return body['exists'] as bool? ?? false;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ── Leaderboards ────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>?> getGlobalGroupsLeaderboard() async {

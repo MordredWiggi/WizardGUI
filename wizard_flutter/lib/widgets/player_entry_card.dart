@@ -120,12 +120,19 @@ class PlayerEntryCard extends StatelessWidget {
                   children: [
                     Text(player.avatar, style: const TextStyle(fontSize: 26)),
                     const SizedBox(width: 10),
-                    Text(
-                      player.name,
-                      style: TextStyle(
-                        color: color,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                    // Flexible + ellipsis: a long name is the only part of this
+                    // row that may shrink, so the score and badges on the right
+                    // never get pushed off the card.
+                    Flexible(
+                      child: Text(
+                        player.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
                       ),
                     ),
                     if (isLeader) ...[
@@ -178,18 +185,23 @@ class PlayerEntryCard extends StatelessWidget {
                         onChanged: (v) => _setMade(v),
                       ),
                     ),
-                    if (showCloud) ...[
-                      const SizedBox(width: 12),
-                      _CloudButton(
-                        label: t('cloud_label'),
-                        tooltip: t('cloud_tooltip'),
-                        cloud: cloud,
-                        color: color,
-                        onTap: _cycleCloud,
-                      ),
-                    ],
                   ],
                 ),
+
+                // ── Cloud (Jubiläumsedition) ───────────────────────────────
+                // On its own full-width row below the spinners: squeezed into
+                // the row above it left the bid/made ± buttons too little
+                // width on narrow phones and they overlapped each other.
+                if (showCloud) ...[
+                  const SizedBox(height: 10),
+                  _CloudRow(
+                    label: t('cloud_label'),
+                    tooltip: t('cloud_tooltip'),
+                    cloud: cloud,
+                    color: color,
+                    onTap: _cycleCloud,
+                  ),
+                ],
               ],
             ),
           ),
@@ -270,42 +282,48 @@ class _SpinnerField extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _CircleIconBtn(
-              icon: Icons.remove,
-              onTap: value > 0 ? onDecrement : null,
-              color: color,
-            ),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () => _showPicker(context),
-              child: Container(
-                width: 52,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: color.withOpacity(0.4)),
-                ),
-                child: Text(
-                  '$value',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: color,
+        // The −/value/+ trio needs 132 px. Scaling it down instead of letting
+        // it overflow keeps the two spinners apart on very narrow screens and
+        // at large system font scales.
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _CircleIconBtn(
+                icon: Icons.remove,
+                onTap: value > 0 ? onDecrement : null,
+                color: color,
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => _showPicker(context),
+                child: Container(
+                  width: 52,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: color.withOpacity(0.4)),
+                  ),
+                  child: Text(
+                    '$value',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            _CircleIconBtn(
-              icon: Icons.add,
-              onTap: value < max ? onIncrement : null,
-              color: color,
-            ),
-          ],
+              const SizedBox(width: 8),
+              _CircleIconBtn(
+                icon: Icons.add,
+                onTap: value < max ? onIncrement : null,
+                color: color,
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -345,14 +363,18 @@ class _SpinnerField extends StatelessWidget {
 
 /// Cloud toggle (Jubiläumsedition): shows the current ±1 bid adjustment and
 /// cycles through off → +1 → −1 on tap.
-class _CloudButton extends StatelessWidget {
+///
+/// Full-width row under the bid/made spinners — the label takes whatever room
+/// is left over, so the state box keeps its size on every screen width instead
+/// of stealing space from the spinners next to it.
+class _CloudRow extends StatelessWidget {
   final String label;
   final String tooltip;
   final int cloud;
   final Color color;
   final VoidCallback onTap;
 
-  const _CloudButton({
+  const _CloudRow({
     required this.label,
     required this.tooltip,
     required this.cloud,
@@ -365,43 +387,48 @@ class _CloudButton extends StatelessWidget {
     final theme = Theme.of(context);
     final active = cloud != 0;
     final borderColor = active ? kAccent : color.withValues(alpha: 0.4);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: color,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Tooltip(
-          message: tooltip,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              width: 52,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: borderColor, width: active ? 2 : 1),
-              ),
-              child: Text(
-                cloud == 1 ? '+1' : (cloud == -1 ? '−1' : '–'),
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: active ? kAccent : color.withValues(alpha: 0.7),
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: color,
+                    letterSpacing: 1,
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Container(
+                width: 64,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: borderColor, width: active ? 2 : 1),
+                ),
+                child: Text(
+                  cloud == 1 ? '+1' : (cloud == -1 ? '−1' : '–'),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: active ? kAccent : color.withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
